@@ -1,10 +1,12 @@
-
+-- Simple 'make' for tracing
+-- only works with ghc
+-- authors: Neil Mitchel, Olaf Chitil
 module Main where
 
 import System.Environment (getArgs)
 import System.Cmd (system)
 import System.Exit (ExitCode(..), exitFailure)
-import Data.List (nub, partition, isPrefixOf)
+import Data.List (nub, partition, isPrefixOf, intersperse, concat)
 import Data.Char (isSpace)
 import System.Directory (doesFileExist, findExecutable)
 import Control.Monad (when)
@@ -13,14 +15,15 @@ import Control.Monad (when)
 main = do x <- getArgs
           Just hatPath <- findExecutable "hat-make"
           let hatFolder = dropFilename hatPath
-          let y = case x of
-                    [x] -> x
-                    _ -> error "Please give the name of the file to hat-make on the command line"
-          system $ "ghc -M " ++ y
-          mak <- readFile "Makefile"
+          when (null x) (error "Please give the name of the file to hat-make on the command line")
+          let opts = init x
+          let optStr = concat (intersperse " " opts)
+          let y = last x
+          systemTry $ "ghc -M -dep-makefile .depend " ++ y ++ " " ++ optStr
+          mak <- readFile ".depend"
           let (files,depends) = parseMakefile mak
           translate hatFolder files depends
-          compileAll hatFolder y
+          compileAll hatFolder optStr y
 
 dropFilename x = reverse $ dropWhile (\x -> not $ x `elem` "\\/") $ reverse x
 
@@ -58,7 +61,7 @@ translateFile :: String -> FilePath -> IO ()
 translateFile hatFolder file = do
     fil <- pickFile file
     putStrLn $ "Converting with Hat, " ++ fil
-    systemTry $ hatFolder ++ "/hat-trans.exe " ++ prettyFile fil ++ " -I" ++ hatFolder ++ "/hx"
+    systemTry $ "hat-trans " ++ fil
 
 
 pickFile :: FilePath -> IO FilePath
@@ -66,21 +69,24 @@ pickFile x = do hs  <- doesFileExist (x++".hs")
                 lhs <- doesFileExist (x++".lhs")
                 return $ if lhs then x ++ ".lhs" else x ++ ".hs"
 
-compileAll :: String -> String -> IO ()
-compileAll hatFolder file = do
+compileAll :: String -> String -> String -> IO ()
+compileAll hatFolder optStr file = do
     putStrLn "Compiling with GHC..."
-    systemTry $ "ghc --make Hat/" ++ file ++ " -ffi -fglasgow-exts -cpp -i.;" ++
-                    hatFolder ++ "/hs " ++
-                    hatFolder ++ "/c/hat-c.o " ++
-                    hatFolder ++ "/c/ntohl.o"
+    systemTry $ "ghc --make Hat/" ++ file ++ " " ++ optStr
+                    -- " -ffi -fglasgow-exts -cpp -i.;" ++
+                    -- hatFolder ++ "/hs " ++
+                    -- hatFolder ++ "/c/hat-c.o " ++
+                    -- hatFolder ++ "/c/ntohl.o"
 
 systemTry :: String -> IO ()
-systemTry x = do y <- system x
+systemTry x = do putStrLn x
+                 y <- system x
                  when (y /= ExitSuccess) exitFailure
 
 
 prettyFile :: FilePath -> FilePath
-prettyFile x = map g (if "./" `isPrefixOf` x then drop 2 x else x)
-    where
-        g '/' = '\\'
-        g x = x
+prettyFile x = x  -- for Unix
+-- prettyFile x = map g (if "./" `isPrefixOf` x then drop 2 x else x)
+--     where
+--        g '/' = '\\'
+--        g x = x
