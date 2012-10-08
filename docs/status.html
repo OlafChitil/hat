@@ -1,0 +1,149 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Hat status</title></head>
+<body bgcolor="#ffffff">
+<table><tr><td width=530>
+
+<center>
+  <img src="hat.gif" alt="Hat Logo"><br>
+  <h1>Hat status</h1>
+</center>
+
+<hr>
+
+<p>
+The latest stable release is 2.06.  The CVS development tree is now
+at version 2.07.  Bugfixes and important changes to the system are
+described here for the two most recent released versions.
+
+<p>
+
+<hr>
+<h3>Hat 2.06 (2008-10-02) features</h3>
+<ul>
+<li> New tool: hat-delta (debugging by comparison of traces).
+<li> New tool: pretty-hat (displays a graph of the trace itself).
+<li> Improved: hat-detect (algorithmic debugging).
+<li> Improved: detection of ghc version under MacOS X.
+<li> Improved: no longer need admin rights to install the Hat libraries for ghc.
+<li> Bugfix: hat-trans: copes with literate files .lhs.
+<li> Bugfix: hat-trans: FFI foreign imports now work.
+<li> Bugfix: hat-trans: better handling of relative directory paths.
+<li> Bugfix: hat-trans: largest size of a named-field update increased
+                        from 2 to 10.
+<li> Bugfix: hat-trans: top-level pattern-bindings now work.
+<li> Bugfix: hat-trans: name clashes from 'deriving' clauses eliminated.
+<li> Bugfix: libraries: correct printing of floating point numbers.
+</ul>
+
+<hr>
+<h3>Hat 2.04 (2005-05-17) features</h3>
+<ul>
+<li> We have included more libraries from the hierarchical base package as
+     standard, so more programs should be immediately traceable.
+<li> The algorithmic debugging technique has been re-instated with
+     the resurrection of the <em>hat-detect</em> browser.
+<li> The browsers are better integrated with each other, sharing a common
+     set of commands and options.
+<li> A new browser, <em>hat-anim</em> is provided.  It animates the
+     reduction sequence of a selected expression, showing the lazy evaluation
+     strategy, and revealing intermediate calls between application and result.
+<li> The new browser <em>hat-explore</em> allows interactive exploration of
+     the trace with simultaneous source highlighting, to narrow down the
+     location of a bug through program-slicing.
+<li> Some new non-interactive tools: <em>hat-cover</em> shows the test
+     coverage of the source code for a traced program run;
+     <em>hat-nonterm</em> finds the circular set of definitions that causes
+     a program to fall into a non-terminating loop.
+<li> A significant performance improvement in the speed of running traced code.
+<li> Many small bugfixes for correctness of the transformation.
+<li> Works fully with ghc-6.2 and ghc-6.4
+</ul>
+
+<hr>
+<h3>Hat 2.02 (2003-03-26) features</h3>
+<ul>
+<li> New:	Hat supports hierarchical module namespaces, and
+		the distribution includes a tracing version of (a subset of) the
+		<em>base</em> package of standard hierarchical libraries.
+<li> New:	Hat supports multi-parameter type classes and functional
+		dependencies, provided your underlying compiler supports them
+		(i.e. ghc).
+<li> New:	The browsing tools support qualified name syntax.
+<li> Performance: The speed of traced programs is now much improved.  There
+		is a new "known-arity" optimisation within Hat itself, which
+		gives a speed-up of ~20-40%.  Also, if you use --buildwith=-O
+		when configuring Hat for ghc, you will get another 20-40%
+		improvement.  Beware however that -O requires a <em>lot</em>
+		of memory (&ge;512Mb).
+<li> Bugfix: Named field constructions and updates are now displayed in
+             the browsing tools as named fields.
+<li> Bugfix: The viewing tools displayed some sugared lists misleadingly:
+             when the tail of a sugared list was cut off or undefined it
+             was shown as if it was a final element.  Now it has an
+             ellipsis (...) to indicate possible extra elements.
+<li> Bugfix: After <em>:set recursive off</em> hat-observe showed the
+             non-recursive calls of f even if given the application
+             pattern <em>f in f</em>.
+<li> Bugfix: hat-observe :info counts did not necessarily match
+             the number of observations if there were partial or
+             super-saturated applications.
+<li> Bugfix: hat-trail now works correctly in environments (e.g. Solaris)
+             that do not have <tt>stty cbreak</tt> mode.
+<li> Bugfix: Scrolling sometimes blanked the upper part of the hat-trail
+             display when the trace was extended deeper than the window.
+<li> Bugfix: The hat-trail display became corrupted if a single trail
+             expression or equation was large enough to scroll off the screen.
+<li> Bugfix: Hat-trans generated wrongly-parenthesised code for some
+             lambda expressions.
+<li> Bugfix: Hat-trans generated incorrect values for some non-printing
+             characters.
+<li> Tidyup: For consistency, the :observe command within hat-observe now
+             starts a fresh hat-observe window.  Also, in hat-trail, if
+             if you give a query pattern to the :observe command, it now uses
+             that as the first query, instead of the currently highlighted
+             function.
+<li> Numerous other small bugfixes in the various trace browsing tools.
+</ul>
+
+<h3>Hat 2.00 (2002-06-14) features</h3>
+<ul>
+<li> The first version released separately from nhc98.  It uses
+     a different file format to store the trace, and the browsing
+     tools have been completely rewritten to improve performance,
+     integration, and correctness.
+</ul>
+
+
+<hr>
+
+<h3>Status of various components</h3>
+
+<p>
+The basic components of <em>hat</em> are:
+<ul>
+   <li> hat-trans, the program transformer.
+   <li> hat-lib, the runtime library that is linked to a transformed program.
+   <li> hat-observe, a browser driven by expression patterns.
+   <li> hat-trail, a browser driven by backward exploration.
+   <li> hat-detect, a browser implementing algorithmic debugging. (NOT INCLUDED)
+   <li> hat-stack, a browser showing a back-trace from an error.
+   <li> hat-view, a source-code viewer.
+   <li> hat-check, to verify the integrity of a .hat file.
+</ul>
+
+<hr>
+<p>
+The latest updates to these pages are available on the WWW from
+<a href="http://www.haskell.org/hat/">
+<tt>http://www.haskell.org/hat/</tt></a><br>
+<a href="http://www.cs.york.ac.uk/fp/hat/">
+<tt>http://www.cs.york.ac.uk/fp/hat/</tt></a>
+
+<p>
+This page last modified: 2nd Oct 2008<br>
+<a href="http://www.cs.york.ac.uk/fp/">
+York Functional Programming Group</a><br>
+
+</td></tr></table>
+</body></html>
+

@@ -1,0 +1,11 @@
+module Complex
+(Var "cis",Value {args = 1, fixity = Def, priority = 9, letBound = True, traced = False})
+(Var "conjugate",Value {args = 1, fixity = Def, priority = 9, letBound = True, traced = False})
+(Var "imagPart",Value {args = 1, fixity = Def, priority = 9, letBound = True, traced = False})
+(Var "magnitude",Value {args = 1, fixity = Def, priority = 9, letBound = True, traced = False})
+(Var "mkPolar",Value {args = 2, fixity = Def, priority = 9, letBound = True, traced = False})
+(Var "phase",Value {args = 1, fixity = Def, priority = 9, letBound = True, traced = False})
+(Var "polar",Value {args = 1, fixity = Def, priority = 9, letBound = True, traced = False})
+(Var "realPart",Value {args = 1, fixity = Def, priority = 9, letBound = True, traced = False})
+(Con Data "Complex" ":+",Value {args = 2, fixity = None, priority = 6, letBound = True, traced = False})
+(TypeClass "Complex",TyCls (Ty [":+"] []))

@@ -1,0 +1,224 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+
+<head>
+<title>Hat publications</title>
+</head>
+
+<body text="#000000" bgcolor="#FFFFFF" link="#0000EE" vlink="#551A8B" alink="#FF0000">
+
+<center>
+<img src="hat.gif" alt="Hat Logo"><h1>Hat publications</h1>
+</center>
+
+<ul>
+
+<li>Olaf Chitil<br>
+<strong>A Theory of Tracing Pure Functional Programs</strong><br>
+<p>
+During the development of the Haskell tracer Hat, which combines the tracing
+methods of several preceding systems, numerous inconsistencies, anomalies and
+defects in all existing systems came to light. Experience in using the systems
+suggests desirable generalisations that are hard to realise. At the root of
+both problems is that the development of the existing systems was
+implementation-driven, guided mostly by intuition. There is a surprising lack
+of theoretical foundations for tracing. To resolve the inconsistencies and
+enable generalisations, this project aims at establishing a semantical theory
+of tracing pure functional programs, both eager and lazy, that describes
+different methods, links information gained from tracing to specific program
+parts, and establishes the correctness of fault location algorithms.
+<br><a href="http://www.cs.kent.ac.uk/people/staff/oc/traceTheory.html">Web
+link</a>
+
+<li>Koen Claessen, Colin Runciman, Olaf Chitil, John Hughes,
+    Malcolm Wallace:<br>
+<strong>Testing and Tracing Lazy Functional Programs
+        using QuickCheck and Hat</strong><br>
+<em>4th Summer School in Advanced Functional Programming, Oxford</em>,
+August 2002, 40 pages (final version in Springer LNCS 2638, 2003).
+<p>
+One motivation for using a functional programming language is that
+it is more difficult (or even impossible) to make low-level mistakes,
+and it is easier to reason about programs.  But even the most advanced
+functional programmers are not infallible; they misunderstand the
+properties of their own programs, or those of others, and so commit
+errors.  We therefore aim to provide functional programmers with
+tools for testing and tracing programs.  In broad terms, testing
+means first specifying what behaviour is acceptable in principle,
+then finding out whether behaviour in practice matches up to it across
+the input space.  Tracing means first recording the internal details
+of a computation, then examining what is recorded to gain insight, to
+check hypotheses or to locate faults.  We concentrate on QuickCheck,
+a tool for testing Haskell programs, and Hat, a tool for tracing them.
+Each tool is useful in its own right, but they are even more useful
+in combination: testing using QuickCheck can identify failing cases,
+tracing using Hat can reveal the causes of failure.
+<br><a href="afp2002.ps.gz">Postscript</a> (preliminary version) (103 KB)
+<br><a href="http://www.springerlink.com/link.asp?id=9qhce993jrecc9dx">
+LNCS abstract and PDF</a> (final version)
+<p>
+
+<li>Olaf Chitil, Colin Runciman, Malcolm Wallace:<br>
+<strong>Transforming Haskell for Tracing</strong><br>
+in <em>International Workshop on the Implementation of Functional
+Languages</em>, Madrid, Sept 2002, 17 pages, final version to appear
+in Springer LNCS series, 2003.
+<p>
+Hat is a programmer's tool for generating a trace of a computation of
+a Haskell 98 program and viewing such a trace in various different
+ways.  Applications include program comprehension and debugging.
+A new version of Hat uses a stand-alone program transformation to
+produce self-tracing Haskell programs.  The transformation is small
+and works with any Haskell 98 compiler that implements the standard
+foreign function interface.  We present general techniques for
+building compiler independent tools similar to Hat based on program
+transformation.  We also point out which features of Haskell 98 caused
+us particular grief.
+<br><a href="ifl2002.ps.gz">Postscript</a> (preliminary version) (84 KB)
+<p>
+
+<li>Olaf Chitil:<br>
+<strong>A Semantics for Tracing</strong><br>
+in <em>Draft Proceedings of the 13th
+International Workshop on Implementation of Functional Languages, IFL 2001</em>,
+Älvsjö, Sweden, 24-26 September 2001,
+editors Thomas Arts and Markus Mohnen,
+Ericsson Computer Science Laboratory,
+pp. 249-254.
+<p>
+We define a small step operational semantics for a core of Haskell. We modify
+this semantics to generate traces, specifically Augmented Redex Trails. This
+small and direct definition of Augmented Redex Trails shall improve our
+understanding of them and shall help to extend them systematically.
+<br><a href="http://www.cs.york.ac.uk/~olaf/PUBLICATIONS/traceSemantics.ps.gz">
+Postscript</a> (44 KB)
+<p>
+
+<li>Thorsten Brehm:<br>
+<strong>A Toolkit for Multi-View Tracing of Haskell Programs</strong><br>
+Master's Thesis, RWTH Aachen, 2001, 130 pages.
+<br><a href="toolkitThesis.ps.gz">Postscript</a> (225 KB)
+<p>
+
+<li>Malcolm Wallace, Olaf Chitil, Thorsten Brehm, and Colin Runciman:<br>
+<strong>Multiple-View Tracing for Haskell: a New Hat</strong><br>
+<em>Proceedings of the
+    <A HREF="http://www.cs.uu.nl/people/ralf/hw2001.html">Haskell Workshop 2001</A>, Firenze, Italy.</em>
+FInal version to appear in ENTCS.
+<p>
+Different tracing systems for Haskell give different views of a
+program at work.  In practice, several views are complementary
+and can productively be used together.  Until now each system has
+generated its own trace, containing only the information needed for
+its particular view.  Here we present the design of a trace that can
+serve several views.  The trace is generated and written to file as
+the computation proceeds.  We have implemented both the generation
+of the trace and several different viewers.
+<br><a href="newhat.ps.gz">Postscript</a> (106 KB)
+<p>
+
+
+<li>Olaf Chitil, Colin Runciman and Malcolm Wallace:<br>
+<strong>Freja, Hat and Hood - A Comparative Evaluation of Three Systems
+        for Tracing and Debugging Lazy Functional Programs</strong><br>
+  <em>Markus Mohnen and Pieter Koopman (eds): Proceedings of the
+  <A HREF="http://www-i2.informatik.rwth-aachen.de/ifl2000/">
+  12th International Workshop on Implementation of Functional Languages</A>,
+  Aachen, Germany, September 4th - 7th 2000, LNCS 2011, 2001, pp. 176-193.</em>
+<p>
+In this paper we compare three systems for tracing and debugging
+Haskell programs: Freja, Hat and Hood.  We evaluate their usefulness in
+practice by applying them to a number of moderately complex programs
+in which errors had deliberately been introduced. We identify the
+strengths and weaknesses of each system and then form ideas on how
+the systems can be improved further.<br>
+<a href="frejaHatHood.ps.gz">Postscript</a> (84 KB)
+<p>
+
+<li>Colin Runciman:<br>
+<strong>Advanced Redex Trails: Project Proposal</strong><br>
+<a href="proposal.html">(.html)</a>
+<p>
+
+</ul>
+
+Publications not directly about Hat, but produced as a spin-off
+result of the Hat project:
+<ul>
+
+<li>Olaf Chitil:<br>
+<strong>Compositional Explanation of Types and Algorithmic Debugging of Type
+        Errors</strong><br>
+Proceedings of the <em>Sixth ACM SIGPLAN International Conference on
+Functional Programming (ICFP'01)</em>, Firenze, Italy, 3-5 September 2001,
+pp. 193--204.
+<p>
+The type systems of most typed functional programming languages
+are based on the Hindley-Milner type system. A practical problem
+with these type systems is that it is often hard to understand why a
+program is not type correct or a function does not have the intended
+type. We suggest that at the core of this problem is the difficulty
+of explaining why a given expression has a certain type. The type
+system is not defined compositionally. We propose to explain types
+using a variant of the Hindley-Milner type system that defines a
+compositional type explanation graph of principal typings. We describe
+how the programmer understands types by interactive navigation through
+the explanation graph. Furthermore, the explanation graph can be
+the foundation for algorithmic debugging of type errors, that is,
+semi-automatic localisation of the source of a type error without
+even having to understand the type inference steps. We implemented a
+prototype of a tool to explore the usefulness of the proposed methods.
+<br><a href="http://www.cs.york.ac.uk/~olaf/PUBLICATIONS/explainTypes.ps.gz">
+Postscript</a> (139 KB)
+<p>
+
+<li>Olaf Chitil:<br>
+<strong>Pretty Printing with Lazy Dequeues</strong><br>
+Proceedings of the <em>2001 ACM SIGPLAN Haskell Workshop</em>, Firenze,
+Italy, Universiteit Utrecht UU-CS-2001-23, 2 September 2001, pp. 183-201.
+<p>
+There are several Haskell libraries for converting tree structured data
+into indented text, but they all make use of some backtracking. Over
+twenty years ago Oppen published a more efficient imperative
+implementation of a pretty printer without backtracking. We show that
+the same efficiency is also obtainable without destructive updates
+by developing a similar but purely functional Haskell implementation
+with the same complexity bounds. At its heart lie two lazy double
+ended queues.
+<br><a href="http://www.cs.york.ac.uk/~olaf/PUBLICATIONS/pretty.ps.gz">
+Postscript</a> (138 KB)
+<p>
+
+</ul>
+
+Hat is the successor of an earlier project and builds on its work
+which is described in the following publications:
+<ul>
+
+<li>Jan Sparud and Colin Runciman:<br>
+<strong>Tracing Lazy Functional Computations Using Redex Trails</strong><br> 
+(PLILP'97)
+<a href="ftp://ftp.cs.york.ac.uk/pub/colin/plilp97.ps.gz">(.ps.gz)</a>
+<p>
+
+<li>Jan Sparud and Colin Runciman:<br>
+<strong>Complete and Partial Redex Trails of Functional Computations</strong><br>
+(IFL'97)
+<a href="http://www.cs.chalmers.se/~sparud/papers/ifl97.ps.gz">(.ps.gz)</a>
+<p>
+
+<li>Jan Sparud:<br> 
+<strong>Tracing and Debugging Lazy Functional Computations</strong><br>
+(PhD thesis, 1999)
+<a href="http://www.sparud.net/phd/phd.ps.gz">(.ps.gz)</a>
+
+</ul>
+
+<p>
+<hr>
+This page last modified: 28 June 2005<br>
+<a href="http://www.cs.york.ac.uk/fp/">
+York Functional Programming Group</a><br>
+</body>
+
+</html>

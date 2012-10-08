@@ -1,0 +1,60 @@
+.TH BLACK-HAT 1 local
+.SH NAME
+black-hat \- finds and displays a black-hole path
+.SH SYNOPSIS
+.B black-hat
+[PROGNAME] [OPTION]... 
+.SH DESCRIPTION
+.I black-hat
+is a one-shot tool for displaying a simple trace of a
+program containing a black-hole error. The trace shows the
+pattern of function reductions from the first variable in the
+black hole, to the next appearance of that variable. 
+
+Note that the traced program must first be compiled using the
+Hat tracing tools, and executed to generate a trace file. 
+.SH OPTIONS
+Possible options are as follows:
+.TP
+.BI --showqual[=(t,f)]
+control whether to show functions qualified by the name
+of their module
+.TP
+.BI --cutoff=DEPTH
+subexpressions in printed expressions are cut off and
+replaced with a placeholder below a depth of DEPTH
+.TP
+.BI --showrt[=(t,f)]
+control whether to show the root of the search path, or
+just the path from the black-hole variable
+.TP
+.BI  --srcref[=(t,f)]
+control whether to show source references for each
+expression on the path
+.TP
+.BI  --showcount[=(t,f)]
+control whether to show the number of accesses to the
+file nodes
+.TP
+.BI  --shownode[=(t,f)]
+(DEBUGGING OPTION)
+control whether to show the octal addresses of the
+expression nodes, along side the pretty-printed versions
+
+.SH AUTHOR
+Written by Mike Dodds.
+.SH REPORTING BUGS
+Report bugs to <hat@haskell.org>
+.SH COPYRIGHT
+Copyright \(co 2004 University of York.
+.br
+This is free software without warranty of any kind.
+.SH SEE ALSO
+.I hat-nonterm
+is one of many tools in the
+.I Hat
+tracing system for Haskell programs.
+For further information about
+.I Hat
+see
+.B http://haskell.org/hat

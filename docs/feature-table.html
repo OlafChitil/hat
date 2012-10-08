@@ -1,0 +1,169 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+<head><title>Hat feature summary</title></head>
+<body bgcolor=white text=black>
+
+<center><h1>How complete is Hat?</h1></center>
+
+<p>
+<center>
+<em>Key:</em><br>
+<b>-</b> = no support<br>
+<b>+</b> = partial support<br>
+<b>*</b> = full support<br>
+</center>
+
+<p>
+"Partial" support of a language feature means that you <em>will</em>
+be able to trace programs using this feature, but that the traces
+may not be in convenient source-level terms.  Partial support of a
+library or type-system feature means that some programs <em>may</em>
+trace OK, but others might not.
+
+<p>
+<table cellspacing=20 width=100% border=1><tr width=100%><td width=50% valign=top>
+
+<table cellspacing=0 border=0>
+<tr>
+<th>feature</th><th>Hat (2.04)</th>
+</tr><tr>
+
+<td colspan=2><hr></td>
+</tr><tr>
+<th colspan=2>Language constructs</th>
+</tr><tr>
+<td>modules</td><td align=center>*</td>
+</tr><tr>
+<td>lambda abstractions</td><td align=center>*</td>
+</tr><tr>
+<td>pattern matches</td><td align=center>*</td>
+</tr><tr>
+<td>guards</td><td align=center>*</td>
+</tr><tr>
+<td>if-then-else</td><td align=center>*</td>
+</tr><tr>
+<td>case expr of</td><td align=center>*</td>
+</tr><tr>
+<td>list comprehensions</td><td align=center>+</td>
+</tr><tr>
+<td>monadic do</td><td align=center>+</td>
+</tr><tr>
+<td>infix operators</td><td align=center>*</td>
+</tr><tr>
+<td>numeric literals</td><td align=center>*</td>
+</tr><tr>
+<td>numeric sequences</td><td align=center>+</td>
+</tr><tr>
+<td>n+k patterns</td><td align=center>*</td>
+</tr><tr>
+
+<th colspan=2>Basic types</th>
+</tr><tr>
+<td>Bool</td><td align=center>*</td>
+</tr><tr>
+<td>Char</td><td align=center>*</td>
+</tr><tr>
+<td>List</td><td align=center>*</td>
+</tr><tr>
+<td>Tuples</td><td align=center>*</td>
+</tr><tr>
+<td>Int</td><td align=center>*</td>
+</tr><tr>
+<td>Integer</td><td align=center>*</td>
+</tr><tr>
+<td>Float</td><td align=center>*</td>
+</tr><tr>
+<td>Double</td><td align=center>*</td>
+</tr><tr>
+<td>Rational</td><td align=center>*</td>
+</tr><tr>
+
+<th colspan=2>User types</th>
+</tr><tr>
+<td>data types</td><td align=center>*</td>
+</tr><tr>
+<td>type synonyms</td><td align=center>*</td>
+</tr><tr>
+<td>newtypes</td><td align=center>*</td>
+</tr><tr>
+<td>named fields</td><td align=center>*</td>
+</tr><tr>
+<td>type classes</td><td align=center>*</td>
+</tr><tr>
+<td>derived instances</td><td align=center>*</td>
+</tr><tr>
+<td>strict types</td><td align=center>*</td>
+
+</tr>
+</table>
+
+</td><td width=50% valign=top>
+
+<table cellspacing=0 border=0>
+<tr>
+<th>feature</th><th>Hat (2.04)</th>
+</tr><tr>
+
+<td colspan=2><hr></td>
+</tr><tr>
+<th colspan=2>Input/output</th>
+</tr><tr>
+<td>single I/O streams</td><td align=center>*</td>
+</tr><tr>
+<td>file handling</td><td align=center>+</td>
+</tr><tr>
+
+<th colspan=2>Libraries</th>
+</tr><tr>
+<td>Haskell'98 Prelude</td><td align=center>*</td>
+</tr><tr>
+<td>Haskell'98 Libraries</td><td align=center>*</td>
+</tr><tr>
+<td>base hierarchical libraries</td><td align=center>+</td>
+</tr><tr>
+<td>other hierarchical libraries</td><td align=center>-</td>
+</tr><tr>
+
+<th colspan=2>Platform Portability</th>
+</tr><tr>
+<td>machine and O/S</td><td align=center>*</td>
+</tr><tr>
+<td>nhc98</td><td align=center>*</td>
+</tr><tr>
+<td>ghc</td><td align=center>*</td>
+</tr><tr>
+<td>hugs</td><td align=center>-</td>
+</tr><tr>
+<td>hbc</td><td align=center>-</td>
+</tr><tr>
+<td>helium</td><td align=center>-</td>
+</tr><tr>
+
+<th colspan=2>Non-Haskell'98 Extensions</th>
+</tr><tr>
+<td>primitive FFI</td><td align=center>+</td>
+</tr><tr>
+<td>hierarchical library namespace</td><td align=center>*</td>
+</tr><tr>
+<td>unsafePerformIO etc</td><td align=center>*</td>
+</tr><tr>
+<td>multi-parameter TCs</td><td align=center>*</td>
+</tr><tr>
+<td>functional dependencies</td><td align=center>*</td>
+</tr><tr>
+<td>existential types</td><td align=center>+</td>
+</tr><tr>
+<td>implicit parameters</td><td align=center>-</td>
+</tr><tr>
+<td>imprecise exceptions</td><td align=center>+</td>
+</tr><tr>
+<td>concurrency</td><td align=center>-</td>
+</tr><tr>
+<td>parallelism</td><td align=center>-</td>
+
+</tr>
+</table>
+
+</td></tr></table>
+
+</body></html>

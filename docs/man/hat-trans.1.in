@@ -1,0 +1,145 @@
+.TH HAT-TRANS 1 local
+.SH NAME
+hat-trans \- transform a Haskell module for tracing with the Hat system
+.SH SYNOPSIS
+.B hat-trans
+[\-cpp [cppopts]]
+[\-Idir]*
+[\-package p]*
+[transopts]
+.I Mod.[l]hs ...
+.SH DESCRIPTION
+.I hat-trans
+is a batch tool for transforming a Haskell program into one which
+calculates its own trace.  It transforms each source module
+.I Mod
+supplied as arguments.  The modules may be ordinary source (.hs)
+or literate source (.lhs).  The output is a transformed module,
+whose name is the original module name prefixed with "Hat.", and it
+is written to a file of similar name in the local subdirectory
+.I Hat/
+(except that .lhs becomes .hs, because the literate part is stripped).
+If the subdirectory does not exist, it is created.  The original
+source filename may include a directory path, in which case the
+transformed module is placed in an identical directory tree underneath
+the directory
+.I Hat/.
+This facilitates the easy transformation of modules within the
+hierarchical module namespace.
+
+The resulting transformed modules can be compiled and linked in the
+normal way with your favorite Haskell compiler, with the addition
+of the option
+.I \-package hat
+to its command-line.
+
+Alternatively, rather than invoking
+.I hat-trans
+and a compiler by hand on your source files, but it is often more
+convenient to allow
+.I hmake(1)
+to invoke the tools automatically, especially because it also
+determines dependencies between modules and attempts to perform
+the minimum re-compilation necessary.  Simple give the extra option
+"-hat" to hmake.
+
+.SH GENERAL OPTIONS
+.TP
+.B \-Idir
+Use the directory
+.I dir
+as an additional root when searching for imported modules.
+.TP
+.B \-package p
+The given source module(s) use standard modules from within the package
+.I p
+(this automatically adds the installed package root directory to the
+import search path).
+.TP
+.B \-cpp
+Invoke the C preprocessor on the source code before it is transformed.
+This is useful for conditional transformation.
+One cpp symbol is predefined, __HAT__, whose value is the version
+number of the Hat toolset, expressed as a three digit integer, e.g.
+version 2.02 gives __HAT__=202.  If the -cpp option is given, the
+preprocessor is invoked on all the files given as arguments.  An
+alternative which only invokes cpp on the files that really need it,
+is to place a Haskell comment containing the string "-cpp" as the
+first line of a source file.
+.TP
+.B \-Dsym=val
+Define the cpp symbol
+.I sym
+to have the value
+.I val
+.TP
+.B \-Dsym
+Define the cpp symbol
+.I sym
+.TP
+.B \-Usym
+Undefine the cpp symbol
+.I sym
+
+.SH TRANSFORMATION OPTIONS
+The following options are available to change the usual transformation
+behaviour.
+.TP
+.B \-unlit
+Unliterate the source code.  (Automatic if the file is .lhs)
+.TP
+.B \-nounlit
+Do not unliterate the source code.  (Automatic if the file is .hs)
+.TP
+.B \-underscore
+Treat underscores strictly as lowercase (default).
+.TP
+.B \-nounderscore
+Treat underscores as invisible, e.g. _f is varid, _F is conid.
+.TP
+.B \-prelude
+Treat prelude definitions specially.
+.TP
+.B \-noprelude
+Do not treat definitions specially (default).
+.TP
+.B \-trusted
+Make this a "trusted" module.
+.TP
+.B \-notrusted
+Make this an "untrusted" module (default).
+.TP
+.B \-showwidth=w
+Set output width (in characters) to
+.I w
+(default=80).
+.TP
+.B \-showindent=i
+Set layout nesting indentation (in characters) to
+.I i
+(default=2).
+.TP
+.B \-showqualified
+Use fully qualified names in the output.  This is off by default,
+because the output may refer to modules which are not explicitly
+imported.
+
+.SH EXAMINATION OPTIONS
+The following options are available to examine the internal progress
+of the transformation.
+.TP
+.B \-lex
+Show input after lexical analysis.
+.TP
+.B \-parse
+Show syntax tree after parsing.
+.TP
+.B \-tracefns
+Show syntax tree after tracing translation.
+
+.SH FILES
+.TP 25
+.B @BINDIR@/hat-trans
+
+.SH "SEE ALSO"
+hmake(1), hat-detect(1), hat-observe(1), hat-trail(1), hat-stack(1)

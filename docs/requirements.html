@@ -1,0 +1,106 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Hat system requirements</title></head>
+<body bgcolor=#ffffff>
+<table><tr><td width=500>
+
+<center>
+  <img src="hat.gif" alt="Hat Logo"><br>
+  <h1>Hat system requirements</h1>
+</center>
+
+<hr>
+<h3>You will need...</h3>
+<p>
+To build and use Hat, you will need
+<ul>
+<li> a Haskell'98 compiler that supports the standard FFI (i.e.
+     <a href="http://www.haskell.org/nhc98/">nhc98</a> or
+     <a href="http://www.haskell.org/ghc/">ghc</a>)
+<li> the <a href="http://www.haskell.org/hmake/">hmake</a> compilation manager
+<li> GNU make
+<li> a C compiler (usually gcc)
+<li> at least 128Mb of memory (256Mb with ghc -O)
+<li> disk space: 30Mb (nhc98), 50Mb (ghc)
+</ul>
+Here are the minimum versions of software that we recommend: anything
+earlier than these is unlikely to interoperate correctly with Hat-2.04.
+
+<center>
+<table cellspacing=5>
+<tr><th>software</th><th>minimum version</th></tr>
+<tr><td>ghc</td><td>5.04.2</td></tr>
+<tr><td>nhc98</td><td>1.18</td></tr>
+<tr><td>hmake</td><td>3.07</td></tr>
+<tr><td>gcc</td><td>2.8.1</td></tr>
+</table>
+</center>
+
+<p>
+You only need one Haskell compiler - the Hat installation procedure
+will detect what you already have and use it.  However, it is
+absolutely essential that you have <em>hmake</em>.  Not only is it
+needed to build the various Hat tools, but you will also need it when
+you want to build tracing versions of your own programs.
+
+<p>
+You must also have a Unix-like operating system environment with
+X windows, in particular the <em>resize</em> command, and the
+<em>xterm</em> terminal emulator supporting ANSI colour codes.  This is
+used when you start one browsing tool from within another, to bring
+up a new text window.  If you are using the Windows operating system,
+then <a href="http://www.cygwin.com/">Cygwin</a> is the appropriate
+environment to use - it includes the eXceed X-server.  For MacOS X,
+you should install the <a href="http://www.apple.com/macosx/x11/">Apple
+XFree86</a> server, or an equivalent.
+
+<p>
+If you do not have <em>gcc</em> as your C compiler, you will need to
+ensure that your <em>CC</em> environment variable is set to the name
+of your C compiler at the configuration stage.  For instance,
+<pre>    CC=cc   ./configure --buildwith=...</pre>
+
+<p>
+The browsing tools may use the <em>glib</em> C library, which is
+related to the larger <em>gtk+</em> set of libraries.  If it is
+available, the automatic configuration of Hat will detect and use it.
+(If it is not available, our own replacement code will be used,
+but it is slightly slower.)  If glib is available, it is important
+that you have version glib-1.2.x (although you may also have another
+version glib-2.0.x installed simultaneously).  The latest version
+in the 1.2.x series is <em>glib-1.2.10</em>, and it is available
+from <a href="ftp://ftp.gtk.org/pub/gtk/v1.2/">ftp.gtk.org</a>.
+
+<h3>GHC requirements</h3>
+<p>
+If you have <em>ghc</em>, then a <em>package</em> is built, containing
+various Hat libraries.  The installation procedure attempts to
+install the new `hat' package in the system directories that belong
+to <em>ghc</em>.  You must have the appropriate permissions to write
+into those directories, and sufficient permissions to update the
+system-wide <em>ghc</em> package configuration.  (The installation
+and configuration is performed automatically.)
+
+<h3>nhc98 requirements</h3>
+<p>
+If you have <em>nhc98</em>, then a <em>package</em> is built, containing
+various Hat libraries.  The installation procedure attempts to
+install the new `hat' package in the system directories that belong
+to <em>nhc98</em>.  You must have the appropriate permissions to write
+into those directories.  (The installation is performed automatically.)
+
+<hr>
+<p>
+The latest updates to these pages are available on the WWW from
+<a href="http://www.haskell.org/hat/">
+<tt>http://www.haskell.org/hat/</tt></a><br>
+<a href="http://www.cs.york.ac.uk/fp/hat/">
+<tt>http://www.cs.york.ac.uk/fp/hat/</tt></a>
+
+<p>
+This page last modified: 12th October 2004<br>
+<a href="http://www.cs.york.ac.uk/fp/">
+York Functional Programming Group</a><br>
+
+</td></tr></table>
+</body></html>
+

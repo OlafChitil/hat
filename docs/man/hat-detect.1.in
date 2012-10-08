@@ -1,0 +1,76 @@
+.TH HAT-DETECT 1 local
+.SH NAME
+hat-detect \- find a bug by algorithmic debugging
+.SH SYNOPSIS
+.B hat-detect
+prog[.hat]
+.SH DESCRIPTION
+.I hat-detect
+is an interactive tool for finding bugs in the trace of a Haskell program
+.I prog
+supplied as its argument.  The user must answer a sequence of yes/no
+questions.  Each question asked by hat-detect concerns the reduction
+of a function application to a value.  You answer yes if the reduction
+is correct with respect to your intentions, and <em>no</em> otherwise.
+After a number of questions hat-detect reports an example equation
+which is the cause of the observed faulty behaviour - that is, which
+function definition is incorrect.
+
+.SH INTERACTIVE COMMANDS
+.PP
+The hat-detect browser asks you questions, so the basic mode of
+interaction is to type answers:
+.TP
+.B yes
+Yes, the equation looks correct by my understanding of the meaning
+of the function.
+.TP
+.B no
+No, the equation looks incorrect.  Given the displayed arguments,
+the function is returning the wrong result.
+.PP
+The following other commands are available.  They each begin with
+a colon.
+.TP
+.B :show
+Show the EDTs hat-detect is currently searching for bugs
+.TP
+.B :children
+Show the children of the current reduction.
+
+.TP
+.B :quit
+Exit the interactive tool.
+.TP
+.B :help
+Shows help text giving an overview of the commands available.
+
+.TP
+.B :source
+Shows (in a separate window) the source code for the reduction currently being queried.
+.TP
+.B :delta
+Start the hat-delta browser in a new window, beginning with the currently
+queried reduction.
+.TP
+.B :detect
+or
+.B :split
+Start the hat-detect browser in a new window, beginning with the currently
+queried reduction.
+.TP
+.B :explore
+Start the hat-explore browser in a new window, beginning with the currently
+queried reduction.
+.TP
+.B :trail
+Start a hat-trail browser in a new window, beginning with the currently
+queried reduction.
+
+
+.SH FILES
+.TP 25
+.B @BINDIR@/hat-detect
+
+.SH "SEE ALSO"
+hmake(1), hat-trans(1), hat-delta(1), hat-stack(1), hat-observe(1), hat-trail(1)

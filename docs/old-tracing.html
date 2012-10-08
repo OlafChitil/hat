@@ -1,0 +1,71 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HEAD>
+<TITLE>The Haskell Tracer Project</TITLE>
+</HEAD>
+
+<BODY>
+
+<H1>The Haskell Tracer Project</H1>
+
+This page describes the current state of our Haskell tracer. The
+theory about the tracing model, the implementation of the tracer, as
+well as a user guide is included. We also provide a demonstration of
+the tracer in action.<p>
+
+<H3>Short introduction</H3>
+
+We describe the design and implementation of an experimental system for
+tracing Haskell computations.  The basis of our tracing method is a
+program transformation carried out by the compiler: transformed
+programs compute the same values as the original, but embedded in
+functional data structures that also include <em>redex trails</em> showing
+how the values were obtained.  When a final result is obtained in a
+computation with redex trails, or when an error occurs, the programmer
+can use a special-purpose interactive display program to investigate
+the derivation in detail, with cross-links to the source program.<p>
+
+Similar schemes attempted by others have typically been limited, for
+example, with respect to the language used to express traced programs,
+the speed of traced execution, the detail recorded in the trace, and
+the size of computations for which traces can be built and explored.
+We aim to build a tracer for full Haskell, and ultimately a tracer that
+can be applied to large computations. Our present tracer, hosted by the
+<em>nhc</em> compiler, handles most of Haskell. 
+<!-- Though applications to -->
+<!-- date have been small, we can give examples of fully-traced computations -->
+<!-- of upto a million reductions, derived from original programs several -->
+<!-- pages in length. -->
+
+<H3><a href="paper.dvi">Tracing Lazy Functional Computations (.dvi)</a></H3>
+
+<H3><a href="old-demo/HTracer.html">
+Demonstration of the tracer</a> (java required)</H3>
+
+<H3>Snapshots</H3> 
+
+This pictures below shows the tracer user interface when tracing the nhc 
+compiler. The top part of the window displays the interactive redex trail, 
+and the bottom part shows either the source code (the first picture) or 
+the program output (the second picture). <br>
+
+<br><br>
+
+The user can click on any expression, identifier or constant in the 
+redex trail display to explore the redex trail of that item. 
+By right-clicking on an item, the source code window will display the 
+source code position of <em>the particular occurrence</em> of the item.
+By shift-right-clicking on an item, the source code window will display 
+the source code of <em>the definition</em> of the item.
+
+<br><br>
+<img src=compiler.gif>
+<br><br>
+If the output window is selected, the user can click on any part of the 
+program output, and the redex trail for the expression responsible for that 
+piece of the output will be display in the redex trail window.
+
+<br><br>
+<img src=compiler2.gif>
+
+
+</BODY>

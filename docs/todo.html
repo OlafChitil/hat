@@ -1,0 +1,200 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Hat 2.04 Wish List</title></head>
+<body text="#000000" bgcolor="#FFFFFF" link="#0000EE" vlink="#551A8B"
+alink="#FF0000">
+
+<center>
+  <img src="hat.gif" alt="Hat Logo"><br>
+  <h1>Hat 2.04 Wish List</h1>
+</center>
+<hr>
+
+<p>
+This is a list of wishes (not bugs) to improve Hat 2.04.
+Elsewhere, there is a <a href="bugs.html">bug list</a> of things
+that are incorrect.  Please report any more wishes you can
+think of to: <a href="mailto:hat@haskell.org">hat@haskell.org</a>.
+
+<h3>Little Wishes</h3>
+<ol>
+
+<li>
+  backspace to correct slips in : command-lines
+  <font color=red>(Use stty erase ^H if readline is not available)</font>
+
+<li>
+  separate cutoff length for strings from general cutoff depth
+
+<li>
+  advice for users wishing to use hat but not hmake
+
+<li>
+  in hat-observe allow application patterns after "in"
+
+<li>
+  in hat-observe, an option to show the number of instances of
+  each uniquely represented application
+
+<li>
+  in hat-observe bring back % progress indicators
+
+<li>
+  in any viewing tool accept :S [qualified] name
+
+<li>
+  scrolling and resizing of source windows (with line numbers instead
+  of fixed source reference line)
+   
+<li>
+  viewing tools compare time-stamps of trace files with those
+  of sources and issue warning if appropriate
+   
+</ol>
+
+<h3>Bigger Wishes</h3>
+<ol>
+
+<li>
+    combine traced and untraced modules by a more drastic wrapping
+    (eg. data structures of type T computed within the wrapped module
+    recorded as {T}) and subclassing to get around mismatch of
+    method types (eg. Ord T =&gt; TOrd T and Ord a =&gt; Ord (R a))
+
+<li>
+    support tracing of locally defined functions by recording
+    bindings for free variables (eg. add refs to static parent
+    names in local name nodes and extend local argument lists to
+    include free variables defined within top-level parent with
+    the name entries for these variables)
+   
+<li>
+    with or without 2, hat-observe to support observation of
+    locally defined functions or data values if :set locals on.
+    Locals to be listed by :i (indented below their parents?)
+    and observations of locals to be split into same-instance
+    groups (headed by whatever contextual bindings for variables
+    are available)
+   
+<li>
+    extensional observation by hat-observe of a (\..) selected
+    in hat-trail (important to ensure that all observations
+    are of exactly this function not just a function with same
+    source)
+   
+<li>
+    evaluation windows with bindings to selected expressions
+    from trace viewers (quite easy for expressions that only contain
+    top-level function names and/or fully evaluated data; anything
+    else poses representation problems)
+   
+<li>
+    hat-trail to list the sequence of IO actions, not just text
+    output to stdout
+   
+<li>
+    further decompose textual output into pieces connected by ++
+
+<li>
+    hat-trail to support multiple steps along trails Eg:
+    - to nearest ancestral application of any top-level function
+    - to nearest ancestral application of a named function
+    - to nearest non-recursive ditto
+
+<li>
+    hat-trail to support single-step forward reduction from a redex
+    (perhaps shown as indented lines starting -&gt;)
+   
+<li>
+    option to assert trust in named modules or top-level functions
+    in all trace-viewing tools
+
+<li>
+    hat-detect for new-format traces including correct handling of 
+    untrusted computation in a trusted context and an option to show
+    all children of current EDT node 
+    <font color=red>Done, see hat-detect</font>
+<li>
+    generalise hat-observe to hat-query, with a user-programmable
+    query language for more general and powerful access to the
+    hat trace than current commands
+   
+<li>
+    user-programmable display of expressions in textual or graphical
+    form
+
+<li>
+    hat-observe option to see arguments and results of trusted
+    (and perhaps other) functions that have 0-arity definitions
+   
+<li>
+    a coordinating environment for tracing that, for example,
+    automatically closes trace windows when program is modified
+    and/or run again
+   
+<li>
+    a tool that cleanly truncates a trace file as if the computation
+    had been interrupted at some specified break-point
+   
+<li>
+    more support in hat-trail for tracing parent uses of zero-arity
+    definitions and their source locations
+   
+<li>
+    run-time options to report the number of reductions (or other
+    computational steps) in an untraced computation and to report
+    corresponding numbers (or better still, a % indicator) at
+    intervals during a traced computation
+
+<li>
+    make source windows active, for example allowing selection of
+    an application or function for observation in hat-observe
+   
+<li>
+    editable command lines with readline functionality
+    <font color=red>Done</font>
+
+<li>
+    special-purpose tool to locate black-holes in traces
+    <font color=red>Done, see black-hat</font>
+
+<li>
+    add an evaluation bit to projection/forward nodes allowing
+    {_}/{?} to be displayed as _ where appropriate
+
+</ol>
+
+<h3>Controversial Wishes</h3>
+<ol>
+
+<li>
+   option to show lambda expressions in full
+
+<li>
+   a graphical user interface for hat viewers
+
+<li>
+   always display error "... message ..." if available, not _|_
+
+<li>
+   a Free Navigation viewer
+    <font color=red>Done, see hat-source</font>
+
+<li>
+   support for tracing stateful monadic computations in terms
+   of sequences of states
+   
+<li>
+   option to use unification instead of one-way matching with
+   application patterns in hat-observe
+   
+<li>
+   :o in hat-trail to use the currently selected expression as
+   the implicit application pattern to observe
+
+</ol>
+
+<hr>
+<p>
+This page last updated: 5th February 2003<br>
+</body></html>
+

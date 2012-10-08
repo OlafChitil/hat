@@ -1,0 +1,140 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Building/installing hat</title></head>
+<body bgcolor=#ffffff>
+<table><tr><td width=500>
+
+<center>
+  <img src="hat.gif" alt="Hat Logo"><br>
+  <h1>Building/installing hat</h1>
+</center>
+
+<hr>
+<h3>The Brief Version</h3>
+<p>
+If you are in a hurry to get started, here's the brief version of the
+install procedure:
+<pre>
+    $ ./configure  [ --prefix=/usr/local ]
+    $ make
+    [ perhaps become root ]
+    $ make install
+</pre>
+
+<a href="requirements.html"><h3>System Requirements</h3></a>
+
+<h3>Download it</h3>
+<p>
+The current distribution packages can be found at
+<pre>
+    <a href="http://www.haskell.org/hat/download.html">http://www.haskell.org/hat/download.html</a>
+</pre>
+Using <em>tar</em> and <em>gunzip</em>, unpack your chosen package, and
+<em>cd</em> to the base directory (called hat-x.xx, where the x's are the
+version number).  Note that all the documentation available on the web
+is also included in the package, although the web versions will of course
+be more up-to-date.  Your local copy of the release notes is
+in <a href="status.html">status.html</a>.
+
+<h3>Configuration</h3>
+<p>
+An automatic configuration utility is supplied, called
+<em>configure</em>.  The configure script searches your system
+for Haskell compilers and sets up some scripts and options before
+you build.  In brief, the default behaviour is to build under
+<em>targets</em> in the current directory, and to install various
+components under <em>/usr/local</em>, in the subdirectories
+<em>bin</em>, <em>lib/hat</em>, <em>include/hat</em>, and
+<em>man/man1</em>.  Some components will also be installed eventually
+in the system directories for ghc or nhc98, whichever compiler is
+available.  Nothing is actually installed at configuration time,
+only at installation time.  The config script has several useful
+options to override the default build and installation behaviours.
+Use the <em>--help</em> option for brief details, and see the page
+about <a href=config.html>configuration options</a> for full details.
+
+
+<h3>Building and installing from sources</h3>
+<p>
+All object files are created in a separate directory tree from the
+sources (targets/$MACHINE/obj).  This means in theory it is possible
+to build concurrently for different machines from the same shared
+source tree.  (But we haven't tested that recently.)
+
+<p>
+Run <em>./configure</em> with any <a href=config.html>options</a> you
+require.  (You should supply installation directory options at this
+stage.)  This will attempt to detect any existing Haskell compilers and
+guess which one to build <em>hat</em> with.  If you have more than one
+available, we will choose, in order of preference, <em>ghc</em>, then
+<em>nhc98</em>.  You cannot currently build or use hat with <em>hugs</em>,
+<em>hbc</em>, or <em>Helium</em>.
+
+<p>
+Then just run <em>make</em> to build all the components.  (The target
+<em>make help</em> gives a list of individual targets, if you really
+want to build components individually.)
+
+<p>
+The time taken to build Hat depends on your machine and which compiler
+you are using.  Here are some sample build times in minutes:
+
+<center>
+<table border=1><tr>
+    <th></th>
+    <th colspan=2>time (mins)</th>
+</tr><tr>
+    <th>build<br>compiler</th>
+    <th>Linux<br>i686 (500Mhz)</th>
+    <th>Linux<br>i686 (1Ghz)</th>
+    <th>Linux<br>i686 (2.4Ghz)</th>
+</tr><tr>
+    <td>ghc</td>
+    <td align=right>22</td>
+    <td align=right>17</td>
+    <td align=right>5</td>
+</tr><tr>
+    <td>nhc98</td>
+    <td align=right>48</td>
+    <td align=right>25</td>
+    <td align=right>8</td>
+</tr></table>
+</center>
+
+<p>
+Finally, when you have built all the components you require, type
+<em>make install</em> to copy the components to their final location.
+(You may need to become root for this step, depending on the final
+location you selected at configure time.  You must certainly have
+permission to write package files into the system directories of the
+compiler that was found at configuration time.)
+
+<h3>Problems?</h3>
+<p>
+Ok, so now you should have all the components of hat.  If you
+have any problems, mail <a href="mailto:hat@haskell.org">
+<tt>hat@haskell.org</tt></a> with a description (and a bugfix if you
+have one!).
+
+<h3>Keeping up-to-date</h3>
+<p>
+If you use <em>hat</em> regularly, or if you would like to
+use <em>hat</em> but for some reason cannot, please join the <a
+href="maillist.html">hat mailing list</a> for discussion of features,
+bugfixes, and so on.
+
+<hr>
+<p>
+The latest updates to these pages are available on the WWW from
+<a href="http://www.haskell.org/hat/">
+<tt>http://www.haskell.org/hat/</tt></a><br>
+<a href="http://www.cs.york.ac.uk/fp/hat/">
+<tt>http://www.cs.york.ac.uk/fp/hat/</tt></a>
+
+<p>
+This page last modified: 27th July 2004<br>
+<a href="http://www.cs.york.ac.uk/fp/">
+York Functional Programming Group</a><br>
+
+</td></tr></table>
+</body></html>
+

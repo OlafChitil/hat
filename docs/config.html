@@ -1,0 +1,175 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Configuring hat</title></head>
+<body bgcolor="#ffffff">
+<table><tr><td width=500>
+
+<center>
+  <img src="hat.gif" alt="Hat Logo"><br>
+  <h1>Configuring hat</h1>
+</center>
+<hr>
+
+<p>
+The automatic configuration and installation utility, called
+<em>configure</em>, should always be used to prepare for building and
+installing <b>hat</b>.  Unlike many configuration utilities, this
+one can be run safely at any time to change any options - it will never
+leave your system in an inconsistent state.
+
+<p>
+You can choose your own configuration options,
+but the default behaviour is to prepare to build the components of
+<b>hat</b> under the
+<tt>targets</tt> directory, and to install those components under
+<tt>/usr/local</tt>, in the subdirectories <tt>bin</tt> (for scripts),
+<tt>lib/hat</tt> (for executables and libraries),
+<tt>include/hat</tt> (for Hat interface files), and
+<tt>man/man1</tt> for man pages.
+
+<p>
+Your machine/operating-system is detected and used during building
+and installation to ensure that object files and executables from
+different architectures do not interfere with each other.  We search
+for an existing installation of a Haskell compiler, and <em>hmake</em>,
+and configure the build system to use them.  We also guess which
+compiler you will use to build <em>hat</em> - in order of preference:
+<em>ghc</em>, then <em>nhc98</em>.
+
+<p>
+<b>A note about C compilers</b>: If you do not have <em>gcc</em>
+as the name of your C compiler (e.g. on MacOS X &le;10.2 , <em>gcc</em> is
+called <em>cc</em>), then you need to set the CC environment variable
+with the real name of the compiler at configuration time.  For instance:
+<pre>    CC=cc  ./configure --buildwith=...</pre>
+
+<hr>
+<p>
+<em>configure</em> has many options to override the default build and
+installation behaviours.  The options fall into three categories, but
+they may appear in any order on the command-line.  The first group of
+options controls what task <em>configure</em> will do.  You can only
+choose one of these - if you choose more than one, only the final one
+will take effect.  The other two groups of options are cached and
+re-used in later invocations of <em>configure</em>, but you can always
+override them on the current commandline.
+
+<dl>
+<dt><b>-h</b></dt>
+<dt><b>--help</b></dt>
+  <dd>Give a brief explanation of all the options.  Do not save any
+      configuration settings.</dd>
+
+<dt><b>-v</b></dt>
+<dt><b>--version</b></dt>
+  <dd>Report package versions.  Do not save any configuration settings.</dd>
+
+<dt><b>--config</b></dt>
+  <dd>Set and report configuration options.  [This is the default behaviour
+      if no other option from the first group is chosen.]</dd>
+
+<dt><b>--install</b></dt>
+  <dd>Install selected components now (scripts, executables, libraries,
+      interface files, man pages, html documents etc.).  This option
+      should not normally be used - use <tt>make install</tt> instead.
+      However for information, it copies the selected components to their
+      final directory locations (you must have permission to write into
+      those directories).  Don't forget, if you have previously
+      run <em>configure</em> with any options set, the previous
+      settings will be cached and used for this install - but you can
+      override them now on the commandline if you wish.</dd>
+
+</dl>
+
+
+<p>
+The second and third group of options control the configuration process
+and are entirely orthogonal to each other.  The second group configures
+some general settings.
+
+<dl>
+
+<dt><b>--buildwith=</b><em>comp</em></dt>
+  <dd>Build <em>hat</em> using the named compiler (to override
+      the config script's guess).  Possible values are <em>ghc</em>
+      or <em>nhc98</em>.</dd>
+
+<dt><b>--buildopts=</b><em>opts</em></dt>
+  <dd>Give <em>opts</em> to the build compiler (for instance, to
+      force <em>ghc</em> to do optimisation you might add <em>-O</em>).
+      </dd>
+
+<dt><b>--builddir=</b><em>dir</em></dt>
+  <dd>Use the given base directory for intermediate object files instead of
+      the default <tt>./targets</tt>.  This is useful if you have disk
+      quotas and need to put object files on a separate temporary disk.</dd>
+
+<dt><b>--installdir=</b><em>rootdir</em></dt>
+<dt><b>--prefix=</b><em>rootdir</em></dt>
+  <dd>Use the given directory as the installation root instead of the
+      default <tt>/usr/local</tt>.</dd>
+
+<dt><b>--bindir=</b><em>dir</em></dt>
+  <dd>Use the given directory for installing scripts instead of the
+      default directory, <tt>bin</tt> under the installation
+      root.</dd>
+
+<dt><b>--libdir=</b><em>dir</em></dt>
+  <dd>Use the given directory for installing executables and libraries
+      instead of the default directory, <tt>lib/hat</tt> under the
+      installation root.</dd>
+
+<dt><b>--incdir=</b><em>dir</em></dt>
+  <dd>Use the given directory for installing interface and include files
+      instead of the default directory, <tt>include/hat</tt> under the
+      installation root.</dd>
+
+<dt><b>--mandir=</b><em>dir</em></dt>
+  <dd>Use the given directory for installing manual pages
+      instead of the default directory, <tt>man/man1</tt> under the
+      installation root.</dd>
+
+<dt><b>--docdir=</b><em>dir</em></dt>
+  <dd>Use the given directory for installing the html documentation
+      instead of the default directory, <tt>/usr/doc/hat</tt>.</dd>
+
+</dl>
+
+
+<p>
+Finally, the third group of options allows you to select which
+components of the package you wish to install.  They can be useful when
+installing the same software for many architectures on a heterogeneous
+network, if you don't want to continually re-install shared components
+such as man pages.  As another example, you may want to update just the
+scripts from a new beta release, without re-installing the executables.
+
+<dl>
+<dt><b>[+/-]lib</b></dt>
+  <dd>Do (or don't) install the executables and library files (default is +).</dd>
+<dt><b>[+/-]inc</b></dt>
+  <dd>Do (or don't) install the include and interface files (default is +).</dd>
+<dt><b>[+/-]bin</b></dt>
+  <dd>Do (or don't) install the scripts (default is +).</dd>
+<dt><b>[+/-]man</b></dt>
+  <dd>Do (or don't) install the man pages (default is +).</dd>
+<dt><b>[+/-]docs</b></dt>
+  <dd>Do (or don't) install the html documents (default is -).</dd>
+</dl>
+
+
+<hr>
+<p>
+The latest updates to these pages are available on the WWW from
+<a href="http://www.haskell.org/hat/">
+<tt>http://www.haskell.org/hat/</tt></a><br>
+<a href="http://www.cs.york.ac.uk/fp/hat/">
+<tt>http://www.cs.york.ac.uk/fp/hat/</tt></a>
+
+<p>
+This page last modified: 15th August 2002<br>
+<a href="http://www.cs.york.ac.uk/fp/">
+York Functional Programming Group</a><br>
+
+</td></tr></table>
+</body></html>
+

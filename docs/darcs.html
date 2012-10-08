@@ -1,0 +1,124 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Hat in darcs</title></head>
+<body bgcolor=#ffffff>
+<table><tr><td width=500>
+
+<center>
+  <h1>Developer access to Hat</h1>
+</center>
+<hr>
+
+<p>
+This page tells you how to get <a href="http://darcs.net">darcs</a>
+access to the latest, most current, <em>Hat</em> sources.
+
+
+<h3>Viewing the darcs repository on the web</h3>
+<p>
+If you don't want to download the sources, you can view the current
+contents of the repository on the web
+<a href="http://darcs.haskell.org/darcsweb/">here</a>.
+
+
+<h3>Remote Read-only Access</h3>
+
+<p>
+Read-only access is available to anyone - there's no need to ask us
+first.  To get read-only access to the repository:
+
+<ul>
+<li> Obviously, you need to have the <em>darcs</em> command installed.
+<li> <tt>darcs get --partial http://darcs.haskell.org/hat</tt>
+<li> If you want the complete history, omit the <tt>-partial</tt> flag,
+     but be warned that the history is large, it will take a long time
+     to download, and will have errors on case-insensitive file systems
+     (e.g. Windows and MacOS X).
+<li> The checked-out source tree will appear in a directory called
+     <tt>hat</tt>.  You can rename this directory to whatever you
+     like, darcs won't mind.
+<li> Change to that directory, and run the shell script <tt>sh start</tt>.
+     This will prepare the repository for use, by making various scripts
+     executable, possibly downloading extra library packages, and so on.
+<li> From then on, you can keep up with new changes in the central repo
+     by using <tt>darcs-all pull</tt>.  You can even do your own
+     development in a detached fashion, using <tt>darcs record</tt> on
+     your own local repository.
+</ul>
+
+<p>
+With read-only CVS access you can do anything except commit changes
+to the central repository.  You can <tt>darcs record</tt> changes
+in your local tree, then submit them to us by email using <tt>darcs
+send</tt>.
+
+
+<h3>Using the checked-out tree</h3>
+
+<p>
+The first thing to do after checking out a fresh tree is
+<tt>sh start</tt>, followed by
+<tt>./configure</tt>, and setting whatever options you wish to use.
+It is always safe to re-run the <tt>./configure</tt> script at any
+time - it will never leave your configuration in an inconsistent state.
+The machine/OS combination is always detected first so you can't re-use
+the wrong machine configuration by mistake, and although previous
+options for a particular machine are cached, they are always reported,
+and can be always overridden on the command line.
+
+<p>
+Then, do a <tt>make</tt> with whatever targets you are interested
+in: <tt>make help</tt> will give you a list of the common ones.
+For instance, <tt>make hat</tt> gives you everything, but <tt>make
+hat-tools</tt> gives you just the browsing tools.
+
+
+<h3>Tracking changes in the central repository</h3>
+<p>
+The log messages of all accepted darcs patches are currently sent to the
+mailing list <tt>cvs-nhc98@haskell.org</tt>.  If you wish to see who
+is making changes, why, and and what they say about them, please do
+join this list - see <a href="http://haskell.org/mailman/listinfo">
+<tt>http://haskell.org/mailman/listinfo</tt></a> for further details.
+
+
+<h3>Core developers - write-access to the central repository</h3>
+<p>
+Core developers of <em>hat</em> have write-access to the central
+darcs repository.  All you need is an account on the machine
+<tt>darcs.haskell.org</tt>.
+
+<ul>
+<li> You need to have <em>ssh</em> (secure shell) installed.
+<li> The first time you commit a patch back to the repo, you will
+     need to specify where it is located:
+    <pre>darcs push darcs..haskell.org:/home/darcs/hat</pre>
+<li> Thereafter, just use <tt>darcs push</tt> to commit patches.
+</ul>
+
+<p>
+All the other instructions are the same.
+
+<h3>Gaining write-access</h3>
+<p>
+To obtain write-access to darcs.haskell.org, you need to ask the
+haskell.org maintainers - Simon Marlow &lt;simonmar@haskell.org&gt; or
+Isaac Jones &lt;ijones@galois.com&gt; - for an account.
+
+
+<p>
+<hr>
+<p>
+The latest updates to these pages are available on the WWW from
+<a href="http://www.haskell.org/hat/">
+<tt>http://www.haskell.org/nhc98/</tt></a><br>
+<a href="http://www.cs.york.ac.uk/fp/hat/">
+<tt>http://www.cs.york.ac.uk/fp/nhc98/</tt></a>
+
+<p>
+This page last modified: 10th October 2006<br>
+<a href="http://www.cs.york.ac.uk/fp/">
+York Functional Programming Group</a><br>
+
+</td></tr></table>
+</body></html>
+

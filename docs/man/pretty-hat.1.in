@@ -1,0 +1,30 @@
+.TH PRETTY-HAT 1 local
+.SH NAME
+pretty-hat \- Produce a simplified graph of the trace file.
+.SH SYNOPSIS
+.B pretty-hat
+prog [-d] [-x]
+.SH DESCRIPTION
+.I pretty-hat
+is a tool for visualising the hat trace file for a program 
+.I prog
+supplied as its argument.  The tool outputs a .dot file representing the trace.
+This file should then be proccessed with the dotty graph layout program to
+produce a final result.
+
+.SH OPTIONS
+.TP
+.B -d
+The tool should label nodes with the decimal value of their offset in the hat
+trace file
+.TP
+.B -x
+The tool should label nodes with the hexadecimal value of their offset in the
+hat trace file
+
+.SH FILES
+.TP 25
+.B @BINDIR@/pretty-hat
+
+.SH "SEE ALSO"
+hmake(1), hat-trans(1), hat-detect(1) hat-stack(1), hat-observe(1), hat-trail(1)

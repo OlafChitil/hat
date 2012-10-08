@@ -1,0 +1,32 @@
+.TH HAT-STACK 1 local
+.SH NAME
+hat-stack \- "virtual" stack trace for a crashed Haskell program
+.SH SYNOPSIS
+.B hat-stack
+prog[.hat]
+.SH DESCRIPTION
+For aborted computations, that is computations that terminated
+with an error message or were interrupted,
+.I hat-stack
+shows in which function call the computation was aborted.  It does
+so by showing a virtual stack of function calls (redexes), i.e. every
+function call on the stack caused the function call above it.  The
+evaluation of the top stack element caused the error (or during
+its evaluation the computation was interrupted).  The stack shown
+is virtual, because it does not correspond to the actual runtime
+stack.  The actual runtime stack enables lazy evaluation whereas the
+virtual stack corresponds to a stack that would have been used for
+eager (strict) evaluation.
+
+.P
+.B hat-stack
+is now largely superseded by
+.B hat-trail(1) which allows interactive browsing of the complete
+call chain.
+
+.SH FILES
+.TP 25
+.B @BINDIR@/hat-stack
+
+.SH "SEE ALSO"
+hmake(1), hat-trans(1), hat-observe(1), hat-detect(1), hat-trail(1)

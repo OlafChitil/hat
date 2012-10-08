@@ -1,0 +1,838 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD><TITLE></TITLE></HEAD>
+<BODY BGCOLOR=white TEXT=black>
+<!--HTMLHEAD-->
+<!--ENDHTML-->
+<!--CUT DEF section 1 -->
+<DIV ALIGN=center><FONT SIZE=6>Advanced Redex Trails:</FONT><BR><FONT SIZE=5>fully-fledged tracing technology for functional programs<BR>(project proposal)</FONT><BR><BR>
+<FONT SIZE=4>Colin Runciman<BR>Department of Computer Science, University of York</FONT>
+</DIV>
+<p>
+<EM>This is a revised version of the proposal submitted
+to EPSRC, the research council that is funding the project.
+Some minor sections giving personal or financial details,
+or addressing issues of EPSRC policy, have been omitted.</EM><BR>
+<BR>
+
+<H5>Summary:</H5>
+In many fields, high expectations of Information Technology are
+limited in practice mainly by current methods of developing computer
+software.
+Declarative programming systems in general, and functional
+languages in particular, have an important part to play in an improved
+software technology. These languages free programmers from the need to
+express specific sequences of calculation. They also provide powerful
+ways of directly combining component functions. They are inherently
+safer than programming languages now in widespread use, and
+dramatically more concise.<BR>
+<BR>
+However, the very high-level nature of functional languages poses two
+big problems: (1) how to turn programs into efficient computations; (2)
+how to trace programming errors from the faults they cause.
+Since the mid 1980s, problem (1) has been a popular target of research,
+and excellent progress has been made with it: there are now optimising
+compilers for functional languages. But problem (2) has received less
+attention, and in practical terms it remains wide open. The lack of tracing
+and debugging tools is a long-standing gap in functional-language technology,
+deterring potential users.<BR>
+<BR>
+I therefore propose a decisive attack on the tracing problem for
+functional programs. My aim is to advance a successful but limited
+prototype, recently developed with ROPA funding, to the stage of a
+convincing tool for practical application.
+Several research problems must be solved to achieve this aim:
+to give just two examples, efficient low-level counterparts must be found for
+high-level combinators with subtle properties of abstraction, and
+new algorithms are needed for incremental compression of
+heap structures to file without disturbing lazy evaluation.
+<BR>
+<BR>
+
+<H5>Key phrases:</H5> declarative languages; functional programming;
+software development; fault-tracing tools; programming environments.<BR>
+<BR>
+<!--TOC section Context-->
+
+<H2>1&nbsp;&nbsp;Context</H2><!--TOC subsection Past Projects-->
+
+<H3>1.1&nbsp;&nbsp;Past Projects</H3>The broad aim of my work in recent years has been to advance the state
+of the art in functional programming systems, enabling wider and more
+effective use to be made of this technology. I have run a series of
+research projects in this connection, with a mixture of government and
+industrial funding. The most important of these for this proposal have
+been:<BR>
+<BR>
+
+<H5>FLARE (1991--93, IEATP, GR/F 98857 C2117)</H5>
+This project aimed to demonstrate that functional programming systems could be
+effectively applied to a range of demanding applications. It was a
+collaboration between industrial and academic partners, each of whom
+developed applications in their own field of expertise. British
+Telecom managed the project.
+I was the technical
+co-ordinator and co-edited a book based on the project [<CITE><A HREF="#runcimanwakeling95"><CITE>runcimanwakeling95</CITE></A></CITE>].
+One important conclusion from FLARE was that the availability of
+profiling and tracing tools can be a critical factor in the
+successful use of functional programming.
+At York we developed novel methods for
+profiling heap memory [<CITE><A HREF="#runcimanwakeling93a"><CITE>runcimanwakeling93a</CITE></A></CITE>] and
+parallel evaluation [<CITE><A HREF="#RuncimanWakeling94"><CITE>RuncimanWakeling94</CITE></A></CITE>].
+There was not time to address the more complex tracing problem,
+but it was put high on our list of topics for future research.<BR>
+<BR>
+
+<H5>Embedding Functional Programs (1994--, Canon Research Europe)</H5>
+Towards the end of FLARE, a separate PhD project at York aimed to
+adapt a functional language implementation for the special
+requirements of embedded systems, including demands for memory
+efficiency and a richer treatment of I/O [<CITE><A HREF="#wallacerunciman95b"><CITE>wallacerunciman95b</CITE></A></CITE>].
+CRE has funded a continuation of this work.
+The current techniques used for embedding software into
+devices such as typewriters and copiers are a long way from purely
+functional programming. But there are prototype software systems
+developed on large workstations in declarative languages that Canon
+might one day wish to embed in such office products. We have been
+researching extensions to functional languages and their
+implementations to make such embedding possible. A
+significant part of this work has been a novel treatment of
+compressed binary data [<CITE><A HREF="#WallaceRunciman98"><CITE>WallaceRunciman98</CITE></A></CITE>]:
+this could be a useful part of our
+tracing technology, where one of the key problems is to
+reduce memory demands for trace structures representing entire
+computational histories.<BR>
+<BR>
+
+<H5>Selective tracing of functional computations using graph reduction with
+redex trails (1996--97, ROPA, GR/K64334)</H5>
+This 18-month project aimed to demonstrate the feasibility of
+a particular approach to the tracing problem by building a prototype
+implementation. We extended a compiled graph-reduction implementation
+of the functional language Haskell, transforming programs so that at
+run-time they could build trails of contracted redexes (intermediate
+expressions, re-written by appeal to definitions in the program) 
+attaching a comprehensive derivation
+tree to every value [<CITE><A HREF="#sparudruncimanplilp97"><CITE>sparudruncimanplilp97</CITE></A></CITE>].
+We developed a special purpose browser for the
+examination of trails starting from outputs or run-time faults; we
+experimented with partial trails and pruning rules to
+increase the size of applications that could be handled [<CITE><A HREF="#SparudRuncimanIFL97"><CITE>SparudRuncimanIFL97</CITE></A></CITE>].
+This ROPA project convinced us that redex trails can be made the basis
+of an effective tracing system, useful in real applications.
+<EM>The goal of the project now proposed is to fulfil this potential.
+</EM><BR>
+<BR>
+<!--TOC subsection Institution-->
+
+<H3>1.2&nbsp;&nbsp;Institution</H3>The Computer Science department at York has internationally
+known research groups and attracted the highest possible rating (5*)
+in the most recent national Research Assessment Exercise.
+Software technology, including compilers and related tools,
+is a long-standing theme in the department's work.<BR>
+<BR>
+<!--TOC section Proposed Research-->
+
+<H2>2&nbsp;&nbsp;Proposed Research</H2><!--TOC subsection Background-->
+
+<H3>2.1&nbsp;&nbsp;Background</H3>
+<H5>The tracing problem</H5>
+Functional programming systems offer significant advantages over more
+conventional alternatives, particularly for complex symbolic
+applications. The abstracting power and declarative nature of functional
+languages, largely free from low-level concerns such as
+sequence of evaluation and memory management, enable computational
+ideas to be expressed very directly and concisely, with 
+fewer possibilities for error.<BR>
+<BR>
+However, this property of being abstract is two-edged. Though 
+there are fewer classes of possible mistakes in functional programs,
+errors do still occur, and programmers need to trace their causes.
+Time and again the lack of tools for tracing and debugging has deterred
+software developers from using functional languages [<CITE><A HREF="#Wadler98"><CITE>Wadler98</CITE></A></CITE>].
+This is not simple neglect on the part of implementors;
+a high level of abstraction separating language from machine makes
+tools genuinely hard to build.
+A computation of a conventional imperative program is comparatively easy
+to trace, step by step, but a functional computation performed using a
+sophisticated evaluation strategy such as normal order graph reduction
+involves a sequence of events not explicit in the program, and often
+baffling to the intuition. Hence the research challenges: <EM>What is
+an appropriate form of trace for functional computations? How best can
+such traces be constructed and applied in practice?</EM><BR>
+<BR>
+
+<H5>Approaches to the problem</H5>
+In the 1980s, little work was done on
+profiling and tracing functional computations.
+In the 1990s, work at York and elsewhere has
+delivered effective profiling techniques, leading to
+marked reductions in the time and space costs of many
+applications [<CITE><A HREF="#RuncimanRojemoSchool96"><CITE>RuncimanRojemoSchool96</CITE></A>, </CITE><CITE><A HREF="#sansompeytonjonestoplas97"><CITE>sansompeytonjonestoplas97</CITE></A></CITE>].
+Success with the tracing problem has not come so easily:
+a review in a recent Australian thesis [<CITE><A HREF="#watsonphd"><CITE>watsonphd</CITE></A></CITE>] notes some twenty
+different attempts at a solution, none of them conclusive!<BR>
+<BR>
+Approaches broadly divide into those that base traces on a <EM>linear
+sequence</EM> of events, and those that represent computational history
+using some sort of <EM>dependency graph</EM>. Methods based on a sequence of
+events have had some success for `mostly functional' languages with a
+strictly applicative evaluation sequence; Tolmach and Appel's system
+for the ML language is a notable example [<CITE><A HREF="#tolmachappeljfp95"><CITE>tolmachappeljfp95</CITE></A></CITE>].
+The benefits of
+the sequential approach are that a trace can be displayed as
+computation proceeds, and that it is easy to trade time for space:
+given a few check-point states stored at well-chosen intervals, any past
+state of computational history can be reached by re-execution.
+<BR>
+<BR>
+However, the more ideal purely functional languages 
+permit the definition of non-strict functions, implemented using
+the lazy evaluation strategy of call-by-need. Despite some valiant attempts [<CITE><A HREF="#watsonphd"><CITE>watsonphd</CITE></A></CITE>],
+the evidence to date is that for such programs linear traces of the sequence of
+reductions are ineffective. Rather, to track
+faults in realistic computations, it is necessary to record a
+non-linear structure of dependencies between expressions.<BR>
+<BR>
+
+<H5>Redex trails prototype</H5>
+In our work, a network of <EM>redex trails</EM> [<CITE><A HREF="#sparudruncimanplilp97"><CITE>sparudruncimanplilp97</CITE></A>, </CITE><CITE><A HREF="#SparudRuncimanIFL97"><CITE>SparudRuncimanIFL97</CITE></A></CITE>]
+represents these dependencies.
+Functional expressions can be viewed as trees or --- since
+sub-expressions can be shared and may recursively reference enclosing
+expressions --- as graphs. Evaluation repeatedly replaces one subgraph
+by another, where the reduction rules used to define replacements are
+derived from equations that constitute the program. At each reduction
+step, a <EM>redex</EM> matching the left-hand side of an equation is
+replaced by the corresponding instance of the right-hand side. To
+construct redex trails, at each reduction during the computation we
+arrange that from every node <I>n</I> of the resulting subgraph there is a
+link to the <EM>parent redex</EM> whose reduction caused <I>n</I> to be
+introduced. Using a special-purpose browser which reconstructs
+expressions in source form, the programmer can proceed backwards along
+the relevant trails from a fragment of output, from a run-time error,
+or from a point at which an apparently unproductive computation has been
+interrupted. Our ROPA project has shown the viability of
+this approach, as outlined in §1;
+but despite its promising results, our ROPA prototype is limited
+in a variety of ways, each prompting lines of further research:<BR>
+<BR>
+<OL>
+<LI>
+<EM>Performance:</EM>
+A program transformed to generate redex trails can run 10--20 times
+more slowly than the original.
+<EM>Research questions</EM>: Could new abstract-machine instructions
+provide low-level replacements for current high-level
+combinators to manipulate trails? How can normally compiled functions
+be mixed with trail-generating ones, when trail generation alters
+type-structure at all levels?<BR>
+<BR>
+
+<LI>
+<EM>Capacity:</EM>
+Trails are constructed as data structures in heap memory.
+Even partial redex trails are very large and current pruning strategies
+may discard needed information.
+<EM>Research questions</EM>: Could our heap compression techniques be
+used to good effect here? Could some form of meta-programming be
+used to give greater control over pruning?<BR>
+<BR>
+
+<LI>
+<EM>Transience:</EM>
+Because trails are built in heap memory, when a functional computation
+is closed the trail is lost.
+<EM>Research question</EM>: How can trails be archived to file incrementally
+as computation proceeds? (This is a delicate problem because of the relationship
+between trails and lazy evaluation, and the need to avoid revising the
+archive.)<BR>
+<BR>
+
+<LI>
+<EM>Scope:</EM>
+Important classes of Haskell programs cannot yet be traced.
+For example, I/O is very restricted, and comprehensions are traced
+in terms of their low-level translations.
+<EM>Research questions</EM>: What extensions to the current definition
+of redex trails best represent these forms of
+computation? What form of access and display are most effective
+for these extensions?<BR>
+<BR>
+
+<LI>
+<EM>Host:</EM> 
+The prototype is implemented as an extension of the <EM>nhc</EM> compiler
+and run-time system. It cannot be used in conjunction
+with other implementations (eg. the optimising compiler <EM>ghc</EM>).
+<EM>Research questions</EM>: How can the current machinery for
+redex trails be re-expressed in a portable tracer? If source-to-source
+translation is used, could a low-level library with an interface
+defined in Green Card [<CITE><A HREF="#GreenCard97"><CITE>GreenCard97</CITE></A></CITE>] or H/Direct [<CITE><A HREF="#HDirect98"><CITE>HDirect98</CITE></A></CITE>] provide
+the necessary extension of primitives?
+If so, assuming what interface to the local run-time system?<BR>
+<BR>
+
+<LI>
+<EM>User interface:</EM>
+The prototype trail browser was developed <EM>ad hoc</EM>.
+It is quite complex and using it successfully
+sometimes requires an implementor's insight.
+<EM>Research questions</EM>:
+How can fault-tracing be modelled as a problem-solving activity?
+How well do the resources provided by the trail browser fit the task?
+How can these and other insights be reflected in improved design,
+including greater support for fault-finding strategies?</OL>One consequence of these limitations and outstanding research questions
+is that the prototype has had few users --- mainly the developers and
+their students.
+The obstacles to wider practical use do not seem insurmountable,
+but there is a lot of work to be done, requiring various skills.<BR>
+<BR>
+
+<H5>Other alternatives</H5>
+Though we have developed redex trails as the basis for tracing,
+we are aware of alternatives.
+Perhaps the most advanced of these is Nilsson's Freja system, based on
+Evaluation Dependence Trees (EDTs) [<CITE><A HREF="#NilssonPhd98"><CITE>NilssonPhd98</CITE></A></CITE>]. His EDT nodes record
+equivalences between expressions, where each parent equivalence
+is a direct consequence of the child equivalences and an
+equation in the program. 
+The starting point in an EDT is not
+a final reduction leading to an output or point of error but
+the root equivalence between an original main expression and its
+entire computed result.
+Two drawbacks of the EDT approach in comparison with redex trails
+are that incremental archiving to file is even more difficult
+(Nilsson rules it out in favour of repeated execution to obtain
+new fragments of the EDT) and that the user has to reason
+about larger displayed expressions.<BR>
+<BR>
+<!--TOC subsection Programme and Methodology-->
+
+<H3>2.2&nbsp;&nbsp;Programme and Methodology</H3>
+<H5>Overall aim:</H5>
+a solution to the problem of tracing higher-order lazy
+functional computations that is effective in practice, based on tools
+for the construction and examination of redex trails.<BR>
+<BR>
+
+<H5>Primary objectives</H5>
+<OL>
+<LI>
+a <EM>tracing system for Haskell 98</EM> (the nearest thing
+there is to a standard lazy functional language) hosted in
+the freely available <EM>nhc</EM> compiler;
+<BR>
+<BR>
+
+<LI>
+a system that incorporates a method for <EM>incremental archiving
+of traces to file</EM>, alleviating pressure on heap memory and
+increasing the returns from the overhead of generating trails;<BR>
+<BR>
+
+<LI>
+a <EM>portable variant</EM> of the tracer, based on source-to-source
+transformation and a support library, with a clearly-defined
+interface to supporting operations that any host implementation
+must provide; (In particular, we aim to provide a version of
+our tracer that works in conjunction with the widely-used
+<EM>ghc</EM> and <EM>hugs</EM> systems, currently being integrated with
+EPSRC support --- GR/L 34297.)<BR>
+<BR>
+
+<LI>
+a trace-browser designed to be <EM>an effective tool for locating
+faults</EM> based on a thorough analysis of
+the tracing task as a problem-solving activity, and of the
+browser display as a resource; the browser will also be
+equipped to record how it is used, so that data
+can be gathered from use in practice.</OL>
+<H5>Secondary objectives</H5><OL>
+<LI>
+to <EM>improve the speed</EM> of computations generating trails,
+for example by transferring the operations of trail-level function
+abstraction and application to a lower layer of implementation;<BR>
+<BR>
+
+<LI>
+to obtain <EM>results from a wide range of practical tests</EM> using the
+tracer, and hence to improve the design --- eg. to determine
+what strategies users choose to adopt when examining traces, and to
+extend the tracer with explicit support for the strategies that seem
+most successful;<BR>
+<BR>
+
+<LI>
+to exploit the representation of redex trails as functional
+data structures by devising a system for <EM>meta-programming
+search and display routines</EM> specific to an application.
+</OL>
+<H5>Timeliness and novelty</H5>The need for a tracing tool that can cope with lazy higher-order
+functional programs has been recognised for almost twenty years. 
+The lack of a tracer has been a key reason for the
+surprisingly limited use of a programming technology
+with so many advantages [<CITE><A HREF="#Wadler98"><CITE>Wadler98</CITE></A></CITE>].
+There are now optimising compilers for languages like Haskell,
+and tools for the integration of functional components into
+larger systems.
+A solution to the tracing problem is overdue.
+It is a difficult problem to tackle comprehensively,
+but the redex trails approach is distinctive, and with
+the results already obtained in the ROPA project
+we are well-placed to succeed.<BR>
+<BR>
+
+<H5>Methodology</H5>
+A lot of work has gone into our ROPA prototype, with promising
+results.
+We should advance from the given position, not restart from scratch.
+The principles of the compile-time transformation,
+the functional representation of redex trails, and the
+message-passing architecture of the tracer (browser
+communicating with functional computation) should
+all be preserved.
+We shall also continue to work with the <EM>nhc</EM> compiler,
+but reducing dependencies on its internal world to increase
+portability.
+Java was used for the prototype browser, and proved
+quite satisfactory.
+Though we plan to re-think the browser design, implementation
+will again be in Java --- a browser that works well
+over the internet could prove useful when we want
+to support external users.<BR>
+<BR>
+So far as practical evaluation is concerned, we do <EM>not</EM>
+intend to set up rigorous laboratory experiments scrutinising
+tracing `micro-tasks'.
+Such experiments would absorb too much effort.
+Results from actual use in practice are preferable for our purpose,
+but general feedback from casual use might be too vague or sparse.
+One kind of evaluation exercise we intend to use
+requires two programmers.
+<I>A</I> explains to <I>B</I> a correctly working program of
+moderate size (around 500 lines) that <I>A</I> wrote some
+time ago.
+<I>B</I> now secretly introduces several deliberate
+errors into the program, of a kind undetected by the compiler.
+Given the faulty program, <I>A</I> uses the tracer to locate
+and fix all the errors, thinking aloud as they do so.
+<I>B</I> takes notes throughout, and afterwards <I>A</I> and <I>B</I> review the
+exercise, recording the main issues arising.<BR>
+<BR>
+
+<H5>Programme of work</H5>Figure 1 summarises the workplan in diagrammatic form.
+From the start, the two researchers will engage in joint 
+tasks combining their skills as well as solo tasks
+demanding their individual expertise.
+Brief descriptions follow for each activity.
+<BLOCKQUOTE><HR>
+<BR>
+<BR>
+<DIV ALIGN=center>Figure 1: </DIV>
+<HR></BLOCKQUOTE><OL>
+<LI>
+<EM>Acquire skill with prototype:</EM>
+Both RAs need to become expert users of the
+prototype tracer to inform their work developing its successor.
+Each will also need to become
+familiar with components of the implementation for which they will be
+responsible.<BR>
+<BR>
+
+<LI>
+<EM>Tracing as a problem-solving task:</EM>
+Newell and Simon [<CITE><A HREF="#NewellSimon72"><CITE>NewellSimon72</CITE></A></CITE>] pioneered ways of analysing the
+human information processing required to solve a variety of problems,
+such as chess puzzles. We will similarly analyse the activity of using
+the tracer to locate faults in programs. The purpose is to gain
+understanding of tasks that must be supported by an improved browser
+for redex trails, including strategies that users might in principle
+choose to adopt.<BR>
+<BR>
+
+<LI>
+<EM>Display as resource:</EM>
+The display provided by the browser is a critical resource, as typical
+redex trails are complex and very large. Using techniques previously
+applied to theorem-proving systems, we shall model display information
+as a resource for reasoning about programs [<CITE><A HREF="#FieldsWrightHarrison97"><CITE>FieldsWrightHarrison97</CITE></A></CITE>].
+The results will inform
+the redesign of the browser.<BR>
+<BR>
+
+<LI>
+<EM>Lift language restrictions:</EM>
+The top priorities are list comprehensions and file I/O.
+Comprehensions require new transformation rules;
+file I/O requires special support from the run-time
+system; both require extensions to
+the browser interface.<BR>
+<BR>
+
+<LI>
+<EM>Incremental archiving:</EM>
+We hope to achieve incremental archiving by extending trail-pruning routines
+applied by the
+prototype during garbage collection. Information in sections of
+trail deleted from heap memory will be archived to file, with the
+continuing stump in the main memory trail recording an archival
+reference. Care will be needed to avoid any costly revision of
+archived values or undesirable change in the degree of 
+evaluation. Archived trails must also be properly linked to all the other
+information that may be required by the browser (eg. program sources,
+indexed I/O transcript).<BR>
+<BR>
+
+<LI>
+<EM>Faster trail generation:</EM>
+Trail-manipulating combinators are introduced by transformation
+to replace each function abstraction and each
+application in the original program. In the prototype, these
+combinators are defined in Haskell as part of a
+redex-trail library. We aim to define
+new primitive operations, perhaps new G-machine
+instructions in <EM>nhc</EM>, to make reduction of
+these combinators much faster. However, degree of evaluation is
+extremely delicate, particularly in the way that saturation of
+function applications is handled, and some likely-looking
+primitives fail at this point.
+The ability to mix traced and untraced modules could give another
+route to faster generation of selective trails.<BR>
+<BR>
+
+<LI>
+<EM>Redesign browser:</EM>
+Based on experience using the prototype, and the results of the
+problem-solving and resource analyses, 
+the trail browser will be redesigned.
+We shall try to minimise changes to the
+message-passing interface with the Haskell world.
+The browser will also be extended to record information
+about how it is used.<BR>
+<BR>
+
+<LI>
+<EM>Devise experiments and instructions:</EM>
+Writing instructions for the use of the tracer, including
+information about how to carry out systematic experiments,
+will be an essential prelude to external use and feedback.
+The exercise of writing about use of the tracer should
+also provoke further insights into what is needed,
+and ideas for development.<BR>
+<BR>
+
+<LI>
+<EM>Interim release of tracer:</EM>
+an important milestone.
+All effort will focus at this stage on pulling together the
+different strands of development in the first year, to provide a reliable
+distribution of the tracer hosted by a version of nhc.
+This will also be a good time to visit likely users.<BR>
+<BR>
+
+<LI>
+<EM>Concerted trials of tracer:</EM>
+We shall test the effectiveness of the tracer ourselves using
+exercises of the kind noted under `methodology'.
+Trials by external users will be promoted and supported
+by mailing lists, visits and a workshop.<BR>
+<BR>
+
+<LI>
+<EM>Analyse usage and revise models:</EM>
+Study of the data automatically collected by the browser,
+alongside reports and requests from users, will
+confirm or alter our design assumptions and priorities.
+The problem-solving and resource models will be revised,
+and improvements made to the trail browsing interface.<BR>
+<BR>
+
+<LI>
+<EM>Portability interface:</EM>
+A portable variant of the tracer must be detached from <EM>nhc</EM>
+in two respects.
+Compile-time transformations working on internal representations
+must be adapted to generate a fresh source.
+Extra run-time routines required by the tracer should be
+isolated, specified and defined in portable
+libraries (Haskell 98, Green Card or H/Direct).
+The portable version of the tracer must forfeit
+some sources of efficiency that depend on internal properties of
+<EM>nhc</EM>, but an optimising compiler such as <EM>ghc</EM> might
+amply compensate for such losses.<BR>
+<BR>
+
+<LI>
+<EM>Develop support for strategies:</EM>
+Typical redex trails involve a large number of interconnecting
+paths, and there are various plausible strategies for
+investigating faults of different kinds.
+Some of these could be directly supported by the tracer ---
+for example, reducing display information by blocking off
+parts of a trail irrelevant to a specific line of enquiry,
+and automatically following any unique continuations.
+The choice of strategies to support will be informed by
+discussion with experienced users, and examination of usage
+logs.<BR>
+<BR>
+
+<LI>
+<EM>Metaprogramming display and search:</EM>
+Redex trails are functional data structures so there is scope for
+trace-time computation over them.
+For example, displays of some large data structures could be
+vastly improved by application-specific rules --- though care
+must be taken to avoid forcing evaluation unnaturally.
+We also plan to investigate ways of encoding specialised
+searches over trails.<BR>
+<BR>
+
+<LI>
+<EM>Final release and documentation:</EM>
+A Haskell implementation incorporating the new tracer, with
+explanatory papers, will be made available on the internet.
+Another task in the closing stages will be to finish writing up 
+results of our work for refereed publication.</OL>
+<H5>Project management</H5>A weekly project meeting will provide a regular occasion to
+review current progress and confirm immediate plans. With a small team,
+working closely together, these meetings will naturally be informal.
+However, written records will be kept to avoid misunderstandings
+or things being forgotten.
+Interested visitors may be invited to join these meetings,
+and regular meetings of the Programming Languages and Systems research group
+will give further opportunity for brief reports and discussion.<BR>
+<BR>
+Once a quarter we shall review progress on the project as a whole,
+revising plans if necessary to secure the most important objectives.
+We shall also issue a short quarterly bulletin to our academic and
+industrial contacts, and any other interested parties. <BR>
+<BR>
+<!--TOC subsection Dissemination and exploitation-->
+
+<H3>2.3&nbsp;&nbsp;Dissemination and exploitation</H3>We shall seek in various ways to encourage both
+academic and industrial Haskell users
+to try our new tracer, and to participate in its
+further development. The plan is to release an experimental
+version of the tracer at the end of the first year, as the
+common platform for a concerted period of trial use. We shall make
+suitable advance announcements on the internet, seek opportunities to
+present our work on the tracer at recognised conferences, and 
+also hold a one-day workshop at York. Within the UK,
+we may visit users to get them started. Besides establishing a mailing list for
+general feedback and discussion, we shall publish details of
+suggested forms of tracing experiment on the web.<BR>
+<BR>
+There are several archival FTP sites for public domain implementations
+of functional languages. We plan to make the final results of our work freely
+available by placing copies of software at these sites, in addition to
+publishing papers.<BR>
+<BR>
+<!--TOC subsection Resources-->
+
+<H3>2.4&nbsp;&nbsp;Resources</H3>The appropriate scale for this project has been determined by
+comparison with the 18-month ROPA project during which the
+prototype redex-trail system was developed.<BR>
+<BR>
+
+<H5>People</H5>
+If we are to push this tracing technology far enough to
+make it really effective in practice, there is a lot of work to be done on several
+fronts.
+Hence the proposal to hire a team of two post-doctoral RAs for two years.
+<BR>
+<BR>
+
+<H5>Infrastructure and equipment</H5>
+The department of Computer Science at York provides
+computing facilities including networking and file-service,
+with technician support.
+<BR>
+<BR>
+Each of the RAs will need a workstation.
+The two most common platforms for
+developers and users of research languages are Suns and PCs.
+Of these, PCs offer better performance for the price --- and we
+have access to an UltraSparc compute server if a Sun platform is needed.
+At the time of writing £2000 buys a PC system including a 400MHz
+Pentium II processor, 128Mb RAM, 8.4Gb disk, 17"--19" monitor, CDROM,
+network and graphics cards.
+Suitable components will be chosen and purchased
+separately, and assembled by our departmental technicians.<BR>
+<BR>
+
+<H5>Travel</H5>We request funds to participate in relevant conferences. ICFP is the
+premier international conference in functional programming; INTERACT is
+an international conference with user interface design as a central
+interest.
+IFL is an established European workshop emphasising
+new implementation methods and practical experiments in functional
+programming.
+The costing assumes that we all attend ICFP
+but only two of us attend each of IFL and INTERACT.
+<BR>
+<BR>
+We hope to maintain close working links with researchers in Sweden.
+Jan Sparud (Gothenburg) worked on the ROPA project, and we value
+continuing collaboration with him.
+Henrik Nilsson (Linköping) has developed a rival approach
+to functional tracing, based on Evaluation Dependence Trees. We propose to 
+visit Sweden twice a year.
+<BR>
+<BR>
+Within the UK, we have links with relevant research groups at several
+other universities, from Exeter to St Andrews, and with industrial R&amp;D
+sites, mainly in the South. We request funds for
+visits to discuss the development of the tracer, and to
+promote its experimental use.
+<BR>
+<BR>
+<!--TOC section References-->
+
+<H2>References</H2><DL COMPACT>
+<DT><FONT COLOR=purple>[FieldsWrightHarrison97]<A NAME="FieldsWrightHarrison97"></A></FONT><DD>
+B.&nbsp;Fields, P.&nbsp;Wright, and M.&nbsp;Harrison.
+ Objectives, strategies and resources as design drivers.
+ In S.&nbsp;Howard, J.&nbsp;Hammond, and G.&nbsp;Lindgaard, editors, <EM>Human-Computer Interaction </EM><EM>INTERACT'97</EM>, pages 164--171. Chapman and Hall,
+ July 1997.<BR>
+<BR>
+
+<DT><FONT COLOR=purple>[FieldsMerriam98]<A NAME="FieldsMerriam98"></A></FONT><DD>
+R.&nbsp;E. Fields and N.&nbsp;A. Merriam.
+ Inference and information resources: A design case study.
+ In P.&nbsp;Johnson and P.&nbsp;Markopoulos, editors, <EM>Eurographics Workshop
+ on Design, Specification and Verification of Interactive Systems</EM>. Springer,
+ 1998.
+ In press.<BR>
+<BR>
+
+<DT><FONT COLOR=purple>[HDirect98]<A NAME="HDirect98"></A></FONT><DD>
+S.&nbsp;Finne, D.&nbsp;Leijen, E.&nbsp;Meijer, and S.&nbsp;L. Peyton Jones.
+ H/Direct: a binary foreign language interface for Haskell.
+ In <EM>Proc. 3rd ACM International Conference on Functional
+ Programming (</EM><EM>ICFP'98</EM><EM>)</EM>, pages 153--162. ACM Press, September 1998.<BR>
+<BR>
+
+<DT><FONT COLOR=purple>[NewellSimon72]<A NAME="NewellSimon72"></A></FONT><DD>
+A&nbsp;Newell and H.&nbsp;A. Simon.
+ <EM>Human Problem Solving</EM>.
+ Prentice-Hall, 1972.<BR>
+<BR>
+
+<DT><FONT COLOR=purple>[NilssonPhd98]<A NAME="NilssonPhd98"></A></FONT><DD>
+H.&nbsp;Nilsson.
+ <EM>Declarative debugging for lazy functional languages</EM>.
+ PhD thesis, Linköping, Sweden, 1998.<BR>
+<BR>
+
+<DT><FONT COLOR=purple>[GreenCard97]<A NAME="GreenCard97"></A></FONT><DD>
+S.&nbsp;L. Peyton Jones, T.&nbsp;Nordin, and A.&nbsp;Reid.
+ Green Card: a foreign language interface for Haskell.
+ In <EM>P</EM><EM>roc. </EM><EM>ACM</EM><EM> </EM><EM>SIGPLAN</EM><EM> </EM><EM>H</EM><EM>askell </EM><EM>W</EM><EM>orkshop, </EM><EM>A</EM><EM>msterdam</EM>,
+ June 1997.<BR>
+<BR>
+
+<DT><FONT COLOR=purple>[rojemofpca95]<A NAME="rojemofpca95"></A></FONT><DD>
+N.&nbsp;Röjemo.
+ Highlights from nhc --- a space-efficient Haskell compiler.
+ In <EM>P</EM><EM>roc. 7th </EM><EM>I</EM><EM>ntl. </EM><EM>C</EM><EM>onf. on </EM><EM>F</EM><EM>unctional </EM><EM>P</EM><EM>rogramming
+ </EM><EM>L</EM><EM>anguages and </EM><EM>C</EM><EM>omputer </EM><EM>A</EM><EM>rchitecture (</EM><EM>FPCA'95</EM><EM>)</EM>, pages 282--292. ACM
+ Press, June 1995.<BR>
+<BR>
+
+<DT><FONT COLOR=purple>[RuncimanRojemoSchool96]<A NAME="RuncimanRojemoSchool96"></A></FONT><DD>
+C.&nbsp;Runciman and N.&nbsp;Röjemo.
+ Heap profiling for space efficiency.
+ In J.&nbsp;Launchbury, E.&nbsp;Meijer, and T.&nbsp;Sheard, editors, <EM>2nd </EM><EM>I</EM><EM>ntl.
+ </EM><EM>S</EM><EM>chool on </EM><EM>A</EM><EM>dvanced </EM><EM>F</EM><EM>unctional </EM><EM>P</EM><EM>rogramming</EM>, pages 159--183, Olympia,
+ WA, August 1996. Springer LNCS Vol. 1129.<BR>
+<BR>
+
+<DT><FONT COLOR=purple>[runcimanwakeling93a]<A NAME="runcimanwakeling93a"></A></FONT><DD>
+C.&nbsp;Runciman and D.&nbsp;Wakeling.
+ Heap profiling of lazy functional programs.
+ <EM>Journal of Functional Programming</EM>, 3(2):217--245, April 1993.<BR>
+<BR>
+
+<DT><FONT COLOR=purple>[RuncimanWakeling94]<A NAME="RuncimanWakeling94"></A></FONT><DD>
+C.&nbsp;Runciman and D.&nbsp;Wakeling.
+ Profiling parallel functional computations (without parallel
+ machines).
+ In J.T. O'Donnell and K.&nbsp;Hammond, editors, <EM>Proc. 1993 Glasgow
+ Workshop on Functional Programming</EM>, pages 236--251. Springer-Verlag
+ Workshops in Computing, 1994.<BR>
+<BR>
+
+<DT><FONT COLOR=purple>[runcimanwakeling95]<A NAME="runcimanwakeling95"></A></FONT><DD>
+C.&nbsp;Runciman and D.&nbsp;Wakeling, editors.
+ <EM>Applications of functional programming</EM>.
+ UCL Press, 1995.<BR>
+<BR>
+
+<DT><FONT COLOR=purple>[sansompeytonjonestoplas97]<A NAME="sansompeytonjonestoplas97"></A></FONT><DD>
+P.&nbsp;M. Sansom and S.&nbsp;L. Peyton Jones.
+ Formally based profiling for higher-order functional languages.
+ <EM>ACM Transactions on Programming Languages and Systems</EM>,
+ 19(2):334--85, March 1997.<BR>
+<BR>
+
+<DT><FONT COLOR=purple>[SparudRuncimanIFL97]<A NAME="SparudRuncimanIFL97"></A></FONT><DD>
+J.&nbsp;Sparud and C.&nbsp;Runciman.
+ Complete and partial redex trails of functional computations.
+ In C.&nbsp;Clack, K.&nbsp;Hammond, and T.&nbsp;Davie, editors, <EM>Selected papers
+ from 9th Intl. Workshop on the Implementation of Functional Languages
+ (</EM><EM>IFL'97</EM><EM>)</EM>, pages 160--177. Springer LNCS Vol. 1467, September 1997.<BR>
+<BR>
+
+<DT><FONT COLOR=purple>[sparudruncimanplilp97]<A NAME="sparudruncimanplilp97"></A></FONT><DD>
+J.&nbsp;Sparud and C.&nbsp;Runciman.
+ Tracing lazy functional computations using redex trails.
+ In H.&nbsp;Glaser, P.&nbsp;Hartel, and H.&nbsp;Kuchen, editors, <EM>Proc. 9th Intl.
+ Symposium on Programming Languages, Implementations, Logics and Programs
+ (</EM><EM>PLILP'97</EM><EM>)</EM>, pages 291--308. Springer LNCS Vol. 1292, September 1997.<BR>
+<BR>
+
+<DT><FONT COLOR=purple>[tolmachappeljfp95]<A NAME="tolmachappeljfp95"></A></FONT><DD>
+A.&nbsp;Tolmach and A.&nbsp;W. Appel.
+ A debugger for Standard ML.
+ <EM>Journal of Functional Programming</EM>, 5(2):155--200, April 1995.<BR>
+<BR>
+
+<DT><FONT COLOR=purple>[Wadler98]<A NAME="Wadler98"></A></FONT><DD>
+P.&nbsp;Wadler.
+ Why no one uses functional languages.
+ <EM>ACM SIGPLAN Notices</EM>, 33(8):23--27, August 1998.<BR>
+<BR>
+
+<DT><FONT COLOR=purple>[wallacerunciman95b]<A NAME="wallacerunciman95b"></A></FONT><DD>
+M.&nbsp;Wallace and C.&nbsp;Runciman.
+ Lambdas in the Liftshaft --- functional programming and an
+ embedded architecture.
+ In <EM>Proc. 7th Intl. Conf. on Functional Programming Languages and
+ Computer Architecture (FPCA'95)</EM>, pages 249--258, La Jolla, June 1995. ACM
+ Press.<BR>
+<BR>
+
+<DT><FONT COLOR=purple>[WallaceRunciman98]<A NAME="WallaceRunciman98"></A></FONT><DD>
+M.&nbsp;Wallace and C.&nbsp;Runciman.
+ The bits between the lambdas: Binary data in a lazy functional
+ language.
+ In <EM>Proc. Intl. Symp. on Memory Management</EM>, pages 107--117,
+ Vancouver, Canada, October 1998. ACM Press.<BR>
+<BR>
+
+<DT><FONT COLOR=purple>[watsonphd]<A NAME="watsonphd"></A></FONT><DD>
+R.&nbsp;D. Watson.
+ <EM>Tracing Lazy Evaluation by Program Transformation</EM>.
+ PhD thesis, Southern Cross, Australia, October 1996.</DL>
+
+
+<!--HTMLFOOT-->
+<!--ENDHTML-->
+
+<!--FOOTER-->
+<HR>
+
+<BLOCKQUOTE><EM>This document was translated from L<sup>A</sup>T<sub>E</sub>X by </EM><A HREF="http://para.inria.fr/~maranget/hevea/index.html"><EM>H</EM><EM><FONT SIZE=2><sup>E</sup></FONT></EM><EM>V</EM><EM><FONT SIZE=2><sup>E</sup></FONT></EM><EM>A</EM></A><EM>.
+</EM></BLOCKQUOTE></BODY>
+</HTML>
+

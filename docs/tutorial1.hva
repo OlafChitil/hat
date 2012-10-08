@@ -1,0 +1,3 @@
+\newcommand{\highlight}[1]{\red{\tt #1}\black}
+\newcommand{\mkblue}[1]{\blue{\tt #1}\black}
+\newcommand{\CUT}{\char177}

@@ -1,0 +1,66 @@
+.TH HAT-COVER "1" "October 2004"
+.SH NAME
+hat-cover \- highlight Haskell source expressions used in a traced run 
+.SH SYNOPSIS
+.B hat-cover
+[\fIOPTION\fR]... [\fITRACEFILE\fR] [\fISOURCEFILE\fR]...
+.SH DESCRIPTION
+.PP
+Print to standard output a listing of each Haskell \fISOURCEFILE\fR,
+highlighting all expressions for which at least one instance occurs
+in the \fBhat\fR \fITRACEFILE\fR.
+.PP
+The \fITRACEFILE\fR may be specifed with or without a
+.C .hat
+extension; similarly each \fISOURCEFILE\fR may be specified with or
+without a
+.C .hs
+extension.
+If no \fISOURCEFILE\fR is specified
+.B hat-cover
+lists all sources in which there are traced expressions.
+.PP
+The highlighted expressions in the output are \fImaximal\fR expressions
+represented in \fITRACEFILE\fR.  However, case-expressions, if-expressions
+and let-expressions are not included among the candidate maximal expressions.
+As a result, in \fIoutermost\fR case/if/let layers each alternative, branch
+or local definition is considered separately for highlighting.
+.PP
+However, where a case/if/let occurs as a part of a larger expression of some
+other kind, any highlighting of the larger expression will also highlight
+the entire case/if/let.
+More generally, one
+cannot infer from the highlighting of an expression that every subexpression
+within it was needed at some point in the traced computation.
+Extra detail in coverage information can be obtained if necessary
+by lifting out key subexpressions as the right-hand-sides
+of local definitions.
+.TP
+\fB\-hion=\fIonchars\fR, \fB\-hioff=\fIoffchars\fR
+options reset the character-sequence codes used to switch highlighting
+on and off in the output.
+.SH AUTHOR
+Written by Colin Runciman.
+.SH "BUGS/LIMITATIONS"
+Some lone-variable expressions are not candidate
+maximal expressions for highlighting \(em but any entire
+right-hand-side, or any alternative, branch or let-body in outermost
+case/if/let layers, are always candidates.
+Some trailing brackets in expressions are not included in highlighting.
+Both problems are consequences of the current hat trace representation.
+.SH "REPORTING BUGS"
+Report bugs to <hat@haskell.org>.
+.SH COPYRIGHT
+Copyright \(co 2004 University of York.
+.br
+This is free software without warranty of any kind.
+.SH "SEE ALSO"
+.I hat-cover
+is one of many tools in the
+.I Hat
+tracing system for Haskell programs.
+For further information about
+.I Hat
+see
+.B http://haskell.org/hat
+

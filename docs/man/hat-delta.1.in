@@ -1,0 +1,151 @@
+.TH HAT-DELTA 1 local
+.SH NAME
+hat-delta \- find a bug by algorithmic debugging, with delta debugging optimisations.
+.SH SYNOPSIS
+.B hat-delta
+.RB [ \-chv ]
+.RB [ \-d
+.IR depth ]
+.RB [ \-f
+.IR heuristicFunction ]
+.RB [ \-s
+.IR sliceDepth ]
+prog[.hat]
+
+.SH DESCRIPTION
+.I hat-delta
+is an interactive tool for finding bugs in the trace of a Haskell program
+.I prog
+supplied as its argument.  The user must answer a sequence of yes/no
+questions.  Each question asked by hat-delta concerns the reduction
+of a function application to a value.  You answer
+.I yes
+if the reduction is correct with respect to your intentions, and
+.I no
+otherwise.
+After a number of questions hat-delta reports an example equation
+which is the cause of the observed faulty behaviour - that is, which
+function definition is incorrect.
+
+.SH OPTIONS
+.TP
+.B -c
+Disable compression of the EDT based on reporting the same answer for several questions.
+.TP
+.B -d depth
+Set the maximum depth hat-delta will consider making a jump into the EDT.
+.TP
+.B -f function
+Set the heuristic function that hat-delta should use.  Heuristic functions are input in the form of a Haskell data structure as discussed in the Heuristic functions section.
+.TP
+.B -h
+Display help message and exit.
+.TP
+.B -s sliceDepth
+Set the number of child connections hat-delta will follow when generating a program slice.
+.TP
+.B -v
+Print hat-delta's version number, and exit.
+
+.SH INTERACTIVE COMMANDS
+.PP
+The hat-delta browser asks you questions, so the basic mode of
+interaction is to type answers:
+.TP
+.B yes
+Yes, the equation looks correct by my understanding of the meaning
+of the function.
+.TP
+.B no
+No, the equation looks incorrect.  Given the displayed arguments,
+the function is returning the wrong result.
+.PP
+The following other commands are available.  They each begin with
+a colon.
+.TP
+.B :show
+Show the EDTs hat-detect is currently searching for bugs
+
+.TP
+.B :quit
+Exit the interactive tool.
+.TP
+.B :help
+Shows help text giving an overview of the commands available.
+
+.TP
+.B :source
+Shows (in a separate window) the source code for the reduction currently being queried.
+.TP
+.B :anim
+Start the hat-anim browser in a new window, beginning with the currently
+queried rediction.
+.TP
+.B :delta
+or
+.B :split
+Start the hat-delta browser in a new window, beginning with the currently
+queried reduction.
+.TP
+.B :detect
+Start the hat-detect browser in a new window, beginning with the currently
+queried reduction.
+.TP
+.B :explore
+Start the hat-explore browser in a new window, beginning with the currently
+queried reduction.
+.TP
+.B :trail
+Start a hat-trail browser in a new window, beginning with the currently
+queried reduction.
+
+.TP
+.B :set
+Set an option in the form `:set option value`. Options are:\n\
+
+
+.B depthLimit
+Set the maximum depth hat-delta will consider making a jump into the EDT. Must be greater than 0.
+
+.B sliceDepth
+Set the number of child connections hat-delta will follow when generating a program slice. Must be positive.  A depth of 0 indicates that the whole function definition should be used as a slice.
+
+.B heuristic
+Set the heuristic function, as described in the Heuristic functions section.
+
+.SH HEURISTIC FUNCTIONS
+.PP
+Heuristic functions calculate an estimate of how likely a particular program slice is to be the buggy one.  They may be specified by the user in the form of a Haskell data structure using the following constructors.
+.TP
+.B ZeroHeuristic
+Constant 0.0
+.TP
+.B OneHeuristic
+Constant 1.0
+.TP
+.B Correct
+The number of correct evaluations of the slice.
+.TP
+.B Incorrect
+The number of incorrect evaluations of the slice.
+.TP
+.B Add f1 f2
+Add the values of f1 and f2.
+.TP
+.B Negate f
+Negate the value of f.
+.TP
+.B Multiply f1 f2
+Multiply the values of f1 and f2.
+.TP
+.B Invert f
+Invert the value of f.
+.PP
+If no heuristic is specified, the system will use Negate (Multiply Correct (Invert (Add Correct Incorrect))).
+
+.SH FILES
+.TP 25
+.B @BINDIR@/hat-delta
+
+.SH "SEE ALSO"
+hmake(1), hat-trans(1), hat-detect(1), hat-stack(1), hat-observe(1), hat-trail(1)

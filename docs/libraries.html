@@ -1,0 +1,191 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Libraries in Hat</title></head>
+<body bgcolor=#ffffff>
+<table><tr><td width=500>
+
+<center>
+  <img src="hat.gif" alt="Hat Logo"><br>
+  <h1>Libraries in Hat</h1>
+</center>
+<hr>
+
+<h3>Standard Libraries</h3>
+<p>
+Currently, Hat fully supports the Standard Prelude and official
+Haskell'98 libraries, defined in the 
+<a href="http://www.haskell.org/onlinelibrary/_._.html">
+<em>Haskell '98 Library Report</em></a>:
+
+
+<h3>Extension Libraries</h3>
+<p>
+Hat also supports some of the extension libraries supplied with
+more recent versions of GHC, nhc98, and Hugs.  These are the
+<em>hierarchical libraries</em> mainly in the <em>base</em> package.
+Actually only a subset of the base, parsec, and mtl packages is
+currently available in Hat, but it includes most of the really
+useful and common extensions, such as the FFI libraries, IORefs,
+and unsafePerformIO.  A full list is below.
+
+<table border=1 align=center cellspacing=0 cellpadding=2><tr>
+<th><font color="green">supported</font></th>
+<th><font color="red">unsupported</font></th>
+</tr><tr>
+<td valign=top>
+    Control.Arrow<br>
+    Control.Monad<br>
+    Control.Monad.Cont<br>
+    Control.Monad.Error<br>
+    Control.Monad.Fix<br>
+    Control.Monad.Identity<br>
+    Control.Monad.List<br>
+    Control.Monad.Reader<br>
+    Control.Monad.RWS<br>
+    Control.Monad.State<br>
+    Control.Monad.Trans<br>
+    Control.Monad.Writer</td>
+<td valign=top>
+        Control.Concurrent<br>
+        Control.Concurrent.*<br>
+        Control.Exception<br>
+        Control.Exception.*<br>
+        Control.Monad.ST<br>
+        Control.Parallel<br>
+        Control.Parallel.*</td>
+</tr><tr>
+<td valign=top>
+    Data.Array<br>
+    Data.Bits<br>
+    Data.Bool<br>
+    Data.Char<br>
+    Data.Complex<br>
+    Data.Either<br>
+    Data.FiniteMap<br>
+    Data.IORef<br>
+    Data.Ix<br>
+    Data.List<br>
+    Data.Maybe<br>
+    Data.Monoid<br>
+    Data.PackedString<br>
+    Data.Ratio<br>
+    Data.Set<br>
+    Data.Tuple<br>
+    Data.Word</td>
+<td valign=top>
+        Data.Array.*<br>
+        Data.Int<br>
+        Data.Generics<br>
+        Data.Dynamic<br>
+        Data.STRef<br>
+        Data.STRef.*<br>
+        Data.Unique<br>
+        Data.Word</td>
+</tr><tr>
+<td valign=top>
+    Debug.Trace</td>
+<td valign=top>
+        Debug.QuickCheck<br>
+        Debug.QuickCheck.*</td>
+</tr><tr>
+<td valign=top>
+    Foreign.ForeignPtr<br>
+    Foreign.Marshal.Error<br>
+    Foreign.Ptr<br>
+    Foreign.StablePtr<br>
+    Foreign.Storable</td>
+<td valign=top>
+        Foreign.C<br>
+        Foreign.C.Error<br>
+        Foreign.C.String<br>
+        Foreign.C.Types<br>
+        Foreign.C.TypesISO<br>
+        Foreign.Marshal.Alloc<br>
+        Foreign.Marshal.Array<br>
+        Foreign.Marshal.Utils<br>
+        Foreign.Marshal.Pool</td>
+</tr><tr>
+<td valign=top>
+    System.CPUTime<br>
+    System.Console.GetOpt<br>
+    System.Cmd<br>
+    System.Directory<br>
+    System.Environment<br>
+    System.Exit<br>
+    System.IO<br>
+    System.IO.Error<br>
+    System.IO.Unsafe<br>
+    System.Locale<br>
+    System.Random<br>
+    System.Time</td>
+<td valign=top>
+        System.Info<br>
+        System.Mem<br>
+        System.Mem.StableName<br>
+        System.Mem.Weak<br>
+        System.Posix.Signals<br>
+        System.Posix.Types</td>
+</tr><tr>
+<td valign=top>
+    Text.ParserCombinators.Parsec<br>
+    Text.ParserCombinators.Parsec.Error<br>
+    Text.ParserCombinators.Parsec.Char<br>
+    Text.ParserCombinators.Parsec.Combinator<br>
+    Text.ParserCombinators.Parsec.Expr<br>
+    Text.ParserCombinators.Parsec.Perm<br>
+    Text.ParserCombinators.Parsec.Pos<br>
+    Text.ParserCombinators.Parsec.Prim<br>
+    Text.PrettyPrint<br>
+    Text.PrettyPrint.HughesPJ<br>
+    Text.Read<br>
+    Text.Show</td>
+<td valign=top>
+        Text.Html<br>
+        Text.Html.BlockTable<br>
+        Text.ParserCombinators.Parsec.Language<br>
+        Text.ParserCombinators.Parsec.Token<br>
+        Text.ParserCombinators.ReadP<br>
+        Text.ParserCombinators.ReadPrec<br>
+        Text.Read.Lex<br>
+        Text.Regex<br>
+        Text.Regex.Posix<br>
+        Text.Show.Functions</td>
+</tr></table>
+
+
+<h3>Your Own Libraries</h3>
+<p>
+If you wish to trace a program that uses some libraries, then at the
+moment you need to copy the source for that library into the same
+source tree as your program, and explicitly compile it for tracing
+along with the program.  Obviously this requires that the library
+itself is implemented exclusively in the superset of Haskell'98
+supported by Hat.  If you trust that the library is correct and do
+not wish to trace its internal calls, then you can give the flag
+<em>-trusted</em> to <em>hat-trans</em> (for that library alone).
+
+
+<h3>Future improvements</h3>
+<p>
+We have ideas for the future whereby a library can be used in
+its original form without needing re-compilation for tracing.
+We sometimes refer to this idea as <em>wrapping</em> a library, as
+opposed to the current method of <em>lifting</em> the library source
+code by transformation.  However, for the moment library-wrapping
+remains a dream.
+
+<hr>
+<p>
+The latest updates to these pages are available on the WWW from
+<a href="http://www.haskell.org/hat/">
+<tt>http://www.haskell.org/hat/</tt></a><br>
+<a href="http://www.cs.york.ac.uk/fp/hat/">
+<tt>http://www.cs.york.ac.uk/fp/hat/</tt></a>
+
+<p>
+This page last updated: 27th July 2004<br>
+<a href="http://www.cs.york.ac.uk/fp/">
+York Functional Programming Group</a><br>
+
+</td></tr></table>
+</body></html>
+

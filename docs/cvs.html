@@ -1,0 +1,151 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Hat in CVS</title></head>
+<body bgcolor=#ffffff>
+<table><tr><td width=500>
+
+<center>
+  <h1>CVS access to Hat</h1>
+</center>
+<hr>
+
+<p>
+This page tells you how to get CVS access to the latest, most current,
+<em>Hat</em> sources.
+
+
+<h3>Remote Read-only CVS Access</h3>
+
+<p>
+Read-only access is available to anyone - there's no need to ask us
+first.  To get read-only access to the repository:
+
+<ul>
+<li> Obviously, you need to have the <em>cvs</em> command installed.
+<li> The first time you access the repository, you'll need to do
+     the following:
+<pre>
+      $ cvs -d :pserver:anoncvs@cvs.haskell.org:/cvs login
+      Password: cvs
+</pre>
+     You only need to supply the password once, because cvs will squirrel
+     it away for future use in $HOME/.cvspass.
+
+<li> To checkout the hat sources, use this command:
+<pre>
+      $ cvs -d :pserver:anoncvs@cvs.haskell.org:/cvs checkout hat
+</pre>
+     The checked-out source tree will appear in a directory called
+     <tt>hat</tt>.  You can rename this directory to whatever you
+     like, CVS won't mind.
+<li> From then on, you should no longer need the <em>-d blah</em> option,
+     and commands like
+<pre>
+      $ cvs diff
+      $ cvs update
+</pre>
+     should work, provided your working directory is somewhere inside
+     the checked out tree.  In normal use, <tt>cvs update</tt>
+     is the command to merge the latest changes from the central
+     repository into your local tree.  <tt>cvs diff</tt> gives you
+     the differences between your version and the central version.
+<li> If you change your current directory into a sub-directory of the
+     CVS tree, cvs commands will normally operate only on that subtree,
+     not on the full tree.  This is very handy if you are only interested
+     in a small part of the source.
+</ul>
+
+<p>
+With read-only CVS access you can do anything except commit changes
+to the repository. You can make changes to your local tree, and still
+use CVS's update facility to keep your tree otherwise up-to-date,
+and you can generate patches using <tt>cvs diff</tt> in order to send
+to us for inclusion.
+
+<p>
+To set up default flags for some of the CVS commands, you can create
+a <tt>.cvsrc</tt> file.  For instance, the -P flag to 'update' says
+prune empty directories, which is normally what you want, and the -d
+flag ensures that you collect new directories that have been added.
+Here is an example <tt>.cvsrc</tt> file:
+<pre>
+        checkout -P
+        release -d
+        update -d -P
+        diff -c
+</pre>
+
+<h3>Using the checked-out CVS tree</h3>
+
+<p>
+The first thing to do after checking out a fresh tree is
+<tt>./configure</tt>, setting whatever options you wish to use.
+It is always safe to re-run the <tt>./configure</tt> script at any
+time - it will never leave your configuration in an inconsistent state.
+The machine/OS combination is always detected first so you can't re-use
+the wrong machine configuration by mistake, and although previous
+options for a particular machine are cached, they are always reported,
+and can be always overridden on the command line.
+
+<p>
+Then, do a <tt>make</tt> with whatever targets you are interested
+in: <tt>make help</tt> will give you a list of the common ones.
+For instance, <tt>make hat</tt> gives you everything, but <tt>make
+hat-tools</tt> gives you just the browsing tools.
+
+
+<h3>Tracking changes in the CVS repository</h3>
+<p>
+The log messages of all CVS commit actions are currently sent to the
+mailing list <tt>cvs-nhc98@haskell.org</tt>.  If you wish to see who
+is making changes, why, and and what they say about them, please do
+join this list - see <a href="http://haskell.org/mailman/listinfo">
+<tt>http://haskell.org/mailman/listinfo</tt></a> for further details.
+
+
+<h3>Core developers - write-access to CVS</h3>
+<p>
+Core developers of <em>hat</em> have write-access to the CVS
+repository.  They need to use a slightly different procedure for
+accessing the source tree:
+
+<ul>
+<li> You need to have <em>ssh</em> (secure shell) installed.
+<li> Set your CVS_RSH environment variable to <tt>ssh</tt>.
+<li> The first time you access the repository, you'll need to do
+     the following:
+<pre>
+      $ cvs -d :ext:<em>username</em>@cvs.haskell.org:/home/cvs/root checkout hat
+</pre>
+</ul>
+
+<p>
+All the other instructions are the same, except that developers also
+have permission to commit changes to the repository.
+
+<h3>Gaining write-access</h3>
+<p>
+To obtain write-access to cvs.haskell.org, you need to ask the
+Haskell CVS maintainer - Jeff Lewis &lt;jlewis@galconn.com&gt; - for
+an account.  The details are on the
+<a href="http://www.haskell.org/ghc/docs/latest/html/building/sec-cvs.html">
+GHC CVS cheat-sheet</a> (Section 2.1.2).
+
+
+
+<p>
+<hr>
+<p>
+The latest updates to these pages are available on the WWW from
+<a href="http://www.haskell.org/nhc98/">
+<tt>http://www.haskell.org/nhc98/</tt></a><br>
+<a href="http://www.cs.york.ac.uk/fp/nhc98/">
+<tt>http://www.cs.york.ac.uk/fp/nhc98/</tt></a>
+
+<p>
+This page last modified: 13th March 2003<br>
+<a href="http://www.cs.york.ac.uk/fp/">
+York Functional Programming Group</a><br>
+
+</td></tr></table>
+</body></html>
+

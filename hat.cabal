@@ -1,0 +1,226 @@
+
+name:                hat
+version:             2.7.0.0
+synopsis:            The Haskell tracer, generating and viewing Haskell execution traces
+description:
+  hat-trans transforms Module.hs into Hat/Module.hs such that when the program is
+  executed, a trace file Programname.hat is generated.
+  Various tools (hat-trail, hat-observe, hat-explore ...) then allow viewing the 
+  trace file in different ways, to locate a bug or understand how a program works.
+
+  This is the first release of Hat under Cabal.
+
+  It is the least possible update to make Hat work with Cabal.
+  Hat 2.07 works only with ghc for Haskell 98 (plus a few extensions) and
+  the standard Haskell 98 libraries. Although it should build on any operating system,
+  most viewing tools use ASCII console escape sequences and they open xterms;
+  hence they will only work well under Unix and X11.
+
+  Installation:
+
+  cabal -v install (--user | --global)
+
+  Flag -v allows you to see what is going on. Building takes a long time 
+  (one module has 25.000 lines of code). Don't worry about numerous warning messages.
+
+  Use:
+
+  hat-make MyProgram.hs
+
+  transforms and compiles all modules of your program and produces the tracing
+  version Hat/MyProgram.
+
+  Run your program which will produce trace files MyProgram.hat*
+
+  Use the viewing tools to explore the trace:
+
+  hat-trail / hat-observe / hat-explore /...   MyProgram
+
+  There is documentation in the "docs" folder, but much of it is outdated.
+homepage:            http://www.cs.kent.ac.uk/~oc
+license:             OtherLicense
+license-file:        docs/copyright.html
+copyright:	     (c) 2000-2012 Hat team
+author:              Hat team
+maintainer:          oc@kent.ac.uk
+stability:	     provisional
+tested-with:	     GHC ==7.4.1
+bug-reports:	     oc@kent.ac.uk   
+category:            Development
+build-type:          Simple
+cabal-version:       >=1.8
+
+data-dir:	     libhx
+data-files:	     *.hx
+extra-source-files:  libraries/*.hs, docs/*.html, docs/*.hs, docs/*.ps.gz, docs/*.eps, docs/*.gif, docs/*.pdf, docs/*.tex, docs/*.dvi, docs/*.hva, docs/man/*.1, docs/man/*.1.in
+
+source-repository head
+  type:		     git
+  location:	     git://github.com/OlafChitil/hat.git
+
+library
+  exposed-modules:     Hat.Array, Hat.Char, Hat.Complex, Hat.CPUTime, Hat.Directory, Hat.Hack, Hat.Hat, Hat.IO, Hat.Ix, Hat.List, Hat.Locale, Hat.Maybe, Hat.Monad, Hat.Numeric, Hat.Prelude, Hat.PreludeBasic, Hat.Random, Hat.Ratio, Hat.System, Hat.Time
+  build-depends:       base ==4.5.*, directory ==1.1.*, random ==1.0.*, process ==1.1.*, old-time ==1.1.*, old-locale ==1.0.*
+  other-modules:       Hat.DirectoryBuiltin, Hat.DirectoryBuiltinTypes, Hat.IOBuiltin, Hat.IOBuiltinTypes, Hat.PreludeBuiltin, Hat.PreludeBuiltinTypes, Hat.RandomBuiltin, Hat.SystemBuiltin, Hat.SystemBuiltinTypes, Hat.TimeBuiltin, Hat.TimeBuiltinTypes
+  extensions:	       ForeignFunctionInterface
+  includes:	       hat-c.h, art.h, ntohl.h
+  include-dirs:	       include, Hat
+  c-sources:	       Hat/hat-c.c
+  cc-options:	       -DFILEVERSION="2.07"
+
+executable hat-trans
+  main-is:           HatTrans.hs
+  hs-source-dirs:    trans, compiler98
+  other-modules:     TraceDerive, AuxLabelAST, AuxFixity, AuxFile, AuxTypes, TraceId, Flags, PrettyTraceId, HatTrans, Wrapper, AssocTree, Error, Extra, HbcOnly, Id, IdKind, Info, IntState, Lex, LexLow, LexPre, LexStr, Lexical, MergeSort, MkSyntax, NT, Nice, OsOnly, Parse, Parse2, ParseCore, ParseLex, ParseLib, PrettyLib, PrettySyntax, Reduce, Syntax, SyntaxPos, SyntaxUtil, SysDeps, TokenId, Tree234, Unlit, Paths_hat
+  build-depends:     base ==4.5.*, bytestring ==0.9.*, directory ==1.1.*
+  includes:	     hat-c.h, art.h, ntohl.h
+  include-dirs:	     include, Hat
+  c-sources:	     Hat/hat-c.c
+  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+
+executable hat-trail
+  main-is:           HatTrail.hs
+  hs-source-dirs:    tools        
+  other-modules:     LowLevel, SrcRef, Ident, SExp, PrettyLibHighlight, Highlightstyle, CommonUI
+  build-depends:     base ==4.5.*, containers ==0.4.*, directory ==1.1.*, process ==1.1.*
+  extensions:        ForeignFunctionInterface
+  includes:          art.h
+  include-dirs:      include
+  c-sources:         tools/pathutils.c, tools/artutils.c, tools/finitemap.c
+  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+
+executable hat-observe
+  main-is:           HatObserve.hs
+  hs-source-dirs:    tools
+  other-modules:     Observe, LowLevel, SExp, Ident, PrettyLibHighlight, HighlightStyle, Pattern, ParseLib, Idents, CmdLine, CommonUI, SrcRef, Trie, TExp
+  build-depends:     base ==4.5.*, process ==1.1.*, haskeline >=0.6
+  extensions:        ForeignFunctionInterface
+  includes:          art.h
+  include-dirs:      include
+  c-sources:         tools/pathutils.c, tools/artutils.c, tools/finitemap.c, tools/hat-names.c, tools/observeutils.c
+  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+ 
+executable hat-stack
+  main-is:           HatStackText.hs
+  hs-source-dirs:    tools
+  other-modules:     HatStack, LowLevel, SExp, PrettyLibHighlight, HighlightStyle, Ident, SrcRef, CommonUI
+  build-depends:     base ==4.5.*, process ==1.1.*
+  extensions:	     ForeignFunctionInterface
+  includes:	     art.h
+  include-dirs:	     include
+  c-sources:	     tools/pathutils.c, tools/artutils.c, tools/finitemap.c
+  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+ 
+executable hat-explore
+  main-is:           HatExplore.hs
+  hs-source-dirs:    tools
+  other-modules:     Explore, CommonUI, HighlightStyle, LowLevel, Ident, SrcRef, SExp, Detect, NodeExp, Slice, ADT, Detect, PrettyLibHighlight
+  build-depends:     base ==4.5.*, process ==1.1.*
+  extensions:	     ForeignFunctionInterface
+  includes:	     art.h
+  include-dirs:	     include
+  c-sources:	     tools/parentset.c, tools/detectutils.c, tools/pathutils.c, tools/artutils.c, tools/finitemap.c
+  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+
+executable hat-detect
+  -- currently just calls hat-delta; was a separate tool
+  main-is:	     HatDetect.hs
+  hs-source-dirs:    tools
+  other-modules:     Pretty, Slice, LowLevel, CommonUI, NodeExp, SExp, ADT, EDT, SrcRef, FDT, Detect, Explore, HighlightStyle, PrettyLibHighlight, Ident
+  build-depends:     base ==4.5.*, process ==1.1.*, containers ==0.4.*
+  extensions:	     ForeignFunctionInterface
+  includes:	     art.h, ntohl.h
+  include-dirs:	     include
+  c-sources:	     tools/detectutils.c, tools/parentset.c, tools/pathutils.c, tools/artutils.c, tools/finitemap.c
+  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+
+executable hat-check
+  main-is:	     HatCheck.hs
+  hs-source-dirs:    tools
+  build-depends:     base ==4.5.*, process ==1.1.*
+  extensions:	     ForeignFunctionInterface
+  includes:	     art.h, ntohl.h
+  include-dirs:	     include
+  c-sources:	     tools/hat-check.c
+  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+
+executable hat-view
+  main-is:	     SrcRefViewer.hs
+  hs-source-dirs:    tools
+  other-modules:     HighlightStyle, Run
+  build-depends:     base ==4.5.*, process ==1.1.*, directory ==1.1.*
+  extensions:	     ForeignFunctionInterface
+  includes:	     art.h, ntohl.h
+  include-dirs:	     include
+
+executable hat-cover
+  -- builds, but doesn't seem to work
+  main-is:	     HatCoverText.hs
+  hs-source-dirs:    tools
+  other-modules:     HatCover, LowLevel, SrcRef, HighlightStyle
+  build-depends:     base ==4.5.*, process ==1.1.*
+  extensions:	     ForeignFunctionInterface
+  includes:	     art.h, ntohl.h
+  include-dirs:	     include
+  c-sources:	     tools/pathutils.c, tools/artutils.c, tools/finitemap.c
+  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+
+executable black-hat
+  main-is:	     BlackHat.hs
+  hs-source-dirs:    tools
+  other-modules:     LowLevel, Sexp, PrettyLibHighlight, Highlightstyle, Run, NonTermLib
+  build-depends:     base ==4.5.*, process ==1.1.*
+  extensions:	     ForeignFunctionInterface
+  includes:	     art.h, ntohl.h
+  include-dirs:	     include
+  c-sources:	     tools/nontermutils.c, tools/pathutils.c, tools/artutils.c, tools/finitemap.c
+  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+
+executable hat-nonterm
+  main-is:	     HatNonTerm.hs
+  hs-source-dirs:    tools
+  other-modules:     LowLevel, Sexp, PrettyLibHighlight, Highlightstyle, Run, NonTermLib
+  build-depends:     base ==4.5.*, process ==1.1.*
+  extensions:	     ForeignFunctionInterface
+  includes:	     art.h, ntohl.h
+  include-dirs:	     include
+  c-sources:	     tools/nontermutils.c, tools/pathutils.c, tools/artutils.c, tools/finitemap.c
+  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+
+executable hat-anim
+  main-is:	     HatAnim.hs
+  hs-source-dirs:    tools
+  other-modules:     NodeExp, Pretty, CommonUI, LowLevel, HighlightStyle
+  build-depends:     base ==4.5.*, process ==1.1.*, containers ==0.4.*
+  extensions:	     ForeignFunctionInterface
+  includes:	     art.h, ntohl.h
+  include-dirs:	     include
+  c-sources:	     tools/detectutils.c, tools/parentset.c, tools/pathutils.c, tools/artutils.c, tools/finitemap.c
+  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+
+executable pretty-hat
+  main-is:	     PrettyHat.hs
+  hs-source-dirs:    tools
+  other-modules:     Pretty, NodeExp, EDT, HighlightStyle, Detect, Slice, ADT, Explore, SExp, CommonUI, SrcRef, Ident, LowLevel, PrettyLibHighlight
+  build-depends:     base ==4.5.*, process ==1.1.*, containers ==0.4.*
+  extensions:	     ForeignFunctionInterface
+  includes:	     art.h, ntohl.h
+  include-dirs:	     include
+  c-sources:	     tools/detectutils.c, tools/parentset.c, tools/pathutils.c, tools/artutils.c, tools/finitemap.c
+  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+
+executable hat-delta
+  main-is:	     HatDelta.hs
+  hs-source-dirs:    tools
+  other-modules:     Pretty, Slice, LowLevel, CommonUI, NodeExp, SExp, ADT, EDT, SrcRef, FDT, Detect, Explore, HighlightStyle, PrettyLibHighlight, Ident
+  build-depends:     base ==4.5.*, process ==1.1.*, containers ==0.4.*
+  extensions:	     ForeignFunctionInterface
+  includes:	     art.h, ntohl.h
+  include-dirs:	     include
+  c-sources:	     tools/detectutils.c, tools/parentset.c, tools/pathutils.c, tools/artutils.c, tools/finitemap.c
+  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+
+executable hat-make
+  main-is:	     HatMake.hs
+  hs-source-dirs:    tools
+  build-depends:     base ==4.5.*, process ==1.1.*, directory ==1.1.*

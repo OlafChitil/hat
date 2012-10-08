@@ -1,0 +1,156 @@
+.TH HAT-OBSERVE 1 local
+.SH NAME
+hat-observe \- observe all arguments and results for a Haskell function
+.SH SYNOPSIS
+.B hat-observe
+prog[.hat]
+.SH DESCRIPTION
+.I hat-observe
+is an interactive tool to observe equations for all
+applications of top-level functions during
+the computation of the program
+.I prog.
+Each equation shows the specific arguments given to the function in
+one call, together with the result of the call.  Identical calls are
+suppressed, and it is possible to suppress calls that are less
+general than other calls already seen.  There are various other options
+for restricting the equations that are reported, for instance by
+pattern-matching on certain arguments or results, by suppressing
+recursive calls, or by restricting to a certain caller.
+
+.SH INTERACTIVE COMMANDS
+The following two commands constitute the basic method for using this
+interactive browser.
+.TP
+.B pattern query
+Show function/constructor applications matching the given pattern.
+(See QUERY SYNTAX below for details.)  Equations are shown in groups
+(of 10 by default) to avoid too many scrolling past at once.
+.TP
+.B <RETURN> key
+Show the next group of equations for the most recent pattern query
+(if more are available).
+.PP
+The following other commands are available.  They each begin with
+a colon.  A command can be abbreviated to its shortest non-ambiguous
+prefix.
+.TP
+.B :quit
+Exit the interactive tool.
+.TP
+.B :help [cmd]
+Shows help text giving an overview of the commands available, or if a
+command name
+.I cmd
+is given, shows more detailed help about that command.  Also
+.I :help query
+shows the detailed syntax of observation queries.
+.TP
+.B :info [module]
+Function identifiers are listed for the named module, or if no module
+is named, then for all modules, sorted alphabetically, with occurrence
+counts.  A blue count indicates completed calls, a red count indicates
+uncompleted calls (unevaluated call counts are not shown).
+.TP
+.B :Info [module]
+As for :info, except it lists data constructors rather than functions.
+.TP
+.B :set [flag]
+With no argument, shows all current mode settings.  Given an argument,
+it changes that mode and reports the new setting.  The flag argument
+is one of:
+.IP "  uneval [on|off]"
+show unevaluated expressions in full (default off)
+.IP "  strSugar [on|off]"
+sugar character strings (default on)
+.IP "  listSugar [on|off]"
+sugar lists (default on)
+.IP "  recursive [on|off]"
+show recursive calls (default on)
+.IP "  qualified [on|off]"
+show all identifiers qualified (default off)
+.IP "  equations [on|off]"
+show rhs of equations (default on)
+.IP "  [all|unique]"
+show all equations or only unique (default unique)
+.IP "  group n"
+number of equations listed per page (default 10)
+.IP "  cutoff n"
+cut-off depth for deeply nested exprs (default 10)
+.TP
+.B :+[n]
+Short-cut to increase the cutoff depth by <n> (default 1)
+.TP
+.B :-[n]
+Short-cut to decrease the cutoff depth by <n> (default 1)
+
+.TP
+.B :source n
+Shows (in a separate window) the source code for the application usage
+of the numbered equation.
+.TP
+.B :Source n
+Shows (in a separate window) the source code for the function
+definition of the numbered equation.
+.TP
+.B :detect n
+Start the hat-detect browser in a new window, beginning with the numbered
+equation.
+.TP
+.B :trail n
+Start the hat-trail browser in a new window, beginning with the numbered
+equation.
+.TP
+.B :observe [query]
+With no argument, a new interactive hat-observe window is started for
+the same traced program.  Given a query argument, the new window starts
+with an immediate search for the expression pattern before giving
+an interactive prompt.
+.TP
+.B :resize
+After resizing a window, use this command to inform the tool to detect
+the change in size, so that pretty-printing can fit the screen.
+
+
+.SH QUERY SYNTAX
+A simple function identifier finds all applications of that function.
+     e.g. myfn
+
+To restrict the number of equations, follow the function name with
+argument or result patterns.
+     e.g. myfn ((:) 1 ((:) 2 _))
+          myfn "Hello World!" (1:(2:_)) = [1,_]
+
+Another way of refining the search is to ask for calls only from a
+specific enclosing function.
+     e.g. myfn _ (Con 2 _) (1 `Con` 3) in myOtherFn
+
+The full query syntax is:
+.IP
+.I    ident [pattern]*  ['=' pattern]?  ['in' ident]?
+.HP
+.B where
+.PP
+    pattern = '_'                             
+            | num
+            | ''' char '''
+            | '"' string '"'
+            | '[' pattern [',' pattern]* ']'
+            | Con
+            | '(' Con [pattern]* ')'
+
+.PP
+The pattern alternatives correspond (respectively) to a wildcard, a
+number, a character, a string, a literal list, a nullary constructor,
+and a constructor application.
+
+Additionally, infix functions/constructors may take the normal
+Haskell infix syntax.
+
+
+.SH FILES
+.TP 25
+.B @BINDIR@/hat-observe
+
+.SH "SEE ALSO"
+hmake(1), hat-trans(1), hat-stack(1), hat-detect(1), hat-trail(1)

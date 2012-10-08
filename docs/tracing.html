@@ -1,0 +1,61 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HEAD>
+<TITLE>Introduction to the prototype Haskell Tracer </TITLE>
+</HEAD>
+
+<BODY>
+
+<H1>Introduction to the prototype Haskell Tracer</H1>
+
+<H3>Overview</H3>
+
+<p>
+The prototype Haskell Tracer is an experimental system for tracing
+Haskell computations.  The basis of our tracing method is a program
+transformation carried out by the compiler: transformed programs
+compute the same values as the original, but in addition compute
+functional data structures containing <em>redex trails</em> which
+show how the values were obtained.  After computing a result,
+or when an error occurs, the programmer can use a special-purpose
+interactive display program to investigate the derivation in detail,
+with cross-links to the source program.
+
+<p>
+Similar schemes attempted by others have typically been limited, for
+example, with respect to the language used to express traced programs,
+the speed of traced execution, the detail recorded in the trace, and
+the size of computations for which traces can be built and explored.
+We aim in the ART project to build a tracer for full Haskell'98,
+and ultimately a tracer that can be applied to very large computations.
+Our prototype tracer, hosted by the <em>nhc98</em> compiler,
+currently handles most of the Haskell'98 language, with a subset of
+the Standard Prelude and Libraries.  Various techniques have already
+been incorporated for dealing with larger computations.
+
+<H3><a href="paper.dvi">Tracing Lazy Functional Computations (.dvi)</a></H3>
+
+<H3>User Interface</H3> 
+
+<p>
+The picture below illustrates the tracer user interface, here shown
+tracing the nhc98 compiler itself. The top part of the window displays
+the interactive redex trail, and the bottom part shows either the
+source code or the program output (selected via the notebook tabs).
+
+<p>
+The user can click on any expression, identifier or constant in the 
+redex trail display to explore the redex trail of that item. 
+By right-clicking on an item, the source code window will display the 
+source code position of <em>the particular occurrence</em> of the item.
+By shift-right-clicking on an item, the source code window will display 
+the source code of <em>the definition</em> of the item.
+
+<p>
+If the output window is selected, the user can click on any part of the 
+program output, and the redex trail for the expression responsible for that 
+piece of the output will be displayed in the redex trail window.
+
+<p>
+<img src=compiler2.gif>
+
+</BODY>

@@ -1,0 +1,131 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Hat 2.04 Bugs and Limitations</title></head>
+<body text="#000000" bgcolor="#FFFFFF" link="#0000EE" vlink="#551A8B" alink="#FF0000">
+
+<center>
+  <img src="hat.gif" alt="Hat Logo"><br>
+  <h1>Hat 2.04 Bugs and Limitations</h1>
+</center>
+<hr>
+
+<p>
+This is a list of all known bugs and limitations in Hat 2.04.
+There is also a <a href="todo.html">wish-list</a> of features
+that we would like to add to Hat.
+Please mail
+  <a href="mailto:hat@haskell.org">hat@haskell.org</a>
+to report any other problems you find.
+
+<h3>hat-trans problems:</h3>
+<p>
+<ul>
+<li><em>hat-trans</em> output fails to compile if the source program
+    depends on defaults to resolve numeric types.
+    (See <a href="faq.html">FAQ</a> for workaround.)
+    </li>
+<li><em>hat-trans</em> can fail if the arity of source definitions
+    or applications is large.
+    (See <a href="faq.html">FAQ</a> for workaround.)
+    </li>
+<li>Data constructions used in a trusted context are hidden if they are
+    evaluated there before the result is demanded in an untrusted
+    context.
+    </li>
+<li><em>hat-trans</em> generates type-incorrect code for FFI declarations
+    (foreign imports).
+</ul>
+
+<h3>Run-time problems:</h3>
+<p>
+<ul>
+<li>Programs that exhaust memory fail with an incomplete trace file.</li>
+</ul>
+
+<h3>Problems with viewing a trace</h3>
+
+<h4>General</h4>
+<ul>
+<li>List comprehensions and arithmetic ranges
+    are not traced at source level: they are recorded and displayed
+    in de-sugared form.
+    </li>
+<li><font color=red>Fixed in Hat 2.04</font>
+    <em>do</em> statements are not traced at source level.
+    </li>
+<li>Super-saturated applications are not shown.
+    </li>
+<li>Traces involving pattern bindings may be incomplete.
+    </li>
+<li><font color=red>Fixed in Hat 2.02</font>
+    Named fields are not traced at source level.
+    </li>
+<li><font color=red>Fixed in Hat 2.02</font>
+    The viewing tools display some lists misleadingly: when the tail
+    of a sugared list is cut off or undefined it is shown as if it
+    was a final element.
+    </li>
+</ul>
+
+<h4>Hat-observe</h4>
+<ul>
+<li><em>hat-observe</em> inappropriately lists trusted CAFs under :info and
+    allows observations of CAF values that should be hidden.
+    </li>
+<li><em>hat-observe</em> may incorrectly show applications as distinct when
+    arguments include a cyclic structure.  (Example program: Cycles)
+    </li>
+<li>^C in a <em>hat-observe</em> window (to cut short a search) can shut
+    down a <em>hat-trail</em> window spawned from the same
+    <em>hat-observe</em> session.
+    </li>
+<li><font color=red>Fixed in Hat 2.02</font>
+    After <em>:set recursive off</em> hat-observe shows the non-recursive
+    calls of f even if given the application pattern <em>f in f</em>.
+    (Example program: ObsRec)
+    </li>
+<li><font color=red>Fixed in Hat 2.02</font>
+    <em>hat-observe</em> :info counts may not match the number of observations
+    if there are partial or super-saturated applications.  (Example program:
+    MixArity)
+    </li>
+</ul>
+
+<h4>Hat-trail</h4>
+<ul>
+<li>If the output is empty, it cannot be selected.
+    </li>
+<li>The display can become corrupted if output or error message
+    from the traced program is wider than the display window.
+    </li>
+<li><font color=red>Fixed in Hat 2.02</font>
+    Scrolling sometimes blanks the upper part of the display when
+    the trace is extended and is deeper than the window.  (Example
+    program: BigExp)
+    </li>
+<li><font color=red>Fixed in Hat 2.02</font>
+    The display can become corrupted if a single trail expression or
+    equation is large enough to scroll off the screen.  (Example
+    program: BigExp)
+    </li>
+</ul>
+
+<h4>Hat-detect</h4>
+<ul>
+<li><font color=red>Fixed in Hat 2.04</font>
+    <em>hat-detect</em> is not currently included with the Hat browsing tools.
+    </li>
+<li><font color=red>Fixed in CVS version</font>It may assume that an application of a trusted function is OK, even
+    if it has suspect children.  Thus, the algorithm to locate the bug
+    may occasionally go wrong.
+    </li>
+<li><font color=red>Fixed in CVS version</font>Only useable for computations that produce faulty output, not for
+    computations that abort with an error message or are interrupted.
+    </li>
+<li><font color=red>Fixed in CVS version</font>Does not work correctly for programs that read input.
+    </li>
+</ul>
+
+<hr>
+<p>
+This page last modified: 12th October 2004<br>
+</body></html>

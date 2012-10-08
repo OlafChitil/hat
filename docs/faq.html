@@ -1,0 +1,122 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Hat - FAQ</title></head>
+<body text="#000000" bgcolor="#FFFFFF" link="#0000EE" vlink="#551A8B" alink="#FF0000">
+
+<center>
+  <img src="hat.gif" alt="Hat Logo"><br>
+  <h1>Hat</h1>
+  <h2>Frequently Asked Questions</h2>
+</center>
+<hr>
+
+
+<h3>Why do you call Hat a <em>tracer</em> rather than a <em>debugger</em>?</h3>
+
+<p>
+The word <em>debugger</em> suggests: firstly that there is a fault to be
+found; and secondly, that the tool will fix it.  In actual fact, the
+tracer is just a tool for observing what happened in any particular
+program run.  You can use it to find the cause of a fault, but equally,
+you can use it simply to aid your understanding of a correct program.
+While the tracer will help you to find bugs, it cannot find them for
+you.  And once the bug is found, <em>you</em> must fix it, the tracer
+cannot!
+
+<h3>Why did you not implement a conventional tracer/debugger as they
+are well known for imperative languages?</h3>
+
+<p>
+Conventional tracers (debuggers) for imperative languages allow the
+user to step through the program computation, stop at given points
+and examine variable contents.  In our opinion this tracing method is
+unsuitable for a lazy functional language such as Haskell, because its
+evaluation order is complex, function arguments are usually unwieldy
+large unevaluated expressions, and generally computation details do
+not match the user's high-level view of functions mapping values
+to values.  Also the stack used by the Haskell runtime system does
+not resemble the stack of function calls used by runtime systems of
+strict languages.
+
+<p>
+However, the trace file written by the traced program contains all
+information in the order of lazy evaluation. It is possible to write
+a viewing tool that admits single stepping through a lazy computation.
+
+<h3>How much does tracing cost me in time and space?</h3>
+
+<p>
+Currently a traced program runs between 50-150 times slower than
+its untraced counterpart, depending which compiler and options you
+use.  We are working on reducing this factor.  As a rule of thumb,
+a reduction step produces about 50 bytes in the trace file.  So trace
+files can easily grow to tens and hundreds of megabytes. However,
+you can name some modules of your program as <em>trusted</em>, so
+that their reductions are not recorded in the trace.
+
+<h3>I don't seem to be able to build Hat-2.02 with ghc-6.x</h3>
+
+<p>
+The hat-2.02 package is quite old now and does not build cleanly with
+ghc &ge; 6.0.  All the build problems with ghc-6.x are fixed in the
+newer release hat-2.04.
+
+<h3>I have trouble compiling my program for tracing.</h3>
+
+<p>
+Hat covers the complete Haskell'98 language and its libraries, or
+at least that is the intention.  It also supports a few language
+extensions, such as the FFI, multi-parameter type class, functional
+dependencies, and so on.  First make sure that your program is suitable
+for tracing with Hat [ check our <a href="feature-table.html">Feature
+Summary</a> to see exactly which language extensions are supported ],
+and if it still won't compile, report it as a bug in Hat.
+
+<h3>Compiling for tracing gives me an error like: Ambiguous type
+variable `a' in top-level constraint `Num a'</h3>
+
+<p>
+You have been hit by Haskell's defaulting rules for numeric literals,
+which unfortunately means you need to add one or more type signatures
+to your code.  In the rejected module, add the line "default ()",
+and recompile it normally (not for tracing).  You will now see an
+error of similar form to the error you saw when compiling for tracing,
+except that the line number refers to your original code.  Fix this
+error by adding a type signature, e.g. (0::Int) instead of just 0.
+Now if your original code compiles cleanly again, it will also compile
+properly for tracing.
+
+<h3>hat-trans fails with an error like: Cannot handle field update with
+more than 2 labels; attempted arity 11</h3>
+
+<p>
+Hat has some numeric limits on the size of certain constructs it
+can handle.  Usually, there is a simple syntactic change you can make
+to your original source code to get round the limitation.  For instance:
+<ul>
+<li> <em>Field updates.</em> You can re-write a large field update
+  to become a chain of smaller field updates, each with no more than
+  two labels.  e.g. change <pre>x { a=1, b=2, c=3, d=4, e=5 }</pre>
+  to <pre>x { a=1, b=2 } { c=3, d=4 } { e=5 }</pre>
+
+<li> <em>Large applications.</em> You can re-write a large function or
+  constructor application using parentheses to become a chain of smaller
+  nested applications, each with no more than the stated arity.  e.g. change
+  <pre>f a b c d e g h i j k</pre> to <pre>(((f a b c d) e g h i) j k</pre>
+</ul>
+
+
+<p>
+<hr>
+The latest updates to these pages are available on the WWW from
+<a href="http://www.haskell.org/hat/">
+<tt>http://www.haskell.org/hat/</tt></a><br>
+<a href="http://www.cs.york.ac.uk/fp/hat/">
+<tt>http://www.cs.york.ac.uk/fp/hat/</tt></a>
+
+<p>
+This page last modified: 12th October 2004<br>
+<a href="http://www.cs.york.ac.uk/fp/">
+York Functional Programming Group</a><br>
+
+</body></html>
+

@@ -1,0 +1,1526 @@
+% Created: 13.9.2000
+% Last Update: 14.6.2002 (Malcolm)
+
+\documentclass[12pt]{article}
+
+\usepackage[a4paper]{geometry}
+\usepackage{alltt}
+\usepackage{amssymb}
+
+\newif\ifpdf
+\ifx\pdfoutput\undefined
+  \pdffalse
+\else
+  \pdfoutput=1
+  \pdftrue
+\fi
+
+\ifpdf
+  \usepackage[bookmarks       = true,
+              bookmarksopen   = true,
+              pdfhighlight    = /N,
+              hypertexnames   = false,
+              breaklinks      = true,
+              linkbordercolor = {1 1 1},
+              pagebackref     = true,
+              pdfborder       = {0 0 0}]{hyperref}
+  \usepackage{graphicx}
+  \pdfcompresslevel=9
+\else
+  \usepackage{graphicx}
+\fi
+
+%------------------------------------------------------------------------------
+
+\newenvironment{code}{\begin{quote}\begin{alltt}}{\end{alltt}\end{quote}}
+
+\newcommand{\emptyBox}{\Box}
+\newcommand{\dashedBox}{\Box\hspace{-9pt}\angle}
+\newcommand{\crossBox}{\boxtimes}
+\newcommand{\within}{\vartriangleright}
+\newcommand{\com}[1]{\texttt{#1}}
+
+%------------------------------------------------------------------------------
+
+\pagestyle{plain}
+
+\begin{document}
+
+\title{{\Huge{}Hat -- The Haskell Tracer}\\Version 2.04\\Users' Manual}
+\author{The ART Team}
+\date{29 April 2005}
+\maketitle
+\vspace{-6ex}
+
+\thispagestyle{empty}
+
+\tableofcontents
+
+%------------------------------------------------------------------------------
+
+\newpage
+\section{Introduction}\label{introduction}
+
+Hat is a source-level tracer for Haskell (the \emph{Ha}skell
+\emph{T}racer). It is a tool that gives the user access to otherwise
+invisible information about a computation. Thus Hat helps locating
+errors in programs. However, it is also useful for understanding how
+a correct program works, especially for program maintenance. Hence
+we avoid the popular name ``debugger''. Note that a profiler, which
+gives access to information about the time or space behaviour of a
+computation, is also a kind of tracer. However, Hat is not intended
+for that purpose. Hat measures neither time nor space usage.
+
+Conventional tracers (debuggers) for imperative languages allow
+the user to step through the computation, stop at given points and
+examine variable contents.  This tracing method is unsuitable for a
+lazy functional language such as Haskell, because its evaluation order
+is complex, function arguments are usually unwieldy large unevaluated
+expressions and generally computation details do not match the user's
+high-level view of functions mapping values to values.
+
+Hat is an offline tracer: First the specially compiled program runs as
+normal, except that additionally a trace is written to file. Second,
+after the computation has terminated, the trace is viewed with a
+number of browsing tools.
+
+Hat can be used for computations that terminate normally, that
+terminate with an error message or that are interrupted by the
+programmer (because they do not terminate).
+
+The trace consists of high-level information about the computation. It
+describes each reduction, that is, the replacements of an instance
+of a left-hand side of an equation by an instance of its right-hand
+side, and the relation of the reduction to other reductions.
+
+Because the trace describes the whole computation, it is huge.
+Hence the programmer uses tools to selectively view the fragments of
+the trace that are of interest.  Hat includes a number of
+viewing tools for that purpose, for example 
+hat-observe, hat-trail, hat-view, hat-detect, and hat-stack.
+Each tool shows fragments of the computation in a particular way,
+highlighting a specific aspect.
+
+
+%==============================================================================
+
+\section{Obtaining the Trace of a Computation}
+
+To obtain a trace of a computation of a program, the program has to
+be compiled specially, using \texttt{hmake} with either \texttt{nhc98}
+or \texttt{ghc}, and then run.
+
+Compile the program using \texttt{hmake} and the \texttt{-hat} option;
+you may want to choose your compiler as well, e.g.
+\begin{verbatim}
+    hmake -ghc -hat Prog
+\end{verbatim}
+(Note that \texttt{hmake Prog} both compiles the program and links
+it to an executable, whereas \texttt{hmake Prog.hs} only compiles
+the module and its dependents without linking.)
+
+What \texttt{hmake} does is this: all the modules of the
+program are transformed to tracing versions with the pre-processor
+\texttt{hat-trans}.  This preprocessor generates a new module for each original module; these generated Haskell modules are stored in a directory 
+\texttt{Hat}.  The generated modules
+are compiled and linked using an ordinary compiler with the extra
+option \texttt{-package hat}.  The \texttt{hat} package contains
+interface files and a link-library that are needed by the transformed
+program.
+
+You can invoke \texttt{hat-trans} and the compiler manually if you
+wish, but \texttt{hat-trans} generates and reads its own special kind
+of module interface files (\texttt{.hx} files) and therefore modules
+must be transformed in the same dependency order as normal compilation.
+Hence, it is much easier simply to let \texttt{hmake} do all the work.
+
+Note that the \texttt{hat-trans} preprocessor does not insert the
+complete file paths of the original source modules into the generated
+modules. The trace viewers assume that the source modules are in the
+same directory as the executable.
+
+\subsection{Compilation with nhc98}
+
+Tracing makes computations use more heap space. As a rough rule of
+thumb, traced computations require 3 times as much heap space as
+untraced ones. However, because traced computations allocate (and
+discard) much memory, it is useful to choose an even larger heap size
+to reduce garbage collection time.  The preset default heap size for
+an untraced program compiled by \texttt{nhc98} is 400KB; you will
+probably want to increase this to at least 2MB.  For example, you can
+set the heap size at compile (link) time with \texttt{+CTS -H10m -CTS}
+or for a specific computation with \texttt{+RTS -H10m -RTS} to a ten
+megabyte heap.
+
+\subsection{Computation}
+
+The traced computation behaves exactly like the untraced one, except
+that it is slower (currently about 50 times slower), 
+and additionally writes a trace to file.
+
+If it seems that the computation is stuck in a loop, then force halting
+by keying an interrupt (usually \texttt{Ctrl-C}).  After termination of
+the computation (normal termination or caused by error or interrupt)
+you can explore the trace with any of the programs described in the
+following sections.
+
+The computation of a program \emph{name} creates the trace files
+\emph{name}\texttt{.hat}, \emph{name}\texttt{.hat.bridge} and
+\emph{name}\texttt{.hat.output}. The latter is a copy of the whole
+output of the computation. The first is the actual trace. It can
+easily grow to several hundred megabytes. To improve the runtime of
+the traced computation you should create the trace file on a local
+disc, not on a file system mounted over a network. The trace files
+are always created in the same directory as the executable program.
+
+
+\subsection{Trusting}\label{trusting}
+
+Hat enables you to trace a computation without recording every
+reduction.  You can \emph{trust} the function definitions of a
+module. Then the calls of trusted functions from trusted functions
+are not recorded in the trace.
+
+Note that a call of an untrusted function from a trusted function is
+possible, because an untrusted function can be passed to a trusted
+higher-order function. These calls are recorded in the trace.
+
+For example, you may call the trusted function \texttt{map} with an
+untrusted function \texttt{prime}: \texttt{map prime [2,4]}. If this
+call is from an untrusted function, then the reduction of \texttt{map
+prime [2,4]} is recorded in the trace, but not the reductions of
+the recursive calls \texttt{map prime [4]} and \texttt{map prime
+[]}. However, the reductions of \texttt{prime 2} and \texttt{prime 4}
+are recorded, because \texttt{prime} is untrusted.
+
+You should trust modules in whose computations you are not interested.
+Trusting is desirable for the following reasons:
+\begin{itemize}
+\item to keep the size of the trace file smaller (main point)
+\begin{itemize}
+\item to save file space
+\item to avoid unnecessary detail when viewing the trace
+\end{itemize}
+\item to reduce the runtime of the traced program (slightly)
+\end{itemize}
+
+If you want to trust a module, then compile it for tracing as normal
+but with the extra option \texttt{-trusted}.  (A plain object file
+compiled without any tracing option cannot be used.)  By default the
+Prelude and the standard libraries are trusted.
+
+
+%==============================================================================
+
+\section{Viewing a Trace}\label{viewing}
+
+Although each tool gives a different view on the trace, they all have
+some properties in common.
+
+\subsection{Arguments in Most Evaluated Form}
+
+The tools show function arguments in evaluated form, more
+precisely: as far evaluated as the arguments are at the end of the
+computation. For example, although in a computation the unevaluated
+expression \texttt{(map (+5) [1,2])} might be passed to the function
+\texttt{length}, the tools show the function application as
+\texttt{length [1+5,2+5]} or \texttt{length [\_,\_]} if the list
+elements are unevaluated.
+
+\subsection{Special Expressions}
+
+\paragraph{Unevaluated expressions}
+
+Tools do not usually show non-value subexpressions.  The underscore
+\texttt{\_} represents these unevaluated expressions.  (The `uneval'
+option can be set interactively if you wish to replace underscores
+with the full representation of the unevaluated expression.)
+
+\paragraph{$\lambda$-abstractions}
+
+A $\lambda$-abstraction, as for example 
+\verb?\xs-> xs ++ xs?,
+is represented simply by \verb?(\..)?.
+
+\paragraph{The undefined value $\bot$}
+
+If the computation is aborted because of a run-time error or
+interruption by the user, then evaluation of a redex may have begun,
+but not yet resulted in a value.  We call the result of such a redex
+\emph{undefined} and denote it by $\bot$ (\texttt{\_|\_} in ASCII
+form).
+
+A typical case where we obtain $\bot$ is when in order to compute
+the value of a redex the value of the redex itself is needed. The
+occurrence of such a situation is called a \emph{black hole}. The
+following example causes a black hole:
+
+\begin{code}
+a = b + 1
+b = a + 1
+
+main = print a
+\end{code}
+
+When the program is run, it aborts with an error message saying
+that a black hole has been detected.  The trace of the computation
+contains several $\bot$'s.
+
+\paragraph{Trusted Expressions}
+
+The symbol \texttt{\{?\}} is used to represent an expression that
+was not recorded in the trace, because it was trusted.
+
+\subsection{Combination of Viewing Tools}
+
+Each tool gives a unique view of a computation.  These views are
+complementary and it is productive to use them together.  From
+most of the tools you can at any
+time change to any of the other tools, starting there at exactly
+the point of the trace at which you left the other tool. So after
+using one tool to track a bug to a certain point you can change to
+another tool to continue the search or confirm your suspicion.
+
+\subsection{The Running Example}
+
+The following faulty program is used as example in the description
+of most viewing tools:
+\begin{quote}
+\begin{alltt}
+main = let xs :: [Int]
+           xs = [4*2, 5`div`0, 5+6]
+       in  print (head xs, last' xs)
+
+last' (x:xs) = last' xs
+last' [x] = x
+\end{alltt}
+\end{quote}
+
+
+%==============================================================================
+
+\section{Hat-Observe}\label{hat-observe}
+
+Hat-observe enables you to observe the value of top-level variables,
+that is, functions and constants. Hat-observe shows all reductions of
+a variable that occurred in the traced computation. Thus for a function
+it shows all the arguments with which the function was called during
+the computation together with the respective results.
+
+It is possible to use hat-observe in batch-mode from the command line,
+but the main form of use is as an interactive tool.  The interactive
+mode provides more comprehensive facilities for filtering the output
+than batch mode.
+
+%\subsection{Simple Command Line Usage}
+%
+%Hat-observe shows only variables defined on the top-level to avoid
+%problems with locally defined variables capturing free variables.
+%
+%
+%To use hat-observe from the command line enter
+%\begin{quote}
+%\texttt{hat-observe [-v] [-r]}~\emph{variable}~\texttt{[in}~\emph{variable'}\texttt{]}~\emph{programname}\texttt{[.hat]}
+%\end{quote}
+%where \emph{programname} is the name of the traced program, and
+%\emph{variable} and \emph{variable'} are top-level functions or
+%constants of the program.
+%
+%\begin{description}
+%\item{\texttt{-v}} verbose mode\newline 
+%Normally unevaluated subexpressions of arguments or results are just shown as \texttt{\_}. With this option they are shown in full.
+%\item{\texttt{-r}} nonrecursive mode \newline
+%Recursive function calls are not shown.
+%\end{description}
+%
+%If a second variable is given after the keyword \texttt{in}, then only the calls of the first variable from the right-hand-side of the second variable are shown.
+%
+%\subsection{Examples}
+%
+%\begin{quote}
+%\begin{alltt}
+%hat-observe "last'" Example
+%\end{alltt}
+%\end{quote}
+%shows 
+%\begin{quote}
+%\begin{alltt}
+%last' (8:_:_:[]) = _|_
+%last' (_:_:[]) = _|_
+%last' (_:[]) = _|_
+%last' [] = _|_
+%\end{alltt}
+%\end{quote}
+%whereas
+%\begin{quote}
+%\begin{alltt}
+%hat-observe -v "last'" Example
+%\end{alltt}
+%\end{quote}
+%also shows the unevaluated subexpressions
+%\begin{quote}
+%\begin{alltt}
+%last' (8:(div 5 0):5+6:[]) = _|_
+%last' ((div 5 0):5+6:[]) = _|_
+%last' (5+6:[]) = _|_
+%last' [] = _|_
+%\end{alltt}
+%\end{quote}
+%and
+%\begin{quote}
+%\begin{alltt}
+%hat-observe -r "last'" Example
+%\end{alltt}
+%\end{quote}
+%only shows the single non-recursive call of \texttt{last'}
+%\begin{quote}
+%\begin{alltt}
+%last' (8:_:_:[]) = _|_
+%\end{alltt}
+%\end{quote}
+%and finally
+%\begin{quote}
+%\begin{alltt}
+%hat-observe "last'" in "last'" Example
+%\end{alltt}
+%\end{quote}
+%only shows the recursive calls of \texttt{last'}
+%\begin{quote}
+%\begin{alltt}
+%last' (_:_:[]) = _|_
+%last' (_:[]) = _|_
+%last' [] = _|_
+%\end{alltt}
+%\end{quote}
+
+\subsection{Starting \& Exiting}
+
+To start hat-observe as an interactive tool, simply enter
+\begin{quote}
+\texttt{hat-observe} \emph{prog}\texttt{[.hat]}
+\end{quote}
+at the command line, where \emph{prog} is the name of the traced
+program.
+
+\subsection{The Help Menu}
+
+Enter \texttt{:h} (\texttt{:help}) to obtain a short overview of
+the commands understood by hat-observe.  All commands begin with a
+`\texttt{:}', and can be shortened to any prefix of the full name.
+
+\subsection{Observing for Beginners: Using the Wizard}
+
+If you use hat-observe for the first time, you might want to start
+by using the observation \emph{wizard}. Simply enter the command
+\com{:observe} with no other arguments. The tool will then ask
+questions about the reductions you are interested in. Eventually,
+it will show the resulting query and start the observation.  This way
+you can quickly learn what queries look like.
+
+\subsection{Making Simple Observations}
+
+Observations of a function are made with the \com{:observe} command,
+or for simplicity, just by entering the name of the function at
+the prompt.  For instance, enter \com{:observe}~\emph{f}, or simply
+\emph{f}, to obtain all reductions of \emph{f}.
+
+To avoid redundant output, equivalent reductions of the identifier
+are omitted in the display (\com{:set unique}).  You can change
+this behaviour in order to see all reductions, even identical ones
+(\com{:set all}).  In future there will also be an option to see
+only the most general reductions.  A reduction of an identifier is
+considered more general than another if all its arguments on the
+left-hand-side are less defined (due to lazy evaluation) and/or if
+its result on the right-hand-side is more fully defined.
+
+\subsection{Exploring What to Observe}
+
+If you forgot the correct spelling of a function identifier you want
+to observe or you do not know the program well, you may want to see
+a list of all function identifiers which can be observed.  With the
+\com{:info} command you can browse the list of all top-level function
+identifiers which were used during the computation, and how many times
+they were used.
+
+\subsection{Filtering Reductions}
+
+Even when only unique reductions are shown, some observations may still
+result in an excessively large number of displayed equations. You only
+want to see those reductions in which you are particularly interested.
+There are several ways to decrease the number of reductions shown.
+
+\subsubsection{Non-Recursive Mode}
+
+Hat-observe can omit recursive calls of the given function.  If all the
+top-most calls of a function are correct, then all its recursive calls
+within the function itself are \emph{likely} to be correct as well. If
+there are any erroneous recursive calls, their incorrect behaviour
+at least had no effect on the result of the top most calls. To omit
+recursive calls of a function, the \com{:set recursive off} command may
+be used.  To see recursive calls again, use \com{:set recursive on}.
+
+%\subsubsection{Generalise Equations}
+%
+%A function may be called several times with the same arguments.
+%Hat-observe shows these arguments and the result only once.
+%
+%Furthermore, because a function may not need full evaluation of its
+%arguments, a function call may be more general than another one in
+%that the arguments are less evaluated in the first than the second
+%one.  If the result is the same or the result for the less general
+%arguments is less evaluated, then the display of the application
+%to the less general arguments can be omitted.  Use the \com{:set
+%generalise on} command to omit the less general equations.
+
+\subsubsection{Observing Calls from a Specific Context}
+
+Another way to restrict the number of reductions being observed is
+by observing only calls made from within a specific calling function.
+If you are interested in all calls of \texttt{map} from the function
+\texttt{myMapper}, try \com{:observe map in myMapper}.
+
+\subsubsection{Specifying Reductions with a Pattern}
+
+You can significantly reduce the number of observed applications
+by observing only reductions that are instances of a given pattern.
+With a pattern you can specify in which reductions you are particularly
+interested.
+
+You can enter a pattern for the whole equation or any prefix of it.
+A pattern for an equation consists of a pattern for the left-hand-side
+followed by a \texttt{=} and a pattern for the result.  The \texttt{=}
+and result pattern may be omitted, as may any of the trailing
+argument patterns.
+
+If you wish to skip one argument in the pattern, use an underscore.
+An underscore \texttt{\_} in a pattern matches any expression, value,
+or unevaluated.  The bottom symbol \texttt{\_|\_} may also be used
+in patterns, and matches only unevaluated things.
+
+Examples:
+\begin{itemize}
+\item To see all applications of \texttt{map} where its first argument is
+  \texttt{foo}, enter \com{:observe map foo}.  However, to see all
+  applications of \texttt{map} where its \emph{second} argument is
+  \texttt{foo}, enter \com{:observe map \_ foo}.
+
+\item To see all applications of \texttt{filter} using first argument
+  \texttt{odd} and resulting in an empty list, enter
+  \com{:observe filter odd \_ = []}.
+\end{itemize}
+
+Infix patterns are also supported, although the fixity and priority
+of the operator is not necessarily known, so always use explicit
+parentheses around such patterns.
+
+Sugared syntax for strings and lists is supported, e.g.\ \texttt{"Hello
+world!"} for a string and \texttt{[1,2,42]} etc. for lists.
+
+\subsubsection{Combination of Filters}
+
+Of course, all methods previously described can be mixed with each
+other, as in the following examples.
+
+\texttt{:observe map \_ [1,2,3] in myMapper}
+
+\texttt{:observe filter even (: 1 \_) = \_|\_ in myFunction}
+
+\texttt{:observe fibiterative \_ \_ = 0}
+
+\subsection{Verbose Modes}
+
+There are several modes determining the relative verbosity of the
+output.  \com{:set uneval on} shows unevaluated expressions in full,
+rather than abbreviating them to underscores.  \com{:set strSugar
+off} turns off string sugaring, and \com{:set listSugar off} turns
+off sugaring for other kinds of list: in both cases, the effect is
+to reveal the explicit cons and nil structures.
+
+\subsection{Browsing a List of Reductions}
+
+After successfully submitting a query in any of the described ways,
+the tool searches the given trace file. Depending on the size of
+the file and the number of reductions found, the search may take a
+considerable time. Progress will be indicated during the scan of the
+file. After the scan of the file, additional time might be spent on
+filtering the most general reductions matching
+the given pattern.
+
+The first $n$ (default 10) observed reductions are then displayed.
+More reductions can be displayed by pressing the \texttt{RETURN} key.
+The system indicates the availability of additional equations by
+prompting with \texttt{--more-->} instead of the usual command prompt.
+If more equations are available but you do not wish to see them,
+typing anything except the plain RETURN key will cause you to leave
+the equation display mode and go back to the normal prompt.
+
+The number of equations displayed per group can be altered by using
+the \com{:set group}~\emph{n} command.  The default is 10 reductions at
+a time.  The reductions are numbered -- this is to facilitate selection
+of an equation for use within the other hat tools.
+
+Attention: because hat-observe uses lazy evaluation to determine the
+list of reductions, there may be a delay during which more reductions
+are determined.
+
+
+\subsection{Display of Large Expressions}
+
+Sometimes expressions may contain very large data structures which
+clutter the display.  In order to cope with them the cutoff depth of
+the display can be adjusted.  This cutoff value determines the nesting
+depth to which nested sub-expressions are printed: any subexpression
+beyond this depth is shown as a dark square.  The cutoff depth is
+adjusted using the command \com{:set cutoff}~\emph{n}.
+
+In certain circumstances, you simply want to increase or decrease
+the cutoff by a small amount.  There are `shortcut' commands
+\com{:+}~\emph{n} and \com{:-}~\emph{n} to increase or decrease the
+cutoff by \emph{n} respectively.  If \emph{n} is omitted, then
+it is assumed to be one.
+
+A data structure may be infinite. Because an \emph{infinite} data
+structure is the result of a \emph{finite} computation, it must contain
+a cycle. The following example demonstrates how such a cycle is shown.
+
+\begin{quote}
+\begin{alltt}
+cyclic = 1:2:3:4:cyclic
+main = putStrLn (show (take 5 cyclic))
+\end{alltt}
+\end{quote}
+
+If you observe \texttt{cyclic}, then you obtain
+\begin{quote}
+\begin{alltt}
+cyclic = (cyc1 where cyc1 = 1:2:3:4:cyc1)
+\end{alltt}
+\end{quote}
+
+
+\subsection{Invoking other Viewing Tools}\label{othersFromObserve}
+
+You may eventually find an erroneous reduction.
+There are several ways in which you can proceed at this point.
+
+The first way is to start observing functions used in the definition
+body of the erroneous function. You will need to check the source code
+for functions which might have caused the wrong result. If you suspect
+a function \emph{f} to have caused the incorrect behaviour of \emph{g},
+it is a good idea to try \com{:observe}~\emph{f}~\com{in}~\emph{g}.
+
+A second way to proceed is to switch to the Algorithmic Debugging tool
+\texttt{hat-detect} at this point.
+The command \texttt{:detect $n$} starts a separate \texttt{hat-detect}
+session for equation number $n$ in a new window (currently only
+works under Unix).  See section~\ref{hat-detect} for information
+on \texttt{hat-detect}.
+
+Alternatively, you have the choice to use \texttt{hat-trail} on a
+reduction you have observed. Use the command \texttt{:trail $n$}
+to start a separate instance of \texttt{hat-trail} for equation
+number $n$.
+
+
+\subsection{Quick reference to commands}
+
+All the commands that are available in hat-observe are summarised in
+the following table.
+
+\begin{verbatim}
+---------------------------------------------------------------------------
+ <query>            observe the named function/pattern
+ <RETURN>           show more observations (if available)
+ :observe <query>   observe the named function/pattern
+ :info              see a list of all observable functions
+ :detect <n>        start hat-detect on equation <n>
+ :trail <n>         start hat-trail browser on equation <n>
+ :source <n>        show the source application for equation <n>
+ :Source <n>        show the source definition for identifier in eqn <n>
+ :set               show all current mode settings
+ :set <flag>        change one mode setting
+   <flag> can be: uneval [on|off]      show unevaluated expressions in full
+                  strSugar [on|off]    sugar character strings
+                  listSugar [on|off]   sugar lists
+                  recursive [on|off]   show recursive calls
+                  [all|unique]         show all equations or only unique
+                  group <n>            number of equations listed per page
+                  cutoff <n>           cut-off depth for deeply nested exprs
+ :+[n]              short-cut to increase cutoff depth by <n> (default 1)
+ :-[n]              short-cut to decrease cutoff depth by <n> (default 1)
+ :resize            detect new window size for pretty-printing
+ :help              show this help text
+ :quit              quit
+---------------------------------------------------------------------------
+\end{verbatim}
+
+
+%==============================================================================
+
+\section{Hat-Trail}
+
+Hat-trail is an interactive tool that enables you to explore a
+computation \emph{backwards}, starting at the program output or
+an error message (with which the computation aborted). This is
+particularly useful for locating an error. You start at the observed
+faulty behaviour and work backwards towards the source of the error.
+
+Every reduction replaces an instance of the left-hand side of a program
+equation by an instance of its right-hand side. The instance of the
+left-hand side ``creates'' the instance of the right-hand side and
+is therefore called its \emph{parent}.
+
+Using the symbol $\leftarrow$ to represent the relationship ``comes
+from'', (i.e.\ the arrow points from parent to child) here is an
+illustrative list showing the parent of every subexpression from the
+example in Section~\ref{viewing}.
+
+\begin{quote}
+the error message $\leftarrow$ \texttt{last' []}\\
+\texttt{last' []} $\leftarrow$ \texttt{last' (\_:[])}\\
+\texttt{last' (\_:[])} $\leftarrow$ \texttt{last' (\_:\_:[])}\\
+\texttt{last' (\_:\_:[])} $\leftarrow$ \texttt{last' (8:\_:\_:[])}\\
+\texttt{last' (8:\_:\_:[])} $\leftarrow$ \texttt{main}\\
+\texttt{8} $\leftarrow$ \texttt{4*2}\\
+\texttt{4*2} $\leftarrow$ \texttt{xs}\\
+\end{quote}
+
+Every subexpression (if it is not a top-level constant such
+as \texttt{main}) has a parent. In the example the parent of
+\texttt{(8:\_:\_:[])} is \texttt{xs}.  The parent of each subexpression
+in an expression can be different from the parent of the expression
+itself.
+
+
+
+\subsection{Starting \& Exiting}
+
+Start hat-trail by entering
+\begin{quote}
+\texttt{hat-trail}~\emph{prog}\texttt{[.hat]}
+\end{quote}
+at the command line, where \emph{prog} is the name of the program
+(the extension \texttt{.hat} is optional).
+
+You can quit this browser at any time by typing the command \emph{:quit}.
+
+\subsection{The Help Menu}
+
+The \emph{:help} command offers short explanations of the main
+features of hat-trail, similar to the quick reference of
+Section~\ref{trailquickref}.
+
+\subsection{Basic Exploration of a Trace}
+
+The browser window mainly consists of two panes:
+
+\begin{itemize}
+
+\item The program output (and error) pane. \\
+Here you can select a part of the program output (or an error message,
+if there was one), to show its parent redex in the trace pane for
+further exploration.
+
+\item The trail pane. \\
+This is the most important pane. In it you explore the trace.
+With the cursor keys you request information about different parts
+of the trace.  Coloured highlighting is used to show the current and
+previous selections.
+
+\end{itemize}
+
+You can pop up a further, very important, window on demand:
+\begin{itemize}
+\item The source code window. \\
+Here part of the source code of the traced program is shown. In the trail
+pane, you can ask to see a specific point in the source code (e.g.
+where exactly a function in a particular expression was applied), and
+the cursor in the source code window is placed at the relevant site
+in the appropriate source file.  This is not an editor window, just
+a viewer -- type the `q' or `x' key in the window to close it.
+
+\end{itemize}
+
+
+\subsubsection{The program output (and error) pane}
+
+Any output (or error message) produced by the traced program is shown
+in the top pane.  The output is divided into sections; there is one
+section of output for each output action performed by the program. You
+select a section of the output with the cursor keys: left/up and
+right/down.  The selected section is shown with a coloured highlight.
+If the output is very large, only a portion of it is displayed at a
+time -- moving left/up at the top of the screen, or right/down at the
+bottom, `pages' through the output.  Press the Return key to start
+exploring the parent redex for the selected section in the lower
+trail pane.
+
+\subsubsection{The trail pane}
+
+Within the trail pane, the display shows a simple `stack' of parent
+expressions, one per line.  Each expression line is the parent of
+the highlighted subexpression on the line before it.  Within a line,
+you can navigate to a subexpression using the cursor keys by one of
+two methods, described below.  Pressing the Return key asks for the
+parent of the currently selected subexpression, and it is shown on a
+new line.  Pressing the Delete or Backspace key removes the current
+line and goes back to the previous selection in the stack.
+
+\paragraph{Selecting a subexpression in the trail pane}
+
+There are two methods of navigating within an expression to highlight
+a specific subexpression.  The simplest method just uses the right and
+left cursor keys.  Repeatedly pressing the right cursor key follows
+a pre-order traversal of the underlying expression tree.  Thus,
+first an application is highlighted, then the function part, then
+each argument, and so on recursively depth-first.  The left cursor
+key follows the reverse order.
+
+Alternatively, you can navigate by explicit levels within the
+tree.  The up cursor key moves outwards from a subexpression to the
+surrounding expression.  The down key moves inwards from an application
+to the function position.  The `$[$' and `$]$' keys move left and right
+amongst subexpressions at the same level, for instance between a
+function and its arguments.
+
+
+\paragraph{Folding away part of an expression}
+
+When you are looking at a large expression, it is sometimes difficult
+to see its gross structure because of all the detail.  At these times,
+it is helpful to be able to shrink certain subexpressions to hide the
+detail.  This is represented in the display as a small dark box.
+
+You can explicitly shrink any selected subexpression to a dark box,
+or expand a selected box to its full representation, with the `-'
+and `+' keys.
+
+Like in the other tools, there is a standard cutoff depth for deeply
+nested expressions.  The automatically cutoff expression is denoted by
+the same dark box as a manually hidden expression.  Use the \com{:set
+cutoff}~\emph{n} command to change the cutoff depth, or the shortcuts
+\com{:+}~\emph{n} and \com{:-}~\emph{n} to increase and decrease the
+cutoff depth -- if \emph{n} is omitted, the cutoff is increased or
+decreased by one.
+
+
+\subsubsection{The source code window}\label{source}
+
+Most functions and constants are used at more than one position
+in the program.  Hence, when viewing an expression in hat-trail,
+it can be very helpful to know exactly which application site is
+under examination.  There are a number of direct links to the source
+code available.
+
+First, the filename, line, and column number of the currently selected
+application or value is always visible in a status line at the top
+of the trail pane.  You can use this to help you navigate within your
+preferred editor or viewer.
+
+Secondly, the command \com{:source} pops up a simple viewer with the
+cursor sitting directly over the application site in the relevant file.
+The command can be abbreviated to \com{:s}, and you may find that
+this is often quicker and more convenient than using an external
+editor or viewer.
+
+Thirdly, if you want to look at the \emph{definition} of the selected
+function or constant rather than its individual application site,
+the command \com{:Source} again pops up the simple viewer, this time
+with the cursor on the definition line.
+
+
+\subsubsection{Special syntax}
+
+We have already mentioned that a dark box represents a subexpression
+that has been hidden from display, either due to automatic cutoff of
+deep nesting, or by explicit request of the user.
+
+There are a number of other special syntactic representations in
+the display.
+
+\paragraph{Lists}
+A list where some elements are undefined or unevaluated is displayed
+as a sequence of nested applications of the normal list constructor
+\texttt{(:)}.  However, fully evaluated lists are displayed using
+the more compact syntactic sugar of square brackets with elements
+separated by commas.  Where the end of list is cutoff (due to the
+normal cutoff depth parameter), this can look slight ambiguous.
+Is the dark box the final element of the list, or does it represent a
+larger tail of the list?  To find out, you need to expand the dark box.
+
+\paragraph{Strings}
+Fully evaluated character strings are displayed differently again.
+A string is usually shown using the Haskell lexical convention of
+double quotes, for example \texttt{"Hi"}.  In this representation,
+the string is treated as a single atomic unit for navigation.  If
+you really want to select a singe character or substring, then
+you must turn string sugaring off (\com{:set strSugar off}) in
+order to navigate within the explicit list.
+
+%--------more material here---------------------------------------------------
+
+%However, you can \emph{middle}-click on the string
+%and thus change its representation to separate the first character,
+%for example \texttt{'H':"i"}. Thus you can select subexpressions
+%of a string, but the representation is also more verbose. By
+%\emph{middle}-clicking on a longer representation you can change it
+%back to a string representation.
+
+%When strings are very long, everything to their right can only be
+%reached by cumbersome scrolling. In the menu ``Options'' you can select
+%the item ``Choose string-length limit'' to set an upper boundary for
+%the length of a string. Abbreviated strings are indicated by dots
+%(...) in their middle. These abbreviated strings can still be expanded
+%as described in the preceding paragraph.
+
+\paragraph{Control-flow constructs}
+
+The control-flow in a function is determined by conditional expressions
+(\texttt{if} \texttt{then} \texttt{else}), \texttt{case} expressions
+and guards.  It is often desirable to see why a certain branch was
+taken in such a control-flow construct. For example, the problem in
+a function definition might not be that it computes a wrong return
+value, but that a test is erroneous which makes it select a branch
+that returns the wrong value.
+
+A control-flow expression of this nature is shown in the trail as
+the value of the guard, condition or case discriminant, placed to
+the right of the expression within which it belongs and separated
+from it by a bar and a highlighted keyword, e.g.\ \texttt{| if False}
+or \texttt{| case EQ}.
+
+Strictly speaking, the expression to the left of the bar is the parent
+of the expression on the right, but the tool displays them together
+for clarity since the guard, condition, or case makes most sense
+when understood in the context of its parent.
+
+For example, in the program
+\begin{code} 
+abs x | x < 0 = -x
+      | otherwise = x 
+
+main = print (abs 42)
+\end{code}
+the parent of the result value \texttt{42} is
+\begin{code}
+abs 42 | False | True
+\end{code}
+This redex display states that the second branch in the definition of
+\texttt{abs} was taken. The last guard was evaluated to \texttt{True}
+whereas the previous guard was evaluated to \texttt{False}. You may
+ask for the parent of \texttt{False} and learn that it was created
+by the redex \texttt{42 < 0}.
+
+\paragraph{Trusting}
+
+Section \ref{trusting} describes trusting of modules as a means to
+obtain a smaller trace.
+
+In general the result of a trusted function may be an unevaluated
+expression from within the trusted function. Such an expression is
+shown with the symbol \texttt{\{?\}}. It cannot be expanded like a
+dark box representing a cutoff expression, but it does have a parent.
+For example, for the program
+
+\begin{code}
+main = print (take 5 (from 1))
+\end{code}  
+the parent of the result value \texttt{[1,2,3,4,5]} is
+\begin{code}
+take 5 (1:2:3:4:5:\{?\})
+\end{code}
+The parent of \texttt{\{?\}} is \texttt{from 1}, as for the whole expression
+\texttt{(1:2:3:4:5:\{?\})}.
+
+\paragraph{Unevaluated expressions}
+
+Unevaluated expressions are shown by default with the underscore
+symbol (\texttt{\_}).  Show you wish to see these expressions in
+full, you should switch on the ``show-me-unevaluated-expressions''
+option with the command \com{:set uneval on}.
+
+
+
+\subsubsection{Pattern bindings}
+
+A program equation with a single variable or a pattern with variables
+on the left hand side is a pattern binding. The parent of a variable
+defined by a pattern binding is not the redex that called it, but
+the redex on whose right-hand-side the pattern binding occurs. Hence
+variables defined by top-level pattern bindings (i.e. constants)
+do not have parents.
+
+So usually the parent of an expression is the function call that
+would have led to the evaluation of the expression if eager evaluation
+were used.  However, this relation breaks down for pattern bindings.
+
+
+%--- got to here --------------------------------------------------------------
+
+\subsection{Advanced Exploration of a Trace}
+
+%You can gain a lot of information by just moving the selection
+%over expressions in the trail pane. Expressions that are related to
+%the currently-selected expression are highlighted in various ways.
+%
+%\subsubsection{Parents that are already shown}
+%
+%Many expressions have the same parent. Showing the same parent
+%twice leads to unnecessary clutter in the trace pane. Hence, if the
+%parent of the currently-selected expression is on display, then it
+%is high-lighted with a \emph{yellow background} colour. This gives
+%you a signal that it is unnecessary to demand the parent.
+%
+%\subsubsection{Siblings}
+%
+%As just stated many expressions have the same parent. To show you
+%which expressions have the same parent as the currently-selected
+%expressions, these expressions are displayed in \emph{blue} colour
+%instead of the normal black colour.
+
+\subsubsection{Shared expressions}
+
+When you select a subexpression in the trail pane, sometimes not
+only this expression is highlighted but also some other occurrences
+of the subexpression.  The reason is that the marked occurrences are
+shared. That is, they are not just equal, but they actually share
+the same space in memory.  This operational observation can often
+help you to understand a computation.
+
+%\subsubsection{Shared expressions with different parents}
+
+%It is possible that an occurrences of an expression is the same as the currently-selected expression, but has a different parent nonetheless. Such occurrences are not surrounded by a red box, but are displayed in \emph{green} colour.
+
+%For example, for the program
+%\begin{code}
+%main = print (head [True, False])
+%\end{code}
+%the parent of the result value \texttt{True} is the redex
+%\texttt{head [True, False]}. The result value \texttt{True} is the same as the first element of the list, the values are shared. However, the parent of the \%texttt{True} in the list is \texttt{main}, whereas the parent of the result is \texttt{head [True, False]}.
+
+
+%------------------------------------------------------------------------------
+
+\subsection{Invoking other Viewing Tools}
+
+It is possible to invoke hat-observe and hat-detect immediately
+from hat-trail.
+
+\begin{itemize}
+\item The command \com{:observe} launches a new window with the
+hat-observe tool, which immediately searches for all applications of
+the currently selected function throughout the computation.
+\item The command \com{:location} launches a new window with the
+hat-observe tool, which immediately searches for applications of the
+currently selected function, but only at the same source location as
+the current selection.  This is useful to narrow down your exploration
+to a specific site of interest.
+\item The command \com{:detect} launches a new window with the
+hat-detect tool, restricting the debugging algorithm solely to the
+currently selected equation and all its dependents.
+\item The command \com{:trail} starts a new window with a fresh
+instance of the hat-trail tool starting with the current selection.
+This can be useful if there are several redex trails you wish to
+explore and compare side-by-side.
+\end{itemize}
+
+%------------------------------------------------------------------------------
+
+\subsection{Some practical advice}
+
+\begin{itemize}
+\item First-time users of hat-trail tend to quickly unfold large parts
+of the trace and thus clutter the screen and get lost. Think well,
+before you demand to see another parent. It is seldom useful to follow
+a long sequence of parents for whole redexes. Do not forget that you
+can ask for the parent of any subexpression. Choose the subexpression
+that interests you carefully. When locating an error, a wrong
+subexpression of an argument is a good candidate for further enquiry.
+
+In our experience usually less than 10 parents need to be viewed to
+locate an error, even in large programs.
+
+\item Use the links to the source as described in Section~\ref{source}.
+The trail display is designed to be concise, so the source viewer gives
+valuable context information.
+
+%\item Use the various forms of highlighting described in
+%Section~\ref{advanced}. The information conveyed by highlighting
+%often makes viewing a parent superfluous.
+
+\item Avoid $\lambda$-abstractions in your program. Informative
+function names are very helpful for tracing.
+
+\end{itemize}
+
+
+%------------------------------------------------------------------------------
+
+\newpage
+\subsection{Quick reference to commands}\label{trailquickref}
+
+All the commands that are available in hat-trail are summarised in
+the following table.
+
+\begin{verbatim}
+----------------------------------------------------------------------------
+ cursor keys   movement within current expression
+ [ and ] keys  movement within current expression
+ RETURN        show parent expression of selected expression
+ =             show final result of the whole expression line
+ BACKSPACE     remove most recently-added expression/equation
+ -/+           shrink/expand a cutoff expression
+ ^L            repaint the display if it gets corrupted
+ ^R            repaint the display after resizing the window
+ :source       look at the source-code application of this expression
+ :Source       look at the source-code definition of current function
+ :observe      use hat-observe to find all applications of this function
+ :location     use hat-observe to find all applications at this call site
+ :trail        start a fresh hat-trail with the current expression
+ :detect       use hat-detect to debug the current expression
+ :set          show all current mode settings
+ :set <flag>   change one mode setting
+ :set <flag>   change one mode setting
+   <flag> can be: uneval [on|off]      show unevaluated expressions in full
+                  strSugar [on|off]    sugar character strings
+                  listSugar [on|off]   sugar lists with [,,,] 
+                  equations [on|off]   show equations, not just redexes
+                  cutoff <n>           cut-off depth for deeply nested exprs
+ :+[n]         shortcut to increase cutoff depth
+ :-[n]         shortcut to decrease cutoff depth
+ :help  :?     show this help text
+ :quit         quit
+----------------------------------------------------------------------------
+\end{verbatim}
+
+
+%==============================================================================
+
+\section{Hat-Detect}\label{hat-detect}
+
+Hat-detect is an interactive tool that enables you to locate
+semi-automatically an error in a program by answering a sequence
+of yes/no questions.  Each question concerns a reduction.  You have
+to answer \emph{yes}, if the reduction is correct with respect to
+your intentions, and \emph{no} otherwise.  After a number of questions
+hat-detect states which reduction is the cause of the observed faulty
+behaviour -- that is, which function definition is incorrect.
+
+%\subsection{Limitations}\label{ioproblem}
+
+%At the moment hat-detect does not handle IO actions properly. It
+%can only handle computations that perform a \emph{single} primitive
+%\emph{output} action such as \texttt{putStr} or \texttt{print}. Monadic
+%binding operators (or do-notation) and input actions such as
+%\texttt{read} lead to confusion.
+
+%Hence the recommended usage of hat-detect is to first use hat-observe
+%to locate an erroneous reduction that does not involve IO and
+%then to invoke hat-detect for this reduction as described in
+%Section~\ref{othersFromObserve}.
+
+%Also, currently hat-detect can only be used for computations that
+%produce faulty output, not for computations that abort with an error
+%message or are interrupted (in the latter cases hat-detect may indicate
+%a wrong error location).
+
+\subsection{Starting \& Exiting}
+
+Start hat-detect by entering
+\begin{quote}
+\texttt{hat-detect}~\emph{prog}\texttt{[.hat]}
+\end{quote}
+where \emph{prog} is the name of the traced program.
+
+To exit hat-detect enter \texttt{:quit} or \texttt{:q}.
+
+\subsection{The Help Menu}
+
+Enter \texttt{:help} to obtain a short overview of the commands
+understood by hat-detect.
+
+\subsection{Basic Functionality}
+
+Consider the following program:
+\begin{quote}
+\begin{alltt}
+main = print (insSort "abc" ++ insSort "bca")
+
+insSort :: Ord a => [a] -> [a]
+insSort [] = []
+insSort (x:xs) = insert x (insSort xs)
+
+insert :: Ord a => a -> [a] -> [a]
+insert x [] = [x]
+insert x (y:ys)
+  | x <= y    = x:y:ys
+  | otherwise = (insert x ys)
+\end{alltt}
+\end{quote}
+
+It produces the faulty output \texttt{"abcbc"} instead of the intended
+output \texttt{"abcabc"}.
+
+The following is an example session with hat-detect for the
+computation. The \emph{y}/\emph{n} answers are given by the user:
+
+\begin{quote}
+\begin{alltt}
+insSort "abc" == "abc"?
+\emph{y}
+insSort "bca" == "bc"?
+\emph{n}
+insert 'b' "c" == "bc"?
+\emph{y}
+insSort "ca" == "c"?
+\emph{n}
+insert 'c' "a" == "c"?
+\emph{n}
+insert 'c' [] == "c"?
+\emph{y}
+Bug Identified:
+  "insSort.hs":8-11:
+  insert x [] = [x]
+  insert x (y:ys)
+    | x <= y    = x:y:ys
+    | otherwise = (insert x ys)
+\end{alltt}
+\end{quote}
+
+The first question of the session asks if the reduction of \texttt{sort "abc"}
+is correct. Hat-detect indicates that \texttt{sort "abc"} is reduced to
+\texttt{"abc"}. The answer is obviously \emph{yes}.  Further answers from the
+user show that the third and sixth reductions are correct, whereas the second,
+fourth, and fifth are not.
+
+After the answer to the sixth question hat-detect can determine
+the location of the error.  The equation that is used to reduce
+the redex \texttt{insert 'c' "a")} is wrong. Indeed, on the right-hand
+side of the guard \texttt{otherwise}the result
+should be \texttt{y~:~(insert~x~ys)}.
+
+%\subsubsection{Postponing an Answer}
+
+%If you are not sure about the answer to a question you can answer
+%\emph{?n} or \emph{?y}.  If you answer \emph{?n}, then hat-detect
+%proceeds as if the answer had been \emph{no}.  But if it cannot
+%locate an error in one of the child reductions, then it will later
+%ask you the question again.  Answering \emph{?y} will postpone the
+%question as well, but hat-detect will proceed as if the answer hat
+%been \emph{yes}. If it cannot locate an error in one of its brother
+%reductions, then it will ask you the question again.
+
+\subsubsection{Unevaluated Subexpressions}
+
+Reductions may contain underscores \texttt{\_} that represent
+unevaluated subexpressions.  A question with an underscore on the
+left-hand side of the reduction has to be read as ``is the reduction
+correct for \emph{any} value at this position?'' and a question
+with an underscore on the right-hand side should be read as ``is the
+reduction correct for \emph{some} value at this position?''.  If there
+are several underscores in a reduction the values at these positions
+need not be the same.
+
+\subsection{Algorithmic Debugging}
+
+Hat-detect is based on the idea of algorithmic/declarative
+debugging. The reductions of a computation are related by a tree
+structure. The reduction of \texttt{main} is the root of the tree. The
+children of a reduction of a function application are all those
+reductions that reduce expressions occurring on the right-hand side
+of the definition of the function.
+
+If a question about a reduction is answered with \emph{no}, then
+the next question concerns the reduction of a child node. However,
+if the answer is \emph{yes}, then the next question will be about a
+sibling or a remaining node closer to the root.
+
+An error is located when a node is found such that its reduction is
+incorrect but the reductions of all its children are correct. That
+reduction is the source of the error.
+
+\subsection{Advanced Features}
+
+\subsubsection{Single stepping}
+
+Hat-detect can be used rather similarly to a conventional debugger.
+So the input \emph{no} means ``step into current function call''
+and the input \emph{yes} means ``go on to next function call''. Note
+that this single stepping is not with respect to the lazy evaluation
+order actually used in the computation, but with respect to an eager
+evaluation order that ``magically'' skips over the evaluation of
+expressions that are not needed in the remaining computation.
+
+%\subsubsection{Showing unevaluated subexpressions}
+
+%By default hat-detect shows unevaluated subexpressions just as
+%underscores \texttt{\_}. For answering a question these unevaluated
+%subexpressions are irrelevant anyway. However, by entering the
+%\texttt{:set verbose on} command you can switch to verbose mode
+%which shows these unevaluated subexpressions in full.  Use
+%\texttt{:set verbose off} to switch the verbose mode off again.
+
+%\subsubsection{Going back to a question}
+
+%The questions are numbered. By entering a number \emph{n} you can
+%go back to any previous question numbered \emph{n}.  When you do this,
+%the answers to all intervening questions are deleted.
+
+%\subsubsection{Trusting}
+
+%Hat-detect does not ask any question about the reductions of functions
+%that are trusted as described in Section~\ref{trusting}.  However, you
+%can trust further functions and thus avoid questions about them.  By
+%entering \texttt{:trust} instead of \texttt{y} when being asked about a
+%specific reduction of a function you trust this function.  By entering
+%\texttt{:untrust} you stop trusting \emph{all} these functions again.
+
+%\subsubsection{Memoisation}
+
+%By default hat-detect memoises all answers you gave.  So, although
+%the same reduction may be performed several times in a computation,
+%hat-detect will only ask once about it.  Hat-detect even avoids asking
+%a question, if a more general question (containing more unevaluated
+%expressions) has been answered before.
+
+%You can turn memoisation on/off with the command \texttt{:set memoize on}
+%or \texttt{:set memoize off}.
+
+\subsubsection{Invoking other Viewing Tools}
+
+%\paragraph{Observing a function}
+
+%When being asked about a specific reduction of a function you can enter
+%\texttt{:observe} to observe the function.  The hat-observe tool will
+%appear in a new window, showing all applications of the given function.
+%This interface to hat-observe is particularly useful, if you are
+%not sure whether to trust a function for Algorithmic Debugging. By
+%observing all applications of the function you can decide whether
+%the function can indeed be trusted or not.  If you find an erroneous
+%reduction in the observation, you can select it and in turn start a
+%new Algorithmic Debugging session for this reduction.
+
+\paragraph{Tracing arguments}
+
+When \texttt{hat-detect} asks you about the reduction of an
+application, which obviously has a \emph{wrong} argument, you should
+consider using \texttt{hat-trail} to investigate where this argument
+came from.  By answering a question with \texttt{:trail} the Redex
+Trail browser is launched immediately from the Algorithmic Debugger.
+
+\subsection{Quick reference to commands}
+
+All the commands that are available in hat-detect are summarised in
+the following table.
+
+\begin{verbatim}
+------------------------------------------------------------------------
+ y   or  yes  you believe the equation is ok
+ n   or  no   you believe the equation is wrong
+
+ :show        Show the EDTs that hat-detect is currently investigating.
+ :children    Show the children of the current reduction.
+
+ :help        show help text
+ :quit        quit
+
+ :anim        start hat-anim on the current function
+ :detect or   start hat-detect (in a new window) on the current
+ :split       function
+ :delta       start hat-delta on the current function
+ :explore     start hat-explore on the current function
+ :trail       start hat-trail on the current equation
+------------------------------------------------------------------------
+\end{verbatim}
+% ?y  or  y?       you are not sure (but try ok for now)
+% ?n  or  n?       you are not sure (but try wrong for now)
+% <n>              go back to question <n>
+% :set             show all current mode settings
+% :set <flag>      change one mode setting
+%      <flag> can be: memoise [on|off]:  never ask the same question again
+%                     verbose [on|off]:  show unevaluated exprs in full
+%                     cutoff <n>:        set subexpression cutoff depth
+% :trust           trust all applications of the current function
+% :untrust         untrust ALL functions which were previously trusted
+
+%==============================================================================
+
+\section{Hat-Delta}
+
+Hat-delta is an interactive tool that enables you to locate
+semi-automatically an error in a program by answering a sequence
+of yes/no questions.  The tool works in a very similar way to hat-detect, but
+is more intelligent in it's choice of questions.  This usually results in
+shorter debugging sessions.
+
+\subsection{Starting \& Exiting}
+
+Start hat-delta by entering
+\begin{quote}
+\texttt{hat-delta}~\emph{prog}\texttt{[.hat]}
+\end{quote}
+where \emph{prog} is the name of the traced program.
+
+To exit hat-delta enter \texttt{:quit} or \texttt{:q}.
+
+\subsection{The Help Menu}
+
+Enter \texttt{:help} to obtain a short overview of the commands
+understood by hat-delta.
+
+\subsection{Basic Functionality}
+
+Consider the following program:
+\begin{quote}
+\begin{alltt}
+main = print (insSort "abc" ++ insSort "bca")
+
+insSort :: Ord a => [a] -> [a]
+insSort [] = []
+insSort (x:xs) = insert x (insSort xs)
+
+insert :: Ord a => a -> [a] -> [a]
+insert x [] = [x]
+insert x (y:ys)
+  | x <= y    = x:y:ys
+  | otherwise = (insert x ys)
+\end{alltt}
+\end{quote}
+
+It produces the faulty output \texttt{"abcbc"} instead of the intended
+output \texttt{"abcabc"}.
+
+The following is an example session with hat-delta for the
+computation. The \emph{y}/\emph{n} answers are given by the user:
+
+\begin{quote}
+\begin{alltt}
+insSort "abc" == "abc"?
+\emph{y}
+insert 'c' "a" == "c"?
+\emph{n}
+Bug Identified:
+  "insSort.hs":8-11:
+  insert x [] = [x]
+  insert x (y:ys)
+    | x <= y    = x:y:ys
+    | otherwise = (insert x ys)
+\end{alltt}
+\end{quote}
+
+The first question of the session asks if the reduction of \texttt{sort "abc"}
+is correct. Hat-detect indicates that \texttt{sort "abc"} is reduced to
+\texttt{"abc"}. The answer is obviously \emph{yes}.  The second question asks about \texttt{insert 'c' "a"}, and receives a \emph{no} answer.
+
+After the answer to the second question hat-delta can determine
+the location of the error.  The equation that is used to reduce
+the redex \texttt{insert 'c' "a")} is wrong. Indeed, on the right-hand
+side of the guard \texttt{otherwise}the result
+should be \texttt{y~:~(insert~x~ys)}.
+
+\subsection{Delta Debugging}
+
+Hat-delta is based on the idea of algorithmic delta debugging.  The process is
+similar to that of algorithmic debugging.  However the process varies in the
+algorithm used to identify which question to ask next.
+
+Delta debugging calculates a likelihood of a question getting a no answer by
+looking at how often a section of program code has been executed before.
+
+The process is then more likely to ask questions about these nodes.
+
+\subsection{Quick reference to commands}
+
+All the commands that are available in hat-detect are summarised in
+the following table.
+
+\begin{verbatim}
+------------------------------------------------------------------------
+ y   or  yes  you believe the equation is ok
+ n   or  no   you believe the equation is wrong
+
+ :show        Show the EDTs that hat-detect is currently investigating.
+
+ :help        show help text
+ :quit        quit
+
+ :anim        start hat-anim on the current function
+ :detect      start hat-detect on the current function
+ :delta or    start hat-delta (in a new window) on the current
+ :split       function
+ :explore     start hat-explore on the current function
+ :trail       start hat-trail on the current equation
+------------------------------------------------------------------------
+\end{verbatim}
+
+\section{Hat-Stack}
+
+For aborted computations, that is computations that terminated with an error message or were interrupted, hat-stack shows in which function call the computation was aborted. It does so by showing a \emph{virtual} stack of function calls (redexes). So every function call on the stack caused the function call above it. The evaluation of the top stack element caused the error or during its evaluation the computation was interrupted. The shown stack is \emph{virtual}, because it does not correspond to the actual runtime stack. The actual runtime stack enables lazy evaluation whereas the \emph{virtual} stack corresponds to a stack that would be used for eager (strict) evaluation.
+
+\subsection{Usage}
+
+To use hat-stack enter
+\begin{quote}
+\texttt{hat-stack}~\emph{programname}
+\end{quote}
+where \emph{programname} is the name of the traced program.
+
+\subsection{Example}
+
+Here is an example output:
+\begin{alltt}
+Program terminated with error:
+    "No match in pattern."
+Virtual stack trace:
+    (last' [])                     (Example.hs: line-6/col-16)
+    (last' (5+6:[]))               (Example.hs: line-6/col-16)
+    (last' ((div 5 0):5+6:[]))     (Example.hs: line-6/col-16)
+    (last' (8:(div 5 0):5+6:[]))   (Example.hs: line-4/col-27)
+    main                           (Example.hs: line-2/col-1)
+\end{alltt}
+
+\subsection{Further Information}
+
+Hat-trail can also show this virtual stack. Hat-stack is a simple
+tool that enables you to obtain the stack directly.  The description
+of hat-trail contains more details about the relationships between
+the stack elements.
+
+%Hat-stack shows $\dashedBox$
+%(see Section~\ref{trailtrusting}) and subexpressions of very large
+%expressions as a dot ($\cdot$).
+
+
+%==============================================================================
+
+\newpage
+\section{Limitations of Functionality}
+
+Although Hat can trace nearly any Haskell 98 program, some program
+constructs are still only supported in a restricted way. See the Hat
+web page for further limitations and bugs.
+
+\subsection{List Comprehensions}
+
+List comprehensions are desugared by Hat, that is, their implementation
+in terms of higher-order list functions such as \texttt{foldr}
+is traced.
+
+\subsection{Labelled Fields (records)}
+
+Expressions with field labels (records) are desugared by Hat. So
+viewing tools show field names only as selectors but never together
+with the arguments of a data constructor. An update using field labels
+is shown as a \texttt{case} expression.
+
+\subsection{Strictness Flags}
+
+Strictness flags in data type definitions are ignored by Hat and
+hence lose their effect.
+
+%==============================================================================
+
+\end{document}
+%------------------------------------------------------------------------------
+% End
+

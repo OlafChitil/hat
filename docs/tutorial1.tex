@@ -1,0 +1,730 @@
+\documentclass[12pt]{article}
+
+\usepackage[a4paper]{geometry}
+
+\newif\ifpdf
+\ifx\pdfoutput\undefined
+  \pdffalse
+\else
+  \pdfoutput=1
+  \pdftrue
+\fi
+
+\ifpdf
+  \usepackage[colorlinks=true]{hyperref}
+  \usepackage[pdftex]{graphicx}
+  \pdfcompresslevel=9
+\else
+  \usepackage{graphicx}
+\fi
+
+%------------------------------------------------------------------------------
+
+
+
+\newcommand{\CUT}{\mbox{\rule{1.0ex}{1.5ex}}}
+\newcommand{\highlight}[1]{\raisebox{0pt}[2ex][2ex]{\fbox{\tt #1}}}
+\newcommand{\mkblue}[1]{#1}
+\begin{document}
+\title{Hat Tutorial}
+\author{The ART Team \\
+{\tt ART-team@cs.york.ac.uk}}
+\date{29 April 2005}
+\maketitle
+\section{Introduction}
+
+This tutorial is intended as a practical introduction to the
+Hat tools\footnote{
+Available from {\tt http://www.haskell.org/hat/}.}
+for tracing Haskell 98 programs.
+It introduces the basic ideas
+and explains with worked examples how to use the tools.
+
+Readers are encouraged to follow the
+tutorial using an installation of Hat.
+This first version of the tutorial assumes Hat (Version 2.04), nhc98, hmake
+ and Linux, but it works equally
+well with ghc instead of nhc98.
+
+There are several Hat tools for examining traces, but this tutorial will
+consider only two: {\tt hat-trail} and {\tt hat-observe}.
+Even for these tools not every option and command is discussed.
+For a more comprehensive reference see the Hat User Manual.
+
+The tutorial makes use of a small example program ---
+at first a correctly working version, later one with faults
+deliberately introduced.
+The intended behaviour of the program is very
+simple: it should sort the letters of the word `program' using insertion sort.
+The working program is given\footnote{
+The program may also be found in the file {\tt Insort.hs}.}
+in Figure~\ref{insort}.
+
+\begin{figure}[t]
+\fbox{\parbox{\textwidth}{
+\begin{tabular}{lcl}
+\multicolumn{3}{l}{\tt sort ::\ Ord a => [a] -> [a]} \\
+{\tt sort []}     & {\tt =} & {\tt []} \\
+{\tt sort (x:xs)} & {\tt =} & {\tt insert x (sort xs)}
+\end{tabular} \\
+\begin{tabular}{lcl}
+\multicolumn{3}{l}{\tt insert ::\ Ord a => a -> [a] -> [a]} \\
+{\tt insert x []}     & {\tt =} & {\tt [x]} \\
+{\tt insert x (y:ys)} & {\tt =} & {\tt if x <= y then x :\ y :\ ys} \\
+{\tt }                & {\tt  } & {\tt else y :\ insert x ys}
+\end{tabular} \\
+\begin{tabular}{lcl}
+{\tt main} & {\tt =} & {\tt putStrLn (sort "program")}
+\end{tabular}
+}}
+\caption{\label{insort}An insertion-sort program.}
+\end{figure}
+
+\section{Hat Compilation and Execution}
+
+To use Hat, the Haskell program to be traced must first be
+compiled with the {\tt -hat} option to {\tt hmake}:
+
+\begin{tabbing}
+{\tt \$ hmake -hat Insort} \\
+{\tt hat-trans Insort.hs} \\
+{\tt Creating directories Hat} \\
+{\tt Wrote Hat/Insert.hs} \\
+{\tt nhc98 -package hat -c -o Hat/Insort.o Hat/Insort.hs} \\
+{\tt nhc98 -package hat -o Insort Hat/Insort.o}
+\end{tabbing}
+
+A program compiled for tracing can be executed just as
+if it had been compiled normally.
+\begin{tabbing}
+{\tt \$ Insort} \\
+{\tt agmoprr}
+\end{tabbing}
+The main difference from untraced execution is that as {\tt Insort} runs
+it records a detailed trace of its computation in a file {\tt Insort.hat}.
+The trace is a graph of program expressions encoded in a special-purpose
+binary format.
+
+Two further files {\tt Insort.hat.output} and
+{\tt Insort.hat.bridge}
+record the output and associated references to the trace file.\footnote{
+Trace files do not include program sources, but they do include
+references to program sources; modifying source files could invalidate
+source links from traces.}
+
+\section{Hat-trail: Basics}
+
+After a program compiled for tracing has been run, creating a trace file,
+special-purpose tools are used to examine the trace.
+The first such tool we shall look at is hat-trail.
+The idea of hat-trail is to answer the question `Where did that come
+from?' in relation to values, expressions, outputs and error messages.
+The immediate answer will be a parent application or name.
+More specifically:
+\begin{itemize}
+\item {\em errors}:
+the application or name being reduced when the error occurred
+(eg. {\tt head []} might be the parent of a pattern-match failure);
+
+\item {\em outputs}:
+the monadic action that caused the output
+(eg. {\tt putStr "Hello world"} might the parent of a section of output text);
+ 
+\item {\em non-value expressions}:
+the application or name whose defining body
+contains the expression of which the child is an instance
+(eg. {\tt append [1,2] [3,4]} might be the parent of {\tt append [2] [3,4]});
+ 
+\item {\em values}:
+as for non-value expressions, or the application of a
+predefined function with the child as result
+(eg. {\tt [1,2]++[3,4]} might be the parent of {\tt [1,2,3,4]}).
+\end{itemize}
+Parent expressions, and their subexpressions, may in turn have parents
+of their own.
+The tool is called hat-trail because it
+displays trails of ancestral redexes, tracing effects back to their
+causes.
+
+\subsubsection*{Hat-trail sessions and requests}
+A hat-trail session can be started from a shell command line, or from
+within existing sessions of hat tools.
+The immediate result of the shell command
+\begin{tabbing}
+{\tt \$ hat-trail Insort}
+\end{tabbing}
+is the display of a terminal window with an upper part headed {\tt Output}
+and a lower part headed {\tt Trail}:
+\begin{tabbing}
+{\tt Output:\ -------------------------------------------------------} \\
+\highlight{agmoprr\char92n} \\
+\\
+{\tt Trail:\ ------ hat-trail 2.00  (:h for help, :q to quit) -------}
+\end{tabbing}
+The line of output is highlighted\footnote{
+In the printed version of this tutorial, highlighted text or
+expressions are shown boxed; the Hat tools actually use colour for
+highlighting.}
+because it is the current selection.
+
+Requests in {\tt hat-trail} are of two kinds. Some are single key presses
+with an immediate response; others are command-lines starting with
+a colon and only acted upon when completed by keying return.
+A basic repertoire of single-key requests is:
+\begin{center}
+\begin{tabular*}{\textwidth}{lp{10cm}}
+{\em return}      & add to the trail the parent expression of
+                    the current selection \\
+{\em backspace}   & remove the last addition to the trail display \\
+{\em arrow keys}  & select (a) parts of the output generated by
+                    different actions, or (b) subexpressions of expressions
+	            already on display
+\end{tabular*}
+\end{center}
+And a basic repertoire of command-line requests is:
+\begin{center}
+\begin{tabular*}{\textwidth}{lp{10cm}}
+{\tt :source} & show the source expression of which the current
+                selection is an instance \\
+{\tt :quit}   & finish this hat-trail session
+\end{tabular*}
+\end{center}
+It is enough to give initial letters, {\tt :s} or {\tt :q}, rather
+than {\tt :source} or {\tt :quit}.
+
+\subsubsection*{Some {\tt Insort} trails}
+To trace the output from the {\tt Insort} computation, keying return
+alters the {\tt Trail} part of the display to:
+\begin{tabbing}
+{\tt Trail:\ ----------------------- Insort.hs line:\ 10 col:\ 8 ------} \\
+{\tt <- }\highlight{putStrLn "agmoprr"}
+\end{tabbing}
+The source reference is to the corresponding application of {\tt putStrLn} in
+the program.  Giving the command {\tt :s} at this point creates a separate
+source window showing the relevant extract of the program.\footnote{
+The only
+thing to do with a source extract is to look at it: tracing with Hat
+does not involve annotating or otherwise modifying program sources.}
+
+Back to the {\tt Trail} display. Keying return again:
+\begin{tabbing}
+{\tt Trail:\ ----------------------- Insort.hs line:\ 10 col:\ 1 ------} \\
+{\tt <-}\highlight{putStrLn "agmoprr"} \\
+{\tt <-}\highlight{main}
+\end{tabbing}
+That is, the line of output was produced by an application of
+{\tt putStrLn} occurring in the body of {\tt main}.
+
+So far, so good; but what about the sorting?  How do we see where {\tt putStr}'s
+string argument {\tt "agmoprr"} came from?  By making that string the current
+selection and requesting its parent:
+\begin{tabbing}
+{\em right-arrow}\hspace{10mm}\=\kill
+{\em backspace}   \> (removes {\tt main}), \\
+{\em right-arrow} \> (selects {\tt putStrLn}), \\
+{\em right-arrow} \> (selects {\tt "agmoprr"}), \\
+{\em return}      \> (requests parent expression)
+\end{tabbing}
+\begin{tabbing}
+{\tt Trail:\ ----------------------- Insort.hs line:\ 7 col:\ 19 -----} \\
+{\tt <- putStrLn\ }\highlight{"agmoprr"} \\
+{\tt <-\ }\highlight{insert 'p' "agmorr" | if False}
+\end{tabbing}
+The string {\tt "agmoprr"} is the result of inserting {\tt 'p'}, the head of the
+string {\tt "program"}, into the recursively sorted tail.  More specifically,
+the string was computed in the else-branch of the conditional by which
+{\tt insert} is defined in the recursive case
+(because {\tt 'p' <= 'a'} is {\tt False}).
+
+And so we could continue.  For example, following the trail of
+string arguments:
+\begin{tabbing}
+{\tt <- insert 'p'\ }\highlight{"agmorr"}{\tt \ | if False} \\
+{\tt <- insert 'r'\ }\highlight{"agmor"}{\tt \ | if False} \\
+{\tt <- insert 'o'\ }\highlight{"agmr"}{\tt \ | if False} \\
+{\tt <- insert 'g'\ }\highlight{"amr"}{\tt \ | if False} \\
+{\tt <- insert 'r'\ }\highlight{"am"}{\tt \ | if False} \\
+{\tt <- insert 'a'\ }\highlight{"m"}{\tt \ | if True} \\
+{\tt <-\ }\highlight{insert 'm' []}
+\end{tabbing}
+But let's leave hat-trail for now.
+\begin{tabbing}
+{\tt :quit} \\
+\end{tabbing}
+
+\section{Hat-observe: Basics}
+The idea of hat-observe is to answer the question `To which arguments,
+if any, was that applied, and with what results?', mainly in relation
+to a top-level function.
+Answers take the form of a list of equational observations, showing
+for each application of the function to distinct arguments what result
+was computed.  The user has the option to limit observations to particular
+patterns of arguments or results, or to particular application contexts. 
+
+\subsubsection*{Hat-observe sessions and requests}
+A hat-observe session can be started from a shell command line, or from
+within existing sessions of hat tools.
+\begin{tabbing}
+{\tt \$ hat-observe Insort} \\ \\
+{\tt \ \ \ \ \ \ \ \ hat-observe 2.00  (:h for help, :q to quit)} \\ \\
+{\tt hat-observe>} \\
+\end{tabbing}
+In comparison with hat-trail, there is more emphasis on command-lines
+in hat-observe,
+and the main user interface is a prompt-request-response
+cycle.
+Requests are of two kinds.
+Some are observation queries in the
+form of application patterns:
+the simplest observation query is just the name of a top-level function.
+Others are command-lines, starting with
+a colon, similar to those of hat-trail.
+A basic repertoire of command-line requests is
+\begin{center}
+\begin{tabular*}{\textwidth}{lp{10cm}}
+{\tt :info } & list the names of functions and other defined
+               values that can be observed, with application counts \\
+{\tt :quit}  & finish this hat-observe session \\
+\end{tabular*}
+\end{center}
+Again it is enough to give the initial letters, {\tt :i} or {\tt :q}.
+\subsubsection*{Some {\tt Insort} observations}
+A common way to begin a hat-observe session is with an {\tt :info}
+request, followed by initial observation of central functions.
+\begin{tabbing}
+{\tt hat-observe> :info} \\
+\hspace{2.5cm}\=\hspace{2.5cm}\=\hspace{2.5cm}\=\hspace{2.5cm}\=\kill
+{\tt 19 <=}       \> {\tt 21 insert}        \> {\tt 1 main}   \>
+{\tt 1 putStrLn}  \> {\tt 1 sort} \\
+{\tt hat-observe> sort} \\
+{\tt \mkblue{1} sort "program" = "agmoprr"} \\
+{\tt \mkblue{2} sort "rogram" = "agmorr"} \\
+{\tt \mkblue{3} sort "ogram" = "agmor"} \\
+{\tt \mkblue{4} sort "gram" = "agmr"} \\
+{\tt \mkblue{5} sort "ram" = "amr"} \\
+{\tt \mkblue{6} sort "am" = "am"} \\
+{\tt \mkblue{7} sort "m" = "m"} \\
+{\tt \mkblue{8} sort [] = []}
+\end{tabbing}
+Here the number of observations is small.  Larger collections of
+obervations are presented in blocks of ten (by default).
+\begin{tabbing}
+{\tt hat-observe> <=} \\
+{\tt \mkblue{1} 'a' <= 'm' = True} \\
+{\tt \mkblue{2} 'r' <= 'a' = False} \\
+{\tt \mkblue{3} 'g' <= 'a' = False} \\
+{\tt \mkblue{4} 'o' <= 'a' = False} \\
+{\tt \mkblue{5} 'p' <= 'a' = False} \\
+{\tt \mkblue{6} 'r' <= 'm' = False} \\
+{\tt \mkblue{7} 'g' <= 'm' = True} \\
+{\tt \mkblue{8} 'o' <= 'g' = False} \\
+{\tt \mkblue{9} 'r' <= 'g' = False} \\
+{\tt \mkblue{10} 'p' <= 'g' = False} \\
+{\tt --more--> }
+\end{tabbing}
+Keying return in response to {\tt --more-->} requests the next block of
+observations.  Alternatively, requests in the colon-command family can
+be given.  Any other line of input cuts
+short the list of reported observations in favour of a fresh {\tt hat-observe>}
+prompt.
+\begin{tabbing}
+{\tt --more--> n} \\
+{\tt hat-observe>}
+\end{tabbing}
+
+\subsubsection*{Observing restricted patterns of applications}
+Viewing a block at a time is not the only way of handling what may be
+a large number of applications.  Obervations can also be restricted to
+applications in which specific patterns of values occur as arguments or result, or
+to applications in a specific context.  The full syntax for obervation
+queries is
+\begin{tabbing}
+{\tt identifier pattern* [= pattern] [in identifier]}
+\end{tabbing}
+where the {\tt *} indicates that there can be zero or more occurrences of
+an argument pattern and the {\tt [...]} indicate that the result pattern and
+context are optional.  Patterns in observation queries are simplified
+versions of constructor patterns with \verb"_" as the only variable.
+Some examples for the {\tt Insort} computation:
+\begin{tabbing}
+{\tt hat-observe> insert 'g' \verb"_"} \\
+{\tt \mkblue{1} insert 'g' "amr" = "agmr"} \\
+{\tt \mkblue{2} insert 'g' "mr" = "gmr"} \\
+{\tt hat-observe> insert \verb"_" \verb"_" = [\verb"_"]} \\
+{\tt \mkblue{1} insert 'm' [] = "m"} \\
+{\tt \mkblue{2} insert 'r' [] = "r"} \\
+{\tt hat-observe> sort in main} \\
+{\tt \mkblue{1} sort "program" = "agmoprr"} \\
+{\tt hat-observe> sort in sort} \\
+{\tt \mkblue{1} sort "rogram" = "agmorr"} \\
+{\tt \mkblue{2} sort "ogram" = "agmor"} \\
+{\tt \mkblue{3} sort "gram" = "agmr"} \\
+{\tt \mkblue{4} sort "ram" = "amr"} \\
+{\tt \mkblue{5} sort "am" = "am"} \\
+{\tt \mkblue{6} sort "m" = "m"} \\
+{\tt \mkblue{7} sort [] = []}
+\end{tabbing}
+Enough on hat-observe for now.
+\begin{tabbing}
+{\tt hat-observe> :quit}
+\end{tabbing}
+
+\section{Tracing Faulty Programs}
+
+We have seen so far some of the ways in which Hat tools can be used
+to trace a correctly working program.  But a common and intended use
+for Hat is to trace a faulty program with the aim of locating the
+source of the faults.  A faulty computation has one of three outcomes:
+\begin{enumerate}
+\item
+termination with a run-time error, or
+\item
+termination with incorrect output, or
+\item
+non-termination.
+\end{enumerate}
+A variant of {\tt Insort}
+given\footnote{The program may also be found in the file {\tt BadInsort.hs}.}
+in Figure~\ref{badinsort} has three faults,
+each of which alone
+would cause a different outcome, as indicated by comments.
+\begin{figure}[t]
+\fbox{\parbox{\textwidth}{
+\begin{tabular}{lcl}
+\multicolumn{3}{l}{\tt sort ::\ Ord a => [a] -> [a]} \\
+\multicolumn{3}{l}{\tt -- FAULT (1):\ missing equation for [] argument} \\
+{\tt sort (x:xs)} & {\tt =} & {\tt insert x (sort xs)}
+\end{tabular} \\
+\begin{tabular}{lcl}
+\multicolumn{3}{l}{\tt insert ::\ Ord a => a -> [a] -> [a]} \\
+{\tt insert x []}     & {\tt =} & {\tt [x]} \\
+{\tt insert x (y:ys)} & {\tt =} & {\tt if x <= y} \\
+                      &         & {\tt -- FAULT (2):\ y missing from result} \\
+                      &         & {\tt then x : ys} \\
+                      &         & {\tt -- FAULT (3):\ recursive call is same} \\
+                      &         & {\tt else y :\ insert x (y:ys)}
+\end{tabular} \\
+\begin{tabular}{lcl}
+{\tt main} & {\tt =} & {\tt putStrLn (sort "program")}
+\end{tabular}
+}}
+\caption{\label{badinsort}A faulty version of the insertion-sort program.}
+\end{figure}
+In the following sections we shall apply the Hat tools to examine the
+faulty program, as if we didn't know in advance where the faults were.
+
+\subsection{Tracing a Run-time Error}
+We compile the faulty program for tracing, then run it:
+\begin{tabbing}
+{\tt \$ hmake -hat BadInsort} \\
+{\tt ...} \\
+{\tt \$ BadInsort } \\
+{\tt No match in pattern. }
+\end{tabbing}
+Two questions prompted by this error message are:
+\begin{itemize}
+\item
+What was the application that didn't match?
+\item
+Where did that application come from?
+\end{itemize}
+
+\subsubsection*{Using hat-trail}
+
+Both questions can be answered by using hat-trail to trace the derivation
+of the error. 
+\begin{tabbing}
+{\tt \$ hat-trail BadInsort} \\
+\\
+{\tt Error:\ --------------------------------------------------------} \\
+\highlight{No match in pattern.} \\
+\end{tabbing}
+Keying return once to see the erroneous application,
+then again to see its parent application:
+\begin{tabbing}
+{\tt Trail:\ ------------------- BadInsort.hs line:\ 3 col:\ 25 -------} \\
+{\tt <-\ }\highlight{sort []} \\
+{\tt <-\ }\highlight{sort "m"}
+\end{tabbing}
+This information can be supplemented by reference to the source program.
+With {\tt sort []} selected, the {\tt :source} command
+shows the site of the offending application in the
+recursive equation for {\tt sort}.
+If necessary the ancestry of the {\tt []} argument or
+the {\tt sort} application could be traced back further\footnote{
+In general, when
+tracing the origins of an application there are five choices: trace the
+ancestry of the function, or of an argument, or of the application itself;
+alternatively look at the source context of the application, or at the
+source definition of the function}.
+% For example, selecting
+% the {\tt []} argument (right-arrow twice) shows its origin to be the string
+% literal {\tt "program"} in {\tt main}.
+
+\subsubsection*{Using hat-observe}
+
+Although hat-trail is usually the first resort for tracing run-time
+errors, it is instructive to see what happens if instead we try
+using hat-observe.
+\begin{tabbing}
+{\tt \$ hat-observe BadInsort } \\ \\
+{\tt \ \ \ \ \ \ \ \ hat-observe 2.00  (:h for help, :q to quit)} \\ \\
+\hspace{2.5cm}\=\hspace{2.5cm}\=\hspace{2.5cm}\=\hspace{2.5cm}\=\kill
+{\tt hat-observe> :info } \\
+{\tt 7+0 insert} \> {\tt 1 main} \> {\tt 1 putStrLn} \> {\tt 1+7 sort}
+\end{tabbing}
+What do the {\it M}{\tt +}{\it N} counts for {\tt insert} and {\tt sort}
+mean?  {\it M} is the number of applications that never got
+beyond a pattern-matching stage involving evaluation of arguments;
+{\it N} is the number of applications that were actually reduced
+to an instance of the function body.
+Applications are only counted at all if their results were
+demanded during the computation.
+Where a count is shown as a single number, it is a count of applications
+actually reduced.
+
+In the {\tt BadInsort} computation, we see 
+there are fewer obervations of {\tt insert} than there were
+in the correct {\tt Insort}
+computation, and no observations at all
+of {\tt <=}.  How can that be?  What is happening
+to ordered insertion?
+\begin{tabbing}
+{\tt hat-observe> insert }\\
+{\tt \mkblue{1} insert 'p' \verb"_|_" = \verb"_|_" }\\
+{\tt \mkblue{2} insert 'r' \verb"_|_" = \verb"_|_" }\\
+{\tt \mkblue{3} insert 'o' \verb"_|_" = \verb"_|_" }\\
+{\tt \mkblue{4} insert 'g' \verb"_|_" = \verb"_|_" }\\
+{\tt \mkblue{5} insert 'a' \verb"_|_" = \verb"_|_" }\\
+{\tt \mkblue{6} insert 'm' \verb"_|_" = \verb"_|_" }
+\end{tabbing}
+The symbol \verb"_|_" here indicates an undefined value.  Reading the character
+arguments vertically {\tt "program"} seems to be misspelt: is there an observation
+missing between {\tt 4} and {\tt 5}?  There are in fact two separate applications
+{\tt insert 'r' \verb"_|_" = \verb"_|_"}, but duplicate observations are not listed (by default).
+
+The {\tt insert} observations explain the fall in application counts.
+In all the observed applications, the list arguments are undefined.
+So neither of the defining equations for {\tt insert} is ever matched, 
+there are no {\tt <=} comparisons (as these occur only in the right-hand
+side of the second equation) and of course no recursive
+calls.
+
+Why are the {\tt insert} arguments undefined?  They should be the results of
+{\tt sort} applications.
+\begin{tabbing}
+{\tt hat-observe> sort } \\
+{\tt \mkblue{1} sort "program" = \verb"_|_" } \\
+{\tt \mkblue{2} sort "rogram" = \verb"_|_" } \\
+{\tt \mkblue{3} sort "ogram" = \verb"_|_" } \\
+{\tt \mkblue{4} sort "gram" = \verb"_|_" } \\
+{\tt \mkblue{5} sort "ram" = \verb"_|_" } \\
+{\tt \mkblue{6} sort "am" = \verb"_|_" } \\
+{\tt \mkblue{7} sort "m" = \verb"_|_" } \\
+{\tt \mkblue{8} sort [] = \verb"_|_" }
+\end{tabbing}
+Observations {\tt 1} to {\tt 7} show applications of sort that
+reduced to applications of {\tt insert}, with the {\tt \verb"_|_"} results
+already observed\footnote{This insight requires independent knowledge
+of the program, however,
+as hat-observe, unlike hat-trail, is not concerned with
+relationships between applications.}.
+Observation {\tt 8} is the application that does not reduce.
+
+In short, the story so far from hat-observe is quite simple: everything
+is undefined!  What about the other two items in the
+info list, {\tt putStrLn} and {\tt main}?
+\begin{tabbing}
+{\tt hat-observe> putStrLn } \\
+{\tt \mkblue{1} putStrLn \verb"_|_" = \{IO\}} \\
+{\tt hat-observe> main } \\
+{\tt \mkblue{1} main = \{IO\}}
+\end{tabbing}
+Hat uses symbols enclosed in braces, such as {\tt \{IO\}} here,
+to indicate values that cannot be shown more explicitly.
+These observations only confirm that the program does compute
+an I/O action, but the output string is undefined.
+
+\subsection{Tracing a Non-terminating Computation}
+Suppose we correct the first fault, by restoring the equation
+\begin{tabbing}
+{\tt sort [] = []}
+\end{tabbing}
+and recompile.  Now the result of running {\tt BadInsort} is a non-terminating
+computation, with an infinite string {\tt aaaaaaa...} as output. It seems
+that {\tt BadInsort} has entered an infinite loop. The computation can be
+interrupted\footnote{When non-termination is suspected,
+interrupt as quickly as possible to
+avoid working with very large traces.}
+by keying control-C.
+\begin{tabbing}
+{\tt \$ BadInsort } \\
+{\tt Program interrupted.\ (\symbol{94}C)} \\
+{\tt aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\$ } \\
+\end{tabbing}
+Questions this time include:
+\begin{itemize}
+\item
+What parts of the program does the infinite loop involve?
+\item
+How did it come about in the first place?
+\end{itemize}
+
+\subsubsection*{Using hat-trail}
+The initial hat-trail display is:
+\begin{tabbing}
+{\tt Error:\ -------------------------------------------------------- } \\
+\highlight{Program interrupted.\ (\symbol{94}C)} \\
+{\tt Output:\ ------------------------------------------------------- } \\
+{\tt aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa... } \\
+\end{tabbing}
+We have a choice: we can follow the trail back either from the point
+of interruption (the initial selection) or from the output (reached by
+down-arrow).  In this case, it makes little difference\footnote{However,
+the trace from point of interruption depends
+on the timing of the interrupt.};
+either way we
+end up examining the endless list of {\tt 'a'}s.  Let's select the output:
+\begin{tabbing}
+{\tt Output:\ ------------------------------------------------------- } \\
+\highlight{aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa...} \\
+{\tt Trail:\ -----------------  BadInsort.hs line:\ 7 col:\ 19 -------- } \\
+{\tt <- putStrLn\ }\highlight{"aaaaaaaa..."} \\
+{\tt <-\ }\highlight{insert 'p' ('a':\_) | if False}
+\end{tabbing}
+Notice two further features of expression display:
+\begin{itemize}
+\item
+the ellipsis {\tt ...} in the string argument to {\tt putStrLn} indicates
+the tail-end of a long string that has been pruned from the display
+\footnote{In other contexts where large expressions have to be
+pruned the symbol \CUT is used as a place-holder for components.};
+\item
+the symbol {\tt \verb"_"} in the list argument to {\tt insert} indicates an expression
+that was never evaluated.
+\end{itemize}
+The parent application {\tt insert 'p' ('a':\verb"_") | if False} gives several
+important clues.
+It tells us that in the else-branch of the recursive case in the
+definition of {\tt insert} the argument's head (here {\tt 'a'}) is duplicated
+endlessly to generate the result without ever demanding the argument's
+tail (shown only as \verb"_").  This should be enough explanation to discover
+the fault if we didn't already know it.
+
+\subsubsection*{Using hat-observe}
+Once again, let's also see what happens if we use hat-observe.
+\begin{tabbing}
+\hspace{2.5cm}\=\hspace{2.5cm}\=\hspace{2.5cm}\=\hspace{2.5cm}\=\kill
+{\tt hat-observe> :info } \\
+{\tt 78 <=}       \> {\tt 1+83 insert}    \>  {\tt 1 main} \>
+{\tt 1 putStrLn} \> {\tt 8 sort} \\
+\end{tabbing}
+All the expected items are listed as observable. The abnormal counts for
+{\tt <=} and {\tt insert} already give a strong clue where to look.
+But let's first consider the other functions.
+We know well
+enough from the overall output what {\tt main} and {\tt putStrLn} are doing,
+but what about {\tt sort}? Its application count is perfect, but what can
+we glean from details of the arguments and results?
+\begin{tabbing}
+{\tt hat-observe> sort } \\
+{\tt \mkblue{1} sort "program" = "aaaaaaaaaa..." } \\
+{\tt \mkblue{2} sort "rogram" = 'a':\verb"_" } \\
+{\tt \mkblue{3} sort "ogram" = 'a':\verb"_" } \\
+{\tt \mkblue{4} sort "gram" = 'a':\verb"_" } \\
+{\tt \mkblue{5} sort "ram" = 'a':\verb"_" } \\
+{\tt \mkblue{6} sort "am" = "a" } \\
+{\tt \mkblue{7} sort "m" = "m" } \\
+{\tt \mkblue{8} sort [] = [] }
+\end{tabbing}
+Observations 1 to 5 tell a similar story to hat-trail: the tails
+of the recursively computed lists are never demanded; at the
+outermost level, the head is repeated endlessly.
+Observation 6 points to a problem other than non-termination,
+but we shall ignore that for now.  Observations
+7 and 8 do not point to a problem at all.
+
+There is one further clue in these observations: the arguments decrease
+just as expected, confirming that the recursive loop must be
+in {\tt insert}.
+\begin{tabbing}
+{\tt hat-observe> insert } \\
+{\tt \mkblue{1} insert 'p' ('a':\verb"_") = "aaaaaaaaaa..." } \\
+{\tt \mkblue{2} insert 'r' ('a':\verb"_") = 'a':\verb"_" } \\
+{\tt \mkblue{3} insert 'o' ('a':\verb"_") = 'a':\verb"_" } \\
+{\tt \mkblue{4} insert 'g' ('a':\verb"_") = 'a':\verb"_" } \\
+{\tt \mkblue{5} insert 'a' "m" = "a" } \\
+{\tt \mkblue{6} insert 'm' [] = "m" } \\
+{\tt searching ... (\symbol{94}C to interrupt) } \\
+{\tt \{Interrupted\} }
+\end{tabbing}
+Many more observations would eventually be reported because
+hat-observe lists each observation that is distinct from
+% , or more
+% general than\footnote{
+% Application A is more general
+% than application B if their arguments and results agree where both
+% are evaluated but A's arguments are less evaluated than B's or A's
+% result is more evaluated than B's.},
+those listed previously.
+When the computation is interrupted
+there are many different applications of the form {\tt insert 'p' ('a':\verb"_")}
+in progress, each with results evaluated to a different extent.
+
+But observation 1 is enough. As the tail of the argument is
+unevaluated, the result would be the same whatever the tail.
+For example, it could be {\tt []}; so we know
+{\tt insert 'p' "a" = "aaaa..."}.
+This specific and simple
+failing case directs us to the fault in the definition
+of {\tt insert}.
+
+\subsection{Tracing Wrong Output}
+
+Let's now correct the recursive call from {\tt insert x (y:ys)} to
+{\tt insert x ys}, recompile, then execute.
+\begin{tabbing}
+{\tt \$ BadInsort } \\
+{\tt agop } \\
+\end{tabbing}
+
+\subsubsection*{Using hat-observe}
+Once again, we could reach first for hat-trail to trace the fault,
+but the availability of a well-defined (but wrong) result also
+suggests a possible starting point in hat-observe:
+\begin{tabbing}
+{\tt hat-observe> insert \verb"_" \verb"_" = "agop" } \\
+{\tt \mkblue{1} insert 'p' "agor" = "agop" }
+\end{tabbing}
+Somehow, insertion loses the final element {\tt 'r'}.
+Perhaps we'd like to see more details of how this result is obtained ---
+the relevant recursive calls, for example:
+\begin{tabbing}
+{\tt hat-observe> insert 'p' \verb"_" in insert } \\
+{\tt \mkblue{1} insert 'p' "gor" = "gop" } \\
+{\tt \mkblue{2} insert 'p' "or" = "op" } \\
+{\tt \mkblue{3} insert 'p' "r" = "p" }
+\end{tabbing}
+Observation 3 makes it easy to discover the fault by inspection.
+
+\subsubsection*{Using hat-trail}
+
+If we instead use hat-trail, the same application could be reached
+as follows. We first request the parent of the output; unsurprisingly
+it is {\tt putStrLn "agop"}.  We then request the parent of the string
+argument {\tt "agop"}:
+\begin{tabbing}
+{\tt Output:\ ------------------------------------------------------ } \\
+\highlight{agop\char92n} \\
+{\tt  } \\
+{\tt Trail:\ ----------------- BadInsort.hs line:\ 10 col:\ 26 ------- } \\
+{\tt <- putStrLn\ }\highlight{"agop"} \\
+{\tt <-\ }\highlight{insert 'p' "agor" | if False} \\
+\end{tabbing}
+As in hat-observe, we see the {\tt insert} application that loses
+the character {\tt 'r'}.
+\begin{center}
+{\large({\em To be continued.})}
+\end{center}
+
+\end{document}

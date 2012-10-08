@@ -1,0 +1,100 @@
+.TH HAT-ANIM 1 local
+.SH NAME
+hat-anim \- animate the reduction of an expression
+.SH SYNOPSIS
+.B hat-anim
+prog[.hat] num
+.SH DESCRIPTION
+.I hat-anim
+is an interactive tool for exploring the forward reduction of a given
+Haskell program
+.I prog
+supplied as its first argument.  The second argument
+.I num
+is an index into the Hat trace file, telling it where to begin.
+Since you are unlikely to find a good starting point by guessing a
+random number, we recommend you start hat-anim from within one of
+the other hat tools, first choosing the relevant expression, then
+issuing the :anim command.
+.P
+Exploration proceeds
+.I forwards,
+starting with the given expression, and at each step (press the space bar)
+it shows the next reduction.
+
+.SH INTERACTIVE COMMANDS
+The following multi-letter commands are available.  They each begin
+with a colon, bringing a visible command-line to the bottom of the
+screen.  A command can be abbreviated to its shortest non-ambiguous
+prefix.
+.TP
+.B :quit
+Exit the interactive tool.
+.TP
+.B :help [cmd]
+Shows help text giving an overview of the commands available, or if a
+command name
+.I cmd
+is given, shows more detailed help about that command.
+.TP
+.B :set [flag]
+With no argument, shows all current mode settings.  Given an argument,
+it changes that mode and reports the new setting.  The flag argument
+is one of:
+.IP "  uneval [on|off]"
+show unevaluated expressions in full (default off)
+.IP "  strSugar [on|off]"
+sugar character strings (default on)
+.IP "  listSugar [on|off]"
+sugar lists (default on)
+.IP "  qualified [on|off]"
+show all identifiers qualified (default off)
+.IP "  equations [on|off]"
+show rhs of equations (default off)
+.IP "  srcrefs [on|off]"
+show source reference of currently selected expression in the top bar
+(default on)
+.IP "  cutoff n"
+cut-off depth for deeply nested exprs (default 10)
+.TP
+.B :+[n]
+Short-cut to increase the cutoff depth by <n> (default 1)
+.TP
+.B :-[n]
+Short-cut to decrease the cutoff depth by <n> (default 1)
+
+.TP
+.B :source
+Shows (in a separate window) the source code for the application usage
+currently highlighted.
+.TP
+.B :Source
+Shows (in a separate window) the source code for the function
+definition currently highlighted.
+.TP
+.B :detect
+Start the hat-detect browser in a new window, beginning with the currently
+selected expression.
+.TP
+.B :trail
+Start another hat-trail browser in a new window, beginning with the currently
+selected expression.
+.TP
+.B :observe [query]
+With no argument, an interactive hat-observe window is started with the
+function part of the currently selected expression used as the initial
+query.  Given a query argument, the new window starts with a search
+for the given expression pattern before giving an interactive prompt.
+
+.TP
+.B :resize
+After resizing a window, use this command to inform the tool to detect
+the change in size, so that pretty-printing can fit the screen.
+
+
+.SH FILES
+.TP 25
+.B @BINDIR@/hat-anim
+
+.SH "SEE ALSO"
+hmake(1), hat-trans(1), hat-stack(1), hat-observe(1), hat-detect(1)
