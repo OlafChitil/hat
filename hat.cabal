@@ -18,23 +18,25 @@ description:
 
   Installation:
 
-  cabal -v install (--user | --global)
+  > cabal -v install (--user | --global)
 
   Flag -v allows you to see what is going on. Building takes a long time 
   (one module has 25.000 lines of code). Don't worry about numerous warning messages.
 
   Use:
 
-  hat-make MyProgram.hs
+  > hat-make MyProgram.hs
 
   transforms and compiles all modules of your program and produces the tracing
   version Hat/MyProgram.
 
-  Run your program which will produce trace files MyProgram.hat*
+  Run your program 
+  > Hat/MyProgram
+  which will produce trace files MyProgram.hat*
 
   Use the viewing tools to explore the trace:
 
-  hat-trail / hat-observe / hat-explore /...   MyProgram
+  > hat-trail / hat-observe / hat-explore /...   MyProgram
 
   There is documentation in the "docs" folder, but much of it is outdated.
 homepage:            http://www.cs.kent.ac.uk/~oc
@@ -52,7 +54,7 @@ cabal-version:       >=1.8
 
 data-dir:	     libhx
 data-files:	     *.hx
-extra-source-files:  libraries/*.hs, docs/*.html, docs/*.hs, docs/*.ps.gz, docs/*.eps, docs/*.gif, docs/*.pdf, docs/*.tex, docs/*.dvi, docs/*.hva, docs/man/*.1, docs/man/*.1.in
+extra-source-files:  include/*.h, tools/*.h, libraries/*.hs, docs/*.html, docs/*.hs, docs/*.ps.gz, docs/*.eps, docs/*.gif, docs/*.pdf, docs/*.tex, docs/*.dvi, docs/*.hva, docs/man/*.1, docs/man/*.1.in
 
 source-repository head
   type:		     git
