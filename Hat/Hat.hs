@@ -57,49 +57,14 @@ import Prelude hiding (IO,fromInteger,toInteger,catch)
 import qualified Prelude (IO,fromInteger,toInteger)
 import qualified System.IO.Error (ioeGetErrorString)
 import Data.Ratio (numerator,denominator)
-#if defined (__GLASGOW_HASKELL__) || defined(__HUGS__)
---import IOExts (unsafePerformIO,IORef,newIORef,readIORef,writeIORef)
 import System.IO.Unsafe (unsafePerformIO)
 import Data.IORef (IORef,newIORef,readIORef,writeIORef)
-#endif
-#if defined(__NHC__)
-#if __NHC__ >= 115
-import NHC.IOExtras (unsafePerformIO,IORef,newIORef,readIORef,writeIORef)
-#else
-import IOExtras (unsafePerformIO,IORef,newIORef,readIORef,writeIORef)
-#endif
-#endif
-#if defined (__GLASGOW_HASKELL__) || defined(__HUGS__)
--- import Storable(Storable)
 import Foreign.Ptr(Ptr,castPtr)
 import Foreign.Marshal.Array (withArray)
 import Foreign.C.String(CString,withCString)
-#endif
-#if defined(__NHC__)
-#if __NHC__ >= 115
-import NHC.FFI (Storable,Ptr,castPtr,withArray,CString,withCString) 
-#else
-import FFI (Storable,Ptr,castPtr,withArray,CString,withCString) 
-#endif
-#endif
-#if defined(__GLASGOW_HASKELL__)
-#  if  __GLASGOW_HASKELL__ >= 600
-import Control.OldException (Exception,ioErrors,catch)  -- also catches black holes
-#  else
-import Exception (ioErrors,catch)  -- also catches black holes
-#  endif
-#endif
-#if defined(__NHC__)
-import Prelude (catch)
-#endif
+import Control.Exception(Exception,SomeException,catch)
+-- import Control.OldException (Exception,ioErrors,catch)  -- also catches black holes
 
--- #if defined(__NHC__) && __NHC__ >= 115
--- #define FOREIGN(x) foreign import ccall unsafe x
--- #elif defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 504
--- #define FOREIGN(x) foreign import ccall unsafe x
--- #else
--- #define FOREIGN(x) foreign import ccall x unsafe
--- #endif
 -- Haskell 2010 standard:
 #define FOREIGN(x) foreign import ccall unsafe x
 
@@ -281,25 +246,19 @@ traceIO filename gmain = do
   catch (toIO toId mkRoot (forceExp gmain)) exceptionHandler 
   closeTrace
 
+exceptionHandler :: SomeException -> Prelude.IO a
+exceptionHandler e = do
+  hatAborted (show e)
+  return undefined
 
-#if defined (__GLASGOW_HASKELL__)
-#  if __GLASGOW_HASKELL__ < 600
-exceptionHandler :: IOError -> Prelude.IO a
-#  else
+{-
 exceptionHandler :: Exception -> Prelude.IO a
-#  endif
 exceptionHandler exception = do
   hatAborted (case ioErrors exception of
                 Just ioError -> System.IO.Error.ioeGetErrorString ioError	-- exception
                 Nothing -> show exception)
   return undefined
-#endif
-#if defined (__NHC__)
-exceptionHandler :: IOError -> Prelude.IO a
-exceptionHandler exception = do
-  hatAborted (IO.ioeGetErrorString exception)
-  return undefined
-#endif
+-}
 
 hatError :: RefExp -> String -> a
 hatError p msg =
