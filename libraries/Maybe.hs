@@ -17,7 +17,7 @@ isNothing        =  not . isJust
 
 fromJust               :: Maybe a -> a
 fromJust (Just a)      =  a
-fromJust Nothing       =  error "Maybe.fromJust: Nothing"
+fromJust Nothing       =  error "Data.Maybe.fromJust: Nothing"
 
 fromMaybe              :: a -> Maybe a -> a
 fromMaybe d Nothing    =  d

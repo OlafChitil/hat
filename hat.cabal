@@ -61,7 +61,7 @@ source-repository head
   location:	     git://github.com/OlafChitil/hat.git
 
 library
-  exposed-modules:     Hat.Array, Hat.Char, Hat.Complex, Hat.CPUTime, Hat.Directory, Hat.Hack, Hat.Hat, Hat.IO, Hat.Ix, Hat.List, Hat.Locale, Hat.Maybe, Hat.Monad, Hat.Numeric, Hat.Prelude, Hat.PreludeBasic, Hat.Random, Hat.Ratio, Hat.System, Hat.Time, Hat.Control.Monad, Hat.Data.Char
+  exposed-modules:     Hat.Array, Hat.Char, Hat.Complex, Hat.CPUTime, Hat.Directory, Hat.Hack, Hat.Hat, Hat.IO, Hat.Ix, Hat.List, Hat.Locale, Hat.Maybe, Hat.Monad, Hat.Numeric, Hat.Prelude, Hat.PreludeBasic, Hat.Random, Hat.Ratio, Hat.System, Hat.Time, Hat.Control.Monad, Hat.Data.Char, Hat.Data.Maybe
   build-depends:       base ==4.5.*, directory ==1.1.*, random ==1.0.*, process ==1.1.*, old-time ==1.1.*, old-locale ==1.0.*
   other-modules:       Hat.DirectoryBuiltin, Hat.DirectoryBuiltinTypes, Hat.IOBuiltin, Hat.IOBuiltinTypes, Hat.PreludeBuiltin, Hat.PreludeBuiltinTypes, Hat.RandomBuiltin, Hat.SystemBuiltin, Hat.SystemBuiltinTypes, Hat.TimeBuiltin, Hat.TimeBuiltinTypes
   extensions:	       ForeignFunctionInterface
