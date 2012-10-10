@@ -20,7 +20,7 @@ import Char ( intToDigit )
 import PreludeBuiltinTypes
 import TimeBuiltinTypes
 import TimeBuiltin
-import qualified TraceOrigSystem.Time as TraceOrigTime
+import qualified NotHat.System.Time as NotHat.Time
 
 -- data ClockTime = ...                    -- Implementation-dependent
 

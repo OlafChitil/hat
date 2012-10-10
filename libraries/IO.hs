@@ -24,9 +24,9 @@ module IO (
 
 import Ix(Ix(range, index, inRange))
 import PreludeBuiltinTypes
-import TraceOrigSystem.IO(Handle,HandlePosn)
-import qualified TraceOrigSystem.IO as TraceOrigIO
-import qualified TraceOrigSystem.IO.Error as TraceOrigError
+import NotHat.System.IO(Handle,HandlePosn)
+import qualified NotHat.System.IO as NotHat.IO
+import qualified NotHat.System.IO.Error as NotHat.Error
 import IOBuiltinTypes
 import IOBuiltin
 

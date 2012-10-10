@@ -6,9 +6,9 @@ module System (
 import PreludeBuiltinTypes
 import SystemBuiltinTypes
 import SystemBuiltin
-import qualified TraceOrigSystem.Cmd as TraceOrigCmd
-import qualified TraceOrigSystem.Environment as TraceOrigEnvironment
-import qualified TraceOrigSystem.Exit as TraceOrigExit
+import qualified NotHat.System.Cmd as NotHat.Cmd
+import qualified NotHat.System.Environment as NotHat.Environment
+import qualified NotHat.System.Exit as NotHat.Exit
 
 foreign import haskell "Environment.getArgs"
  getArgs :: IO [String]

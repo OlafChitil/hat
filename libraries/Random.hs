@@ -10,7 +10,7 @@ module Random (
 
 import PreludeBuiltinTypes
 import RandomBuiltin
-import qualified TraceOrigSystem.Random as TraceOrigRandom
+import qualified NotHat.System.Random as NotHat.Random
 import Char
 
 ---------------- The RandomGen class ------------------------

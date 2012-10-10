@@ -43,7 +43,7 @@ module Data.Char (
 import PreludeBasic
 import Ix
 import PreludeBuiltinTypes  -- (fromBool)
-import qualified TraceOrigData.Char  -- not to be transformed
+import qualified NotHat.Data.Char  -- not to be transformed
 
 foreign import haskell "Data.Char.isLetter"
   isLetter :: Char -> Bool

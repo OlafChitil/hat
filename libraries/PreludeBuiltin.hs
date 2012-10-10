@@ -53,9 +53,9 @@ module PreludeBuiltin (
   ) where
 
 import PreludeBuiltinTypes
-import TraceOrigHat.Hat  -- for some primitive types
-import qualified TraceOrigPrelude  -- not to be transformed
-import qualified TraceOrigData.Char as TraceOrigChar  -- not to be transformed
+import NotHat.Hat.Hat  -- for some primitive types
+import qualified NotHat.Prelude  -- not to be transformed
+import qualified NotHat.Data.Char as NotHat.Char  -- not to be transformed
 
 -- types appearing here
 -- (->), String, Char, Bool, Int, Integer, Float, Double, (,), IO, IOError, ()

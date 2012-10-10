@@ -12,7 +12,7 @@ import PreludeBuiltinTypes
 import DirectoryBuiltinTypes
 import DirectoryBuiltin
 import TimeBuiltin
-import qualified TraceOrigSystem.Directory as TraceOrigDirectory
+import qualified NotHat.System.Directory as NotHat.Directory
 
 instance Eq   Permissions where 
   (==) = primPermissionsEq
