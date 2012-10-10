@@ -55,7 +55,7 @@ prepareWrapping filename
 
 mkImportOriginal :: TokenId -> ImpDecl TokenId
 mkImportOriginal modId =
-  ImportQ (noPos, mkUnqualifiedTokenId ("TraceOrig"++show modId)) (Hiding [])
+  ImportQ (noPos, mkUnqualifiedTokenId ("NotHat."++show modId)) (Hiding [])
 
 traverse :: TokenId -> Maybe [Export TokenId] -> Decls TokenId -> Decls TokenId
 traverse modId exports (DeclsParse ds) = DeclsParse (concatMap walk ds)

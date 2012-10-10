@@ -100,7 +100,7 @@ getImports reexport (alreadyGot,identMap) flags impdecls = do
           else (auxTree,idMap)
 
     normalImport modid = 
-      not (sPrelude flags && "TraceOrig" `isPrefixOf` getUnqualified modid)
+      not (sPrelude flags && "NotHat." `isPrefixOf` getUnqualified modid)
       
     getAuxFile :: (TokenId,Visibility) -> IO [(Identifier,AuxiliaryInfo)]
     getAuxFile (modid,importVisible) = 

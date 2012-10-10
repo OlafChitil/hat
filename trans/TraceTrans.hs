@@ -1954,7 +1954,7 @@ nameTraceInfoPos pos = mkUnqualifiedTokenId (('p':) . showsEncodePos pos $ "")
 nameTransModule :: TraceId -> TokenId
 nameTransModule = updateToken updateModule
   where
-  updateModule ('T':'r':'a':'c':'e':'O':'r':'i':'g':orgName) = orgName
+  updateModule ('N':'o':'t':'H':'a':'t':'.':orgName) = orgName
   updateModule (name@"Main") = name  -- if the module is `Main', then unchanged
   updateModule name = modulePrefix ++ name
 
