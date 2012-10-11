@@ -128,8 +128,8 @@ executable hat-detect
   -- currently just calls hat-delta; was a separate tool
   main-is:	     HatDetect.hs
   hs-source-dirs:    tools
-  other-modules:     Pretty, Slice, LowLevel, CommonUI, NodeExp, SExp, ADT, EDT, SrcRef, FDT, Detect, Explore, HighlightStyle, PrettyLibHighlight, Ident
-  build-depends:     base ==4.5.*, process ==1.1.*, containers ==0.4.*
+  other-modules:     LowLevel, SExp, TExp, HighlightStyle, CommonUI, SrcRef
+  build-depends:     base ==4.5.*, directory ==1.1.*, process ==1.1.*, haskeline ==0.6.*
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h
   include-dirs:	     include
@@ -203,7 +203,7 @@ executable hat-anim
 executable pretty-hat
   main-is:	     PrettyHat.hs
   hs-source-dirs:    tools
-  other-modules:     Pretty, NodeExp, EDT, HighlightStyle, Detect, Slice, ADT, Explore, SExp, CommonUI, SrcRef, Ident, LowLevel, PrettyLibHighlight
+  other-modules:     Pretty, NodeExp, EDT, HighlightStyle, Delta, Slice, ADT, Explore, SExp, CommonUI, SrcRef, Ident, LowLevel, PrettyLibHighlight
   build-depends:     base ==4.5.*, process ==1.1.*, containers ==0.4.*
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h
@@ -214,7 +214,7 @@ executable pretty-hat
 executable hat-delta
   main-is:	     HatDelta.hs
   hs-source-dirs:    tools
-  other-modules:     Pretty, Slice, LowLevel, CommonUI, NodeExp, SExp, ADT, EDT, SrcRef, FDT, Detect, Explore, HighlightStyle, PrettyLibHighlight, Ident
+  other-modules:     Pretty, Slice, LowLevel, CommonUI, NodeExp, SExp, ADT, EDT, SrcRef, FDT, Delta, Explore, HighlightStyle, PrettyLibHighlight, Ident
   build-depends:     base ==4.5.*, process ==1.1.*, containers ==0.4.*
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h

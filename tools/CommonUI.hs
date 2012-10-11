@@ -29,7 +29,7 @@ hatDelta :: FilePath -> FileNode -> String
 hatDelta f n = "xterm -e hat-delta "++f++" "++show (int n)++" &"
 
 hatDetect :: FilePath -> FileNode -> String
-hatDetect f n = "xterm -e hat-delta --detect "++f++" "++show (int n)++" &"
+hatDetect f n = "xterm -e hat-detect "++f++" "++show (int n)++" &"
 
 hatTrail :: FilePath -> FileNode -> String
 hatTrail f n  = "xterm -e hat-trail "++f++" -remote "++show (int n)++" &"

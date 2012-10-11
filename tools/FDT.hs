@@ -15,7 +15,7 @@ import NodeExp  (NodeExp(..),flatEvalText,fullEvalText,findAppsMatching,getNode
 import Explore  (redexParent)
 import LowLevel (FileNode(..))
 import ADT      (ADT(..))
-import Detect   (questionText)
+import Delta    (questionText)
 
 
 type IndexEntry = (FileNode,ADT)

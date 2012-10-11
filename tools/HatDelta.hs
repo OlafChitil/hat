@@ -15,7 +15,7 @@ import Data.Maybe    (fromJust)
 
 -- Hat Imports
 import CommonUI       (Options(..))
-import Detect         (doAnim,doDelta,doDetect,doExplore,doObserve,doTrail
+import Delta          (doAnim,doDelta,doDetect,doExplore,doObserve,doTrail
                       ,doView,findMain,DetectCommand(..),toCommand,identifyBug
                       ,identifyCycle,findMain,DeltaOption(..),HeuristicMode(..)
                       ,HeuristicBool(..),DetectCommand(..),toCommand

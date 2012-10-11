@@ -7,7 +7,7 @@ module EDT (buildEDT)
 
 import NodeExp (NodeExp(..),children,flatEvalText,fullEvalText)
 import ADT     (ADT(..))
-import Detect  (questionText)
+import Delta   (questionText)
 
 -- | Creates an evaluation dependancy tree
 buildEDT :: NodeExp -- ^ The trace to gather an EDT from -
