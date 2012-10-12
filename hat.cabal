@@ -1,6 +1,6 @@
 
 name:                hat
-version:             2.7.0.1
+version:             2.7.0.2
 synopsis:            The Haskell tracer, generating and viewing Haskell execution traces
 description:
   hat-trans transforms Module.hs into Hat/Module.hs such that when the program is
