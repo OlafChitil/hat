@@ -85,7 +85,7 @@ executable hat-trans
 executable hat-trail
   main-is:           HatTrail.hs
   hs-source-dirs:    tools        
-  other-modules:     LowLevel, SrcRef, Ident, SExp, PrettyLibHighlight, Highlightstyle, CommonUI
+  other-modules:     LowLevel, SrcRef, Ident, SExp, PrettyLibHighlight, HighlightStyle, CommonUI
   build-depends:     base ==4.5.*, containers ==0.4.*, directory ==1.1.*, process ==1.1.*
   extensions:        ForeignFunctionInterface
   includes:          art.h
@@ -172,7 +172,7 @@ executable hat-cover
 executable black-hat
   main-is:	     BlackHat.hs
   hs-source-dirs:    tools
-  other-modules:     LowLevel, Sexp, PrettyLibHighlight, Highlightstyle, Run, NonTermLib
+  other-modules:     LowLevel, SExp, PrettyLibHighlight, HighlightStyle, Run, NonTermLib
   build-depends:     base ==4.5.*, process ==1.1.*
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h
@@ -183,7 +183,7 @@ executable black-hat
 executable hat-nonterm
   main-is:	     HatNonTerm.hs
   hs-source-dirs:    tools
-  other-modules:     LowLevel, Sexp, PrettyLibHighlight, Highlightstyle, Run, NonTermLib
+  other-modules:     LowLevel, SExp, PrettyLibHighlight, HighlightStyle, Run, NonTermLib
   build-depends:     base ==4.5.*, process ==1.1.*
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h
