@@ -56,7 +56,7 @@ cabal-version:       >=1.8
 
 data-dir:	     libraries
 data-files:	     *.hx, *.hs, Control/*.hx, Control/*.hs, Data/*.hx, Data/*.hs
-extra-source-files:  include/*.h, tools/*.h, docs/*.html, docs/*.hs, docs/*.ps.gz, docs/*.eps, docs/*.gif, docs/*.pdf, docs/*.tex, docs/*.dvi, docs/*.hva, docs/man/*.1, docs/man/*.1.in, examples/*.hs
+extra-source-files:  include/*.h, tools/*.h, Hat/*.h, docs/*.html, docs/*.hs, docs/*.ps.gz, docs/*.eps, docs/*.gif, docs/*.pdf, docs/*.tex, docs/*.dvi, docs/*.hva, docs/man/*.1, docs/man/*.1.in, examples/*.hs
 
 source-repository head
   type:		     git
