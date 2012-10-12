@@ -1,6 +1,6 @@
 
 name:                hat
-version:             2.7.0.0
+version:             2.7.0.1
 synopsis:            The Haskell tracer, generating and viewing Haskell execution traces
 description:
   hat-trans transforms Module.hs into Hat/Module.hs such that when the program is
@@ -12,7 +12,8 @@ description:
 
   It is the least possible update to make Hat work with Cabal.
   Hat 2.07 works only with ghc for Haskell 98 (plus a few extensions) and
-  the standard Haskell 98 libraries. Although it should build on any operating system,
+  the standard Haskell 98 libraries plus some Haskell 2010 libraries. 
+  Although it should build on any operating system,
   most viewing tools use ASCII console escape sequences and they open xterms;
   hence they will only work well under Unix and X11.
 
@@ -39,6 +40,7 @@ description:
   > hat-trail / hat-observe / hat-explore /...   MyProgram
 
   There is documentation in the "docs" folder, but much of it is outdated.
+  There are a few small programs for exploring tracing in the "examples" folder.
 homepage:            http://www.cs.kent.ac.uk/~oc
 license:             OtherLicense
 license-file:        docs/copyright.html

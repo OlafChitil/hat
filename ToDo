@@ -1,0 +1,10 @@
+Handle whole Haskell syntax plus some extensions:
+  haskell-src-exts
+
+Tool text user interfaces:
+  editable command line: haskeline
+  colour and cursor-movements: ansi-terminal System.Console.ANSI
+
+Problem with defaulting:
+  XExtendedDefaultRules is insufficient, only for ghci to handle also Show, Eq and Ord
+
