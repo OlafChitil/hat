@@ -1,6 +1,14 @@
 Handle whole Haskell syntax plus some extensions:
   haskell-src-exts
 
+Use arbitrary (trusted) libraries:
+  build hat-cabal which transforms a cabal package into a cabal hat-package that
+  wraps the original package (depending on it).
+  build also(?) hat-wrap which given a set of Haskell modules produces a set of
+  hat-modules that wrap the given ones.
+  Wrapping requires type declarations for all exported functions.
+  Wrapping will transform all class and instance definitions
+
 Tool text user interfaces:
   editable command line: haskeline
   colour and cursor-movements: ansi-terminal System.Console.ANSI
