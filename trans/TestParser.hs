@@ -4,11 +4,10 @@ import Language.Haskell.Exts.Annotated hiding ()
 
 data L = L deriving Show
 
-f :: Bool -> Bool
-f True = False
-f False = True
+foreign import stdcall "NotHat.Random.genRange"
+  primStdGenGenRange :: Int -> Int
 
 main = do
-  parseResult <- parseFile "TestParser.hs"
+  parseResult <- parseFile "TestParser2.hs"
   let result = fmap (fmap (\_ -> L)) parseResult
   print result

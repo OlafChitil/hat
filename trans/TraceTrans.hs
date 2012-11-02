@@ -470,11 +470,13 @@ tDecl env _ _ _ synDecl@(TypeDecl span declHead ty) =
   where
   tTypeSynonym :: Decl SrcSpanInfo -> Decl SrcSpanInfo
   tTypeSynonym (TypeDecl span declHead ty) =
-    TypeDecl span (tDeclHead declHead) (tType ty)
+    TypeDecl span (declHead) (tType ty)
+tDecl _ _ _ _ (TypeFamDecl l _ _) =
+  notSupported l "type family declaration"
 tDecl env Global tracing _ d@(DataDecl span dataOrNew maybeContext declHead 
                                qualConDecls maybeDeriving) =
-  (DataDecl span dataOrNew (fmap tContext maybeContext) (tDeclHead declHead)
-     (map tQualConDecl qualConDecls) Nothing :
+  (DataDecl span dataOrNew (fmap tContext maybeContext) 
+     (declHead) (map tQualConDecl qualConDecls) Nothing :
    -- "derive" must be empty, because transformed classes cannot be derived
    instDecl : filedSelectorDecls ++ deriveDecls
   ,foldr addConInfo (fieldSelectorConsts `merge` deriveConsts) qualConDecls)
@@ -483,22 +485,184 @@ tDecl env Global tracing _ d@(DataDecl span dataOrNew maybeContext declHead
     tDecls env Global Trusted (mkRoot noSpan) (derive d)
   instDecl = wrapValInstDecl env tracing maybeContext declHead qualConDecls
   (fieldSelectorDecls, fieldSelectorConsts) = mkFieldSelectors qualConDecls
+tDecl _ _ _ _ (GDataDecl l _ _ _ _ _ _) =
+  notSupported l "generalized algebraic data type declaration"
+tDecl _ _ _ _ (DataFamDecl l _ _ _) =
+  notSupported l "data family declaration"
+tDecl _ _ _ _ (TypeInsDecl l _ _) =
+  notSupported l "type family instance declaration"
+tDecl _ _ _ _ (DataInsDecl l _ _ _ _) =
+  notSupported l "data family instance declaration"
+tDecl _ _ _ _ (GDataInsDecl l _ _ _ _ _) =
+  notSupported l "GADT family instance declaration"
 tDecl env _ tracing parent  -- class without methods
   (ClassDecl l maybeContext declHead fundeps Nothing) =
-  ([ClassDecl l (fmap tContext maybeContext) (tDeclHead declHead) 
+  ([ClassDecl l (fmap tContext maybeContext) (declHead) 
      (map tFunDep fundeps) Nothing]
   ,emptyModuleConsts)
 tDecl env _ tracing parent  -- class with methods
   (ClassDecl l maybeContext declHead fundeps (Just classDecls)) =
-  (ClassDecl l (fmap tContext maybeContext) (tDeclHead declHead) 
+  (ClassDecl l (fmap tContext maybeContext) (declHead) 
     (map tFunDep fundeps) (Just classDecls') :
    auxDecls
-  ,classifyMehtods declsConsts)
+  ,classifyMethods declsConsts)
   where
   (classDecls', auxDecls, declsConsts) = 
     tClassDecls env tracing parent classDecls
+tDecl env _ tracing parent -- class instance without methods
+  (InstDecl l maybeContext instHead Nothing) =
+  ([InstDecl l (fmap tContext maybeContext) (tInstHead instHead) Nothing]
+  ,emptyModuleConsts)
+tDecl env _ tracing parent -- class instance with methods
+  (InstDecl l maybeContext instHead (instDecls)) =
+  ([InstDecl l (fmap tContext maybeContext) (tInstHead instHead) 
+     (Just instDecls')] :
+   auxDecls
+  ,classifyMethods declsConsts)
+  where
+  (instDecls', auxDecls, declsConsts) =
+    tInstDecls env tracing parent instDecls
+tDecl _ _ _ _ (DeriveDecl l _ _) =
+  notSupported l "standalone deriving declaration"
+tDecl _ _ _ _ (InfixDecl l assoc priority ops) =
+  ([InfixDecl l assoc priority (map nameTransLetVar ops)], emptyModuleConsts)
+tDecl env _ _ _ (DefaultDecl l tys) =
+  ([DefaultDecl l []
+   ,WarnPragmaDecl l [([], "Defaulting doesn't work in traced programs. Add type annotations to resolve ambiguities.")]]
+  ,emptyModuleDecls)
+tDecl _ _ _ _ (SpliceDecl l _) =
+  notSupported l "Template Haskell splicing declaration"
+tDecl env _ _ _ (TypeSig l names ty) =
+
+tDecl env scope tracing parent (FunBind l matches) =
+
+tDecl env scope tracing parent (PatBind l pat maybeTy rhs maybeBinds) =
+
+tDecl env _ _ _ (ForImp l callConv maybeSafety maybeString name ty) =
+  case maybeString >>= stripPrefix "NotHat." of
+    Just origName -> tForeignImp l (qName origName) name ty
+    Nothing -> 
+      (ForImp l callConv maybeSafety maybeString (nameForeign name) ty :
+         -- type is not renamed, original given type left unchanged  
+       wrapperDecls
+      ,consts)
+  where
+  (wrapperDecls, consts) = tForeignImp l (UnQual l (nameForeign name)) name ty
+tDecl _ _ _ _ (ForExp l _ _ _ _) =
+  notSupported l "foreign export declaration"
+tDecl _ _ _ _ (RulePragmaDecl l _) =
+  notSupported l "RULES pragma"
+tDecl _ _ _ _ (DeprPragmaDecl l list) = DeprPragmaDecl l list
+tDecl _ _ _ _ (WarnPragmaDecl l list) = WarnPragmaDecl l list
+tDecl _ _ _ _ (InlineSig l _ _ _) =
+  WarnPragmaDecl l [([], "ignore INLINE pragma")]
+tDecl _ _ _ _ (InlineConlikeSig l _ _) =
+  WarnPragmaDecl l [([], "ignore INLINE CONLIKE pragma")]
+tDecl _ _ _ _ (SpecSig l _ _) =
+  WarnPragmaDecl l [([], "ignore SPECIALISE pragma")]
+tDecl _ _ _ _ (SpecInlineSig l _ _ _ _) =
+  WarnPragmaDecl l [([], "ignore SPECIALISE INLINE pragma")]
+tDecl _ _ _ _ (InstSig l _ _) =
+  WarnPragmaDecl l [([], "ignore SPECIALISE instance pragma")]
+tDecl _ _ _ _ (AnnPragma l _) =
+  WarnPragmaDecl l [([], "ignore ANN pragma")]
 
 
+
+
+
+-- Process foreign import:
+
+tForeignImp :: SrcSpanInfo -> QName SrcSpanInfo -> Name SrcSpanInfo -> 
+               Type SrcSpanInfo -> 
+               ([Decls SrcSpanInfo], ModuleConsts)
+tForeignImp l foreignName name ty =
+  if arity == 0 
+    then ([TypeSig l letVarName] (tFunType ty)
+          ,FunBind l [Match l letVarName [PVar l sr, PVar l parent]
+            (UnGuardedRhs l (appN l 
+              [combConstUse l False
+              ,Var l (UnQual l sr)
+              ,Var l (UnQual l parent)
+              ,Var l (Unqual lshareName)]))
+            Nothing]
+          ,PatBind l (PVar l shareName) Nothing        
+            (UnGuardedRhs l (appN l 
+              [combConstDef l False
+              ,mkRoot l
+              ,Var l (nameTraceInfoVar l Global name) 
+              ,Lambda l [PVar l parent]
+                 (appN l
+                   [expFrom l ty, Var l parent, Var l foreignName])]))
+            Nothing
+         ,addVar l name emptyModuleConsts)
+    else ([TypeSig l letVarName] (tFunType ty)
+          ,FunBind l [Match l letVarName [PVar l sr, PVar l parent]
+            (UnGuardedRhs l (appN l 
+              [combFun l False arity
+              ,Var l (nameTraceInfoVar l Global name)
+              ,Var l (UnQual l sr)
+              ,Var l (UnQual l parent)
+              ,Var l (UnQual lworkerName)]))
+            Nothing]
+          ,FunBind l [Match l workerName (map (PVar l) (args++[hidden]))
+            (UnGuardedRhs l (appN l
+              [expFrom l tyRes
+              ,ExpVar l hidden
+              ,appN l (Var l foreignName : zipWith to tyArgs args)]))
+            Nothing]
+         ,addVar l name emptyModuleConsts)
+  where
+  workerName = nameWorker name
+  letVarName = nameTransLetVar name
+  shareName = nameShare name
+  args = take arity (nameArgs name)
+  hidden = nameTrace2 name
+  to :: Type l -> QName l -> Exp l
+  to ty arg = appN l [expTo l ty, Var l hidden, Var l arg]
+    where
+    l = ann ty
+  arity = length tyArgs
+  (tyArgs, tyRes) = decomposeFunType ty
+  -- pre-condition: no type synonym appearing in type
+  decomposeFunType :: Type l -> ([Type l], Type l)
+  decomposeFunType (TyFun _ tyL tyR) = (tyL:tyArgs, tyRes)
+    where
+    (tyArgs, tyRes) = decomposeFunType tyR
+  decomposeFunType ty = ([], ty)
+
+
+-- Process class instances:
+
+tInstHead :: InstHead l -> InstHead l
+tInstHead (IHead l qname tys) = IHead l (nameTransCls qname) (map (tType tys))
+tInstHead (IHInfix l tyL qname tyR) = 
+  IHInfix l (tType tyL) (nameTransCls qname) (tType tyR)
+tInstHead (IHParen l instHead) = IHParen l (tInstHead instHead)
+
+tInstDecls :: Environment -> Tracing -> Exp SrcSpanInfo ->
+              [InstDecl SrcSpanInfo] ->
+              ([InstDecl SrcSpanInfo], ModuleConsts)
+tInstDecls env tracing parent classDecls =
+  (concat instDeclss', foldr merge emptyModuleConsts declsConsts)
+  where
+  (instDeclss', declsConsts) = 
+    unzip (map (tInstDecl env tracing parent) instDecls)
+
+tInstDecl :: Environment -> Tracing -> Exp SrcSpanInfo -> 
+             InstDecl SrcSpanInfo -> 
+             ([InstDecl SrcSpanInfo], ModuleConsts)
+tInstDecl env tracing parent (InsDecl l decl) =
+  (map (InsDecl l) decls', moduleConsts) 
+  where
+  (decls', moduleConsts) = tClassInstDecl env tracing parent decl
+tInstDecl env tracing parent (InsType l _ _) =
+  notSupported l "associated type definition"
+tInstDecl env tracing parent (InsData l _ _ _ _) = 
+  notSupported l "associated data type implementation"
+tInstDecl env tracing parent (InsGData l _ _ _ _ _) =
+  notSupported l "associated data type implementation using a GADT"
+         
 
 -- Process class declarations:
 
@@ -545,7 +709,7 @@ tClassInstDecl env tracing parent decl@(PatBind _ _ _ _ _) =
   -- Use of sharing variable needs to be qualified if class name needs to be
   -- qualified (still covers not all necessary cases)
   -- note when declaring instance the class may only be imported qualified
-  -- ??
+  -- What does the above mean??
   tDecl env Local tracing parent decl
 tClassInstDecl env tracing parent decl@(TypeSig l names ty) =
   -- For every method type declaration produce an additional type declaration
@@ -646,271 +810,6 @@ addConDeclModuleConsts (RecDecl l name fieldDecls) =
   addCon name (concatMap (\(FieldDecl _ names _) -> names) fieldDecls)
 
 
-tDecl _ traced parent (DeclInstance pos contexts clsId insts decls) = 
-  ([DeclInstance pos (tContexts contexts) clsId'
-     (map tType insts) decls1]
-  ,decls2  -- auxiliary definitions have to be outside the instance definition
-  ,classifyMethods declsConsts)
-  where
-  clsId' = nameTransTyConCls clsId
-  qualify = case clsId' of
-              Qualified modrps _ -> forceM modrps
-              _ -> id
-  (decls1,decls2,declsConsts) = tDecls2 qualify traced parent decls
-tDecl _ _ _ (DeclDefault tys) = ([],[],emptyModuleConsts) 
-  -- defaulting does not work anyway, maybe warn about nonempty one?
-tDecl _ _ _ d@(DeclPrimitive pos fnId arity ty) =
-  error "TraceTrans:tDecl _ _ _ (DeclPrimitive _ _ _ _) should not occur"
-tDecl _ _ _ (DeclForeignImp pos Haskell hasName fnId arity _ ty _) =
-  tHaskellPrimitive pos 
-    (if null revHasModNameP 
-       then visible revHasUnqualName 
-       else (qualify (tail revHasModNameP) revHasUnqualName))
-    fnId arity ty
-  where
-  (revHasUnqualName,revHasModNameP) = span (/= '.') . reverse $ hasName 
-tDecl _ _ _ 
-      (DeclForeignImp pos callConv cname fnId arity fspec ty duplicateId) =
-  (funDecls
-  ,DeclForeignImp pos callConv
-    (if null cname then getUnqualified fnId else cname) 
-    (nameForeign fnId) arity fspec (typePlain ty) (nameForeign fnId)
-   :wrapperDecls
-  ,consts)
-  where
-  (funDecls,wrapperDecls,consts) = 
-    tHaskellPrimitive pos (nameForeign fnId) fnId arity ty
-tDecl _ _ _ (DeclForeignExp pos callConv str fnId _) =
-  error ("Cannot trace foreign export (used at " ++ strPos pos ++ ")")
-tDecl _ _ _ (DeclVarsType vars contexts ty) =
-  -- type signatures need to be preserved (i.e. transformed),
-  -- because e.g. polymorphic recursion needs them, more general
-  -- types may later lead to ambiguous types
-  ([DeclVarsType (tPosExps vars) (tContexts contexts) (tFunType ty)]
-   ++ concatMap mkWorkerVarsType nonConstVars
-  -- shared constants need to be typed, in case they are overloaded,
-  -- so that monomorphic restriction does not lead to type error
-  -- (actually then sharing is unfortunately lost)
-   ++ if null constVars then [] 
-        else [DeclVarsType (tPosShares constVars) 
-               (tContexts contexts) (tConstType ty)]
-  ,[],emptyModuleConsts)
-  where
-  (constVars,nonConstVars) = partition (isNonMethodConstant . snd) vars
-  isNonMethodConstant :: TraceId -> Bool
-  isNonMethodConstant id = 
-    isLambdaBound id || -- variables in pattern bindings are lambda bound
-      (case arity id of
-        Just n  -> n == 0
-        Nothing -> False)
-  mkWorkerVarsType :: (Pos,TraceId) -> [Decl TokenId]
-  mkWorkerVarsType (pos,id) =
-    case arity id of
-      Just n | n > 0 -> [DeclVarsType [(pos,nameWorker id)] 
-                          (tContexts contexts) (tWorkerType n ty)]
-      _ -> []
-
-{-
-  -- Variables of arity 0 do not take SR and Trace argument, so that
-  -- their values are shared. Note that type signatures for class methods
-  -- are handled differently by tDecl2
-  ((if null constVars then [] 
-      else [DeclVarsType (tPosExps constVars) 
-             (tContexts contexts) (tConstType ty)])
-   ++
-   (if null nonConstVars then [] else [DeclVarsType (tPosExps nonConstVars) 
-                                        (tContexts contexts) (tFunType ty)])
-  ,[],emptyModuleConsts)
-  where
-  (constVars,nonConstVars) = partition (isNonMethodConstant . snd) vars
-  isNonMethodConstant :: TraceId -> Bool
-  isNonMethodConstant id = 
-    isLambdaBound id || -- variables in pattern bindings are lambda bound
-      (case arity id of
-        Just n  -> n == 0
-        Nothing -> False)
--}
-tDecl scope traced parent (DeclPat (Alt (ExpVar pos id) rhs decls)) = 
-  -- this case may occur because of the next equation
-  tCaf scope traced parent pos id rhs decls
-tDecl scope traced parent (DeclPat (Alt (PatAs pos id pat) rhs decls)) = 
-  (dFun1++dPat1,dFun2++dPat2,funConsts `merge` patConsts)
-  where
-  id' = modLetBound id
-  (dFun1,dFun2,funConsts) = tCaf scope traced parent pos id' rhs decls
-  (dPat1,dPat2,patConsts) = 
-    tDecl scope traced parent 
-      (DeclPat (Alt pat (Unguarded (ExpVar pos id')) noDecls))
-tDecl scope traced parent (DeclPat (Alt pat rhs decls)) =
-  -- unfortunately we cannot transform a pattern binding into another pattern
-  -- binding; we have to introduce an explicit `case' to be able to terminate 
-  -- with an appropriate error message when the pattern does not match.
-  -- first rewrite as p = e, then
-  -- xi sr p = constUse sr p zi
-  -- zi = constDef parent 
-  --        (\_ -> (case patId of (t,y1,..,yn) -> projection sr t yi))
-  -- patId = case e' of 
-  --           p' -> (t,y1,..,yn)
-  --           _  -> fail noPos parent
-  (map useDef patPosIds
-  ,DeclFun noPos patId 
-    [Fun [] 
-      (Unguarded 
-        (ExpCase noPos exp'
-          [Alt pat'' (Unguarded tuple) noDecls
-          ,Alt (PatWildcard noPos) (Unguarded (mkFailExp noPos parent)) noDecls
-          ]))
-      decls']
-   : map projDef patPosIds
-  ,foldr (\(pos,id) -> addVar pos id) 
-    (emptyModuleConsts `withLocal` altConsts) patPosIds)
-  where
-  pos = getPos pat
-  firstId = snd . head $ patPosIds
-  patId = nameTraceShared pos firstId
-  resultTraceId = nameTrace2 firstId
-  tuple = mkTupleExp noPos (ExpVar noPos resultTraceId : patVars')
-  patPosIds = map (\(ExpVar pos id) -> (pos,id)) patVars
-  (patVars',Nothing) = tPats patVars 
-  patVars = getPatVars pat
-  pat'' = case pat' of
-           ExpApplication p [r,v,_] -> 
-             ExpApplication p [r,v,ExpVar noPos resultTraceId]
-  (Fun [pat'] (Unguarded exp') decls',altConsts) = 
-     tFun traced False parent failContinuation (Fun [pat] rhs decls)
-  useSR = ExpVar pos (nameSR firstId)
-  useParent = mkParentVar pos
-
-  useDef :: (Pos,TraceId) -> Decl TokenId
-  useDef (pos,id) =
-    DeclFun pos (nameTransLetVar id)
-      [Fun [useSR,useParent]
-        (Unguarded (ExpApplication pos
-          [combConstUse pos traced,useSR,useParent,ExpVar pos (nameShare id)]))
-        noDecls]
-
-  projDef :: (Pos,TraceId) -> Decl TokenId
-  projDef (pos,id) =
-    DeclFun pos (nameShare id) 
-      [Fun []
-        (Unguarded (ExpApplication pos 
-          [combConstDef pos traced 
-          ,parent
-          ,ExpVar pos (nameTraceInfoVar pos scope id)
-          ,ExpLambda pos [PatWildcard pos]
-            (ExpCase pos (ExpVar pos patId)
-              [Alt tuple
-                (Unguarded 
-                  (if isLocal scope && not traced
-                     then ExpVar pos (nameTransLambdaVar id)
-                     else
-                       ExpApplication pos 
-                         [ExpVar pos tokenProjection
-                         ,mkSRExp pos traced
-                         ,ExpVar pos resultTraceId
-                         ,ExpVar pos (nameTransLambdaVar id)]))
-                noDecls])]))
-         noDecls]
-
-  getPatVars :: Pat id -> [Pat id]
-  getPatVars (ExpRecord pat fields) =
-    getPatVars pat ++ concatMap getFieldVars fields
-    where
-    getFieldVars (FieldExp _ _ pat) = getPatVars pat
-  getPatVars (ExpApplication _ pats) = concatMap getPatVars pats
-  getPatVars pat@(ExpVar pos id) = [pat]
-  getPatVars (ExpCon _ _) = []
-  getPatVars (ExpLit _ _) = []
-  getPatVars (ExpList _ pats) = concatMap getPatVars pats
-  getPatVars (PatAs pos id pat) = ExpVar pos id : getPatVars pat
-  getPatVars (PatWildcard _) = []
-  getPatVars (PatIrrefutable _ pat) = getPatVars pat
-tDecl scope traced parent (DeclFun pos id [Fun [] rhs localDecls]) = 
-  tCaf scope traced parent pos id rhs localDecls
-    -- a caf has many dynamic parents and hence uses the static parent
-tDecl _ _ parent (DeclFun pos id (Fun [] _ _ : _)) =
-  error ("Variable multiple defined: " ++ show (tokenId id))
-tDecl scope traced parent (DeclFun pos id funs) = 
-  tFuns scope traced pos id funs  -- a function does not use the static parent
-tDecl _ _ _ (DeclFixity _) = ([],[],emptyModuleConsts) 
-  -- fixity declarations have been processed before 
-  -- not needed in output, because pretty printer produces unambiguous output
-tDecl _ _ _ (DeclIgnore s) = ([DeclIgnore s],[],emptyModuleConsts)
-tDecl _ _ _ _ = error "tDecl: unknown sort of declaration"
-
-
--- for declarations in class and instance definitions:
--- (considered local, because they have their own scope)
-tDecls2 :: (TokenId -> TokenId) -> Bool -> Exp TokenId -> Decls TraceId 
-        -> (Decls TokenId,[Decl TokenId],ModuleConsts)
-tDecls2 qualify traced parent (DeclsParse decls) = 
-  (DeclsParse (concat declss1 ++ catMaybes (map declSharedVar decls))
-  ,concat declss2
-  ,foldr merge emptyModuleConsts declsConstss)
-  where
-  (declss1,declss2,declsConstss) = 
-    unzip3 (map (tDecl2 qualify traced parent) . combineFuns $ decls)
-
--- for a method type declaration produce type declaration of sharing var
-declSharedVar :: Decl TraceId -> Maybe (Decl TokenId)
-declSharedVar (DeclVarsType vars contexts ty) =
-  Just (DeclVarsType (tPosShares vars) (tContexts contexts) (tConstType ty))
-declSharedVar _ = Nothing
-
-tDecl2 :: (TokenId -> TokenId) -> Bool -> Exp TokenId -> Decl TraceId 
-       -> ([Decl TokenId],[Decl TokenId],ModuleConsts)
-tDecl2 _ traced parent decl@(DeclFun pos id (Fun (x:xs) rhs localDecls : funs)) =
-  -- patch result of tFuns:
-  -- worker needs to be local, because it does not belong to the 
-  -- class/instance nor can it be outside of it
-  --  (no known arity optimisation anyway)
-  ([DeclFun pos id' 
-     [Fun args' rhs' (DeclsParse workerDecls')]]
-  ,[]
-  ,declConsts')
-  where
-  ((DeclFun _ id' [Fun args' rhs' _]:_:workerDecls'),[],declConsts') = 
-    tDecl Local traced parent decl
-tDecl2 qualify traced parent decl@(DeclFun pos id ([Fun [] rhs localDecls])) =
-  -- patch result of constant transformation
-  -- use of sharing variable needs to be qualified if class name needs to be
-  -- qualified (still covers not all necessary cases)
-  -- note when declaring instance the class may only be imported qualified
-  ([DeclFun pos id'
-     [Fun args' (Unguarded (ExpApplication pos
-       [a1,a2,a3,ExpVar pos (qualify id'')]))
-     noDecls]
-   ,shared'],[],declConsts')
-  where
-  ([DeclFun _ id'
-     [Fun args' 
-       (Unguarded (ExpApplication _
-         [a1,a2,a3,ExpVar _ id''])) 
-       _]
-   ,shared'],_,declConsts')
-    = tCaf Local traced parent pos id rhs localDecls
-tDecl2 _ traced parent decl = 
-  -- type signature only possible remaining case
-  tDecl Local traced parent decl
-
-
-singleDecl :: Decl id -> ([Decl id],[a],ModuleConsts)
-singleDecl decl = ([decl],[],emptyModuleConsts)
-
--- Sharing of constants in classes/instances
--- may be lost if class/instance has a context,
--- because then the shareId also has this context and is no longer a constant.
-
-
-
--- constructor definition in type definition
-tConstr :: Constr TraceId -> Constr TokenId
-tConstr (Constr pos conId tyArgs) =
-  Constr pos (nameTransCon conId) (tTyArgs tyArgs)
-tConstr (ConstrCtx tyVars contexts pos conId tyArgs) =
-  ConstrCtx (tPosTyVars tyVars) (tContexts contexts) 
-    pos (nameTransCon conId) (tTyArgs tyArgs)
-
 -- ----------------------------------------------------------------------------
 -- Error for non-supported language features
 
@@ -957,16 +856,21 @@ nameTransModule (ModuleName l name) = ModuleName l
   (fromMaybe (if name == "Main" then name else "Hat." ++ name) 
     (stripPrefix "NotHat." name)) 
 
-nameTransCls :: Id i = i -> i
-nameTransCls = id  -- unchanged
+-- The unqualfied names in the namespace of classes, types and type synonyms 
+-- are left unchanged, but the module changes.
+-- Similarly type variable names are left unchanged.
+
+nameTransCls :: Id i => i -> i
+nameTransCls = updateId id  -- unchanged
 
 nameTransTy :: Id i => i -> i
-nameTransTy = id  -- unchanged
+nameTransTy = updateId id  -- unchanged
 
 nameTransSyn :: Id i => i -> i
-nameTransSyn = id  -- unchanged
+nameTransSyn = updateId id  -- unchanged
 
--- names of helper synonyms are a bit of a hack; a name conflict is possible
+-- Names of helper synonyms are a bit of a hack; a name conflict is possible.
+-- We just do not want to prefix all names in the namespace.
 nameTransSynHelper :: Id i => i -> Int -> i
 nameTransSynHelper syn no = updateToken (++ ("___" ++ show no)) syn
   where 
@@ -974,11 +878,11 @@ nameTransSynHelper syn no = updateToken (++ ("___" ++ show no)) syn
   update (Symbol _ _) = 
     error "TraceTrans, nameTransSynHelper: synom name is a symbol"
 
-nameTransTyVar :: Id i => i -> i
+nameTransTyVar :: Name l -> Name l
 nameTransTyVar = id  -- unchanged
 
 nameTransCon :: Id i => i -> i
-nameTransCon = id  -- unchanged
+nameTransCon = updateId id  -- unchanged
 
 nameTransField :: Id i => i -> i
 nameTransField = prefixName 'b' '^'
@@ -1165,6 +1069,16 @@ instance Id (CName l) where
 tracingModuleNameShort :: ModuleName SrcSpanInfo
 tracingModuleNameShort = ModuleName noSpan "T"
 
+mkTypeToken :: l -> String -> QName l 
+mkTypeToken l id = 
+  if id `elem` (map ("from"++) preIds ++ map ("to"++) preIds)
+    then Qual l tracingModuleNameShort (Ident l id)
+    else UnQual l (Ident l id)
+  where
+  -- list should include all types allowed in foreign imports
+  preIds = ["Id", "IO", "Tuple0", "Tuple2", "Char", "Int", "Integer", 
+            "Float", "Double"]
+
 -- names for trace constructors
 
 qNameHatMkModule :: l -> QName l
@@ -1196,6 +1110,45 @@ qNamePreludeIdent l ident = Qual l (ModuleName l "Prelude") (Ident l ident)
 qNameHatIdent :: l -> String -> QName l
 qNameHatIdent l ident = Qual l (ModuleName l "Hat") (Ident l ident)
 
+
+-- ----------------------------------------------------------------------------
+-- Wrapping of untransformed code
+
+expTo :: l -> Type l -> Exp l
+expTo = expType True
+
+expFrom :: l -> Type l -> Exp l
+expFrom = expType False
+
+-- The following assumes a limited form of types as they
+-- occur in foreign import / export declarations.
+-- Variables of kind other than * pose a problem.
+expType :: Bool -> l -> Type l -> Exp l
+expType to l (TyForall l _ _ _) = notSupported undefined "local type forall"
+expType to l (TyFun l tyL tyR) =
+  appN l 
+    [Var l (mkTypeToken (prefix to ++ "Fun"))
+    ,expType (not to) l tyL
+    ,expType to pos tyR]
+expType to l (TyTuple l boxed tys) =
+  appN l
+    (Var l (mkTypeToken (prefix to ++ "Tuple" ++ show (length tys))) :
+     map (expType to l) tys)
+expType to l (TyList l ty) =
+  appN l [Var l (mkTypeToken (prefix to ++ "List")), expType to l ty]
+expType to l (TyApp l tyL tyR) = 
+  App l (expType to l tyL) (expType to l tyR)
+expType to l (TyVar l _) =
+  Var l (mkTypeToken (prefix to ++ "Id"))
+expType to l (TyCon l qName) = 
+  Var l (mkTypeToken (prefix to ++ getId qName))
+
+prefix :: Bool -> String
+prefix True = "to"
+prefix False = "from"
+  
+
+-- ----------------------------------------------------------------------------
 -- Useful stuff
 
 -- Build parts of syntax tree:
