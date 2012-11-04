@@ -497,9 +497,8 @@ tDecl _ _ _ _ (GDataInsDecl l _ _ _ _ _) =
   notSupported l "GADT family instance declaration"
 tDecl env _ tracing parent  -- class without methods
   (ClassDecl l maybeContext declHead fundeps Nothing) =
-  ([ClassDecl l (fmap tContext maybeContext) (declHead) 
-     (map tFunDep fundeps) Nothing]
-  ,emptyModuleConsts)
+  onlyDecl (ClassDecl l (fmap tContext maybeContext) (declHead) 
+     (map tFunDep fundeps) Nothing)
 tDecl env _ tracing parent  -- class with methods
   (ClassDecl l maybeContext declHead fundeps (Just classDecls)) =
   (ClassDecl l (fmap tContext maybeContext) (declHead) 
@@ -511,8 +510,8 @@ tDecl env _ tracing parent  -- class with methods
     tClassDecls env tracing parent classDecls
 tDecl env _ tracing parent -- class instance without methods
   (InstDecl l maybeContext instHead Nothing) =
-  ([InstDecl l (fmap tContext maybeContext) (tInstHead instHead) Nothing]
-  ,emptyModuleConsts)
+  onlyDecl (InstDecl l (fmap tContext maybeContext) (tInstHead instHead) 
+    Nothing)
 tDecl env _ tracing parent -- class instance with methods
   (InstDecl l maybeContext instHead (instDecls)) =
   ([InstDecl l (fmap tContext maybeContext) (tInstHead instHead) 
@@ -525,7 +524,7 @@ tDecl env _ tracing parent -- class instance with methods
 tDecl _ _ _ _ (DeriveDecl l _ _) =
   notSupported l "standalone deriving declaration"
 tDecl _ _ _ _ (InfixDecl l assoc priority ops) =
-  ([InfixDecl l assoc priority (map nameTransLetVar ops)], emptyModuleConsts)
+  onlyDecl (InfixDecl l assoc priority (map nameTransLetVar ops))
 tDecl env _ _ _ (DefaultDecl l tys) =
   ([DefaultDecl l []
    ,WarnPragmaDecl l [([], "Defaulting doesn't work in traced programs. Add type annotations to resolve ambiguities.")]]
@@ -533,9 +532,30 @@ tDecl env _ _ _ (DefaultDecl l tys) =
 tDecl _ _ _ _ (SpliceDecl l _) =
   notSupported l "Template Haskell splicing declaration"
 tDecl env _ _ _ (TypeSig l names ty) =
-
+  -- Type signatures need to be preserved (i.e. transformed),
+  -- because polymorphic recursion needs them or more general
+  -- types may later lead to ambiguous types
+  -- Also shared constants need to be typed, in case they are overloaded,
+  -- so that the monomorphic restriction does not lead to type error
+  -- (actually then sharing is unfortunately lost)
+  (TypeSig l (map nameTransLetVar names) (tFunType ty) :
+   concapMap mkWorkerTypeSig nonConstVars ++
+   if null constVars then []
+     else [TypeSig (map nameTransShare constVars) (tConstType ty)]
+  ,emptyModuleConsts)
+  where
+  (constVars, nonConstVars) = partition isNonMethodConstant vars
+  isNonMethodConstant :: Name l -> Bool
+  isNonMethodConstant name =
+    isLambdaBound name || maybe False (==0) (arity env name)
+  mkWorkerTypeSig :: Name SrcSpanInfo -> [Decl SrcSpanInfo]
+  mkWorkerTypeSig name =
+    case arity env name of
+      Just n | n > 0 -> [TypeSig l [nameWorker name] (tWorkerType n ty)]
+      _ -> []
 tDecl env scope tracing parent (FunBind l matches) =
-
+  tFunBind env scope tracing l matches  
+  -- a function does not use the static parent
 tDecl env scope tracing parent (PatBind l pat maybeTy rhs maybeBinds) =
 
 tDecl env _ _ _ (ForImp l callConv maybeSafety maybeString name ty) =
@@ -552,23 +572,158 @@ tDecl _ _ _ _ (ForExp l _ _ _ _) =
   notSupported l "foreign export declaration"
 tDecl _ _ _ _ (RulePragmaDecl l _) =
   notSupported l "RULES pragma"
-tDecl _ _ _ _ (DeprPragmaDecl l list) = DeprPragmaDecl l list
-tDecl _ _ _ _ (WarnPragmaDecl l list) = WarnPragmaDecl l list
+tDecl _ _ _ _ (DeprPragmaDecl l list) = onlyDecl (DeprPragmaDecl l list)
+tDecl _ _ _ _ (WarnPragmaDecl l list) = onlyDecl (WarnPragmaDecl l list)
 tDecl _ _ _ _ (InlineSig l _ _ _) =
-  WarnPragmaDecl l [([], "ignore INLINE pragma")]
+  onlyDecl (WarnPragmaDecl l [([], "ignore INLINE pragma")])
 tDecl _ _ _ _ (InlineConlikeSig l _ _) =
-  WarnPragmaDecl l [([], "ignore INLINE CONLIKE pragma")]
+  onlyDecl (WarnPragmaDecl l [([], "ignore INLINE CONLIKE pragma")])
 tDecl _ _ _ _ (SpecSig l _ _) =
-  WarnPragmaDecl l [([], "ignore SPECIALISE pragma")]
+  onlyDecl (WarnPragmaDecl l [([], "ignore SPECIALISE pragma")])
 tDecl _ _ _ _ (SpecInlineSig l _ _ _ _) =
-  WarnPragmaDecl l [([], "ignore SPECIALISE INLINE pragma")]
+  onlyDecl (WarnPragmaDecl l [([], "ignore SPECIALISE INLINE pragma")])
 tDecl _ _ _ _ (InstSig l _ _) =
-  WarnPragmaDecl l [([], "ignore SPECIALISE instance pragma")]
+  onlyDecl (WarnPragmaDecl l [([], "ignore SPECIALISE instance pragma")])
 tDecl _ _ _ _ (AnnPragma l _) =
-  WarnPragmaDecl l [([], "ignore ANN pragma")]
+  onlyDecl (WarnPragmaDecl l [([], "ignore ANN pragma")])
+
+onlyDecl :: Decl l -> ([Decl l], ModuleConsts)
+onlyDecl d = ([d], emptyModuleConsts)
+
+-- Process function binding:
+
+tFunBinds :: Environment -> Scope -> Tracing -> SrcSpanInfo -> 
+            [Match SrcSpanInfo] ->
+            ([Decl SrcSpanInfo], ModuleConsts)
+tFunBinds env scope tracing l matches =
+  (FunBind l [Match l (nameTransLetVar orgName) 
+               [PVar l sr, PVar l parent]
+               (UnGuardedRhs l (appN l
+                 [combFun l traced funArity
+                 ,Var l (nameTraceInfoVar l scope orgName)
+                 ,Var l sr, Var l parent
+                 ,Var l wrappedId']))
+               Nothing] 
+  :if isLocal scope 
+     then (PatBind l (PVar l (nameTraceInfoVar l Global orgName)) Nothing 
+            (UnGuardedRhs l (Var l (nameTraceInfoVar l Local orgName))) 
+            Nothing :)
+     else (\x->x)
+   (FunBind l matches' : newDecls')
+  ,addVar l orgName (emptyModuleConsts `withLocal` funConsts))
+  where
+  sr = nameSR orgName
+  parent = nameParent l
+  wrappedId' = nameWorker id
+  (matches', newDecls', funConsts) =
+    tMatches env tracing l (Var l parent) (nameFuns orgName)
+      (map (Var l) (nameArgs orgName)) (matchArity (head matches)) False 
+      (map (changeInfixMatch matches))
 
 
+-- Transformation of matches is complex because guarded equations may fail
+-- and thus 'fall' to next equation.
+-- This is simulated here by a sequence of functions, each possibly calling
+-- the next.
+tMatches :: Environment -> Tracing -> SrcSpanInfo -> 
+            Name SrcSpanInfo -> -- name that can be bound to parent
+            Name SrcSpanInfo -> -- names for definitions that clauses become
+            Exp SrcSpanInfo -> -- vars for naming arguments that are not vars
+            Name SrcSpanInfo -> -- name of this definition
+            Arity -> 
+            Bool -> -- preceeding match will never fail
+            [Match SrcSpanInfo] ->
+            ([Match SrcSpanInfo], [Decl SrcSpanInfo], ModuleConsts)
+tMatches _ _ _ _ _ _ _ _ True [] = ([], [], emptyModuleConsts)
+tMatches env tracing l parent ids pVars funName funArity False [] =
+  ([Match l funName (replicate funArity (PWildcard l) ++ [PVar l parent])
+     (UnGuardedRhs l (continuationToExp (Var l parent) failContinuation))
+     Nothing]
+  ,[]
+  ,emptyModuleConsts)
+tMatches env tracing l parent ids pVars funName funArity _
+  (m@(Match _ _ pats _ _) : matches) | not (null matches) && matchCanFail m =
+  ([Match l funName (pats'' ++ [EVar l parent]) rhs' decls'
+   ,Match (vars ++ [EVar l parent]) 
+      (UnGuardedRhs (continuationToExp (Var l parent) failCont)) Nothing]
+  ,FunBind l matches' : matchesDecls
+  ,matchConsts `merge` matchesConsts)
+  where
+  contId = head ids
+  failCont = functionContinuation contId vars
+  (pats'', vars) = namePats pats' pVars
+  (Match _ _ pats' rhs' decls', matchConsts) =
+    tMatch env tracing True parent failCont m
+  (matches', matchesDecls, matchesConsts) =
+    tMatches env tracing l parent (tail ids) pVars funName funArity 
+      (neverFailingPats pats) matches
+tMatches env tracing l parent ides pVars funName funArity _ 
+  (m@(Match _ _ pats _ _) : matches) =
+  -- last match or this match cannot fail (others are dead code)
+  (Match l funName (pats' ++ [EVar l parent]) rhs' decls' : matches
+  ,matchesDecls
+  ,matchConsts `merge` matchesConsts)
+  where
+  (Match _ _ pats' rhs' decls', matchConsts) =
+    tMatch env tracing True parent failContinuation m
+  (matches', matchesDecls, matchesConsts) =
+    tMatches env tracing l parent ids pVars funName funArity 
+      (neverFailingPats pats) matches
 
+-- Numeric literals need to be overloaded with respect to the new
+-- transformed numeric classes; hence they cannot just be left wrapped
+-- in patterns
+-- Transform such literals and n+k patterns into conditions in guards.
+-- Have to be careful to preserve left-to-right pattern matching,
+-- e.g. f 1 True = ... -> f x True | x == 1 = ... is wrong.
+-- Assume that ~ has been removed before.
+-- Definition similar to tGuardedExps
+tMatch :: Environment ->
+          Tracing ->
+          Bool -> -- whether this is reduct of the parent
+          Name l -> 
+          ContExp l -> continuation in case of match failure
+          Match l ->
+          (Match l, ModuleConsts)
+tMatch env tracing cr parent contExp (Match _ _ pats rhs maybeDecls) =
+
+-- Here failure means a failed test that can be observed in the trace,
+-- not simply non-matching of data constructors.
+matchCanFail :: Match l -> Bool
+matchCanFail (Match _ _ pats rhs _) =
+  any numericLitIn pats || case rhs of
+    UnGuardedRhs _ _ -> False
+    GuardedRhs _ gdRhss -> gdRhssCanFail gdRhss
+
+numericLitIn :: Pat l -> Bool
+numericLitIn (PLit _ (Int _ _ _)) = True
+numericLitIn (PLit _ (Frac _ _ _)) = True
+numericLitIn (PNeg _ pat) = numericLitIn pat
+numericLitIn (PInfixApp _ pL _ pR) = numericLitIn pL || numericLitIn pR
+numericLitIn (PApp _ _ pats) = any numericLitIn pats
+numericLitIn (PTuple _ pats) = any numericLitIn pats
+numericLitIn (PList _ pats) = any numericLitIn pats
+numericLitIn (PParen _ p) = numericLitIn p
+numericLitIn (PRec _ _ patFields) = any numericLitInField patFields
+  where
+  numericLitInField (PFieldPat _ _ pat) = numericLitIn pat
+  numericLitInField _ = False
+numericLitIn (PAsPat _ _ p) = numericLitIn p
+numericLitIn (PIrrPat _ p) = numericLitIn p
+numericLitIn (PatTypeSig _ p _) = numericLitIn p
+numericLitIn (PViewPat _ _ p) = numericLitIn p
+numericLitIn (PBangPat _ p) = numericLitIn p 
+numericLitIn _ = False
+
+-- Returns False only if one of the guards definitely evaluates to True
+-- Note this is an approximation, no guarantee that failure is possible.
+gdRhssCanFail :: [GuardedRhs l] -> Bool
+gdRhssCanFail = all gdRhsCanFail
+
+gdRhsCanFail :: GuardedRhs l -> Bool
+gdRhsCanFail (GuardedRhs _ [Qualifier _ (Var _ name)] _) =
+  not (isTrue name || isOtherwise name)
+gdRhsCanFail _ = True
 
 
 -- Process foreign import:
@@ -613,6 +768,8 @@ tForeignImp l foreignName name ty =
             Nothing]
          ,addVar l name emptyModuleConsts)
   where
+  sr = nameSR name
+  parent = nameParent l
   workerName = nameWorker name
   letVarName = nameTransLetVar name
   shareName = nameShare name
@@ -809,6 +966,113 @@ addConDeclModuleConsts (InfixConDecl l btL name btR) =
 addConDeclModuleConsts (RecDecl l name fieldDecls) =
   addCon name (concatMap (\(FieldDecl _ names _) -> names) fieldDecls)
 
+-- ----------------------------------------------------------------------------
+-- Abstract continuation for guards
+--
+-- To correctly create the trace within guards, a continuation is used.
+-- The type ContExp should be abstract. Its implementation is only used in 
+-- the following three functions.
+
+data ContExp l = Fail | Function (QName l) [Exp l]
+
+failContinuation :: ContExp l
+failContinuation = Fail
+
+functionContinuation :: QName l -> [Exp l] -> ContExp l
+functionContinuation = Function
+
+continuationToExp :: Exp l -> ContExp -> Exp l
+continuationToExp parent Fail = mkFailExp parent
+continuationToExp parent (Function fun args) =
+  appN l (Var l fun : args ++ [parent])
+
+-- ----------------------------------------------------------------------------
+-- Transform types
+
+-- ty ==> R [[ty]]
+tConstType :: Type l -> Type l
+tConstType ty = wrapType (tType ty)
+
+-- ty ==> RefSrcPos -> Trace -> R [[ty]]
+tFunType :: Type l -> Type l
+tFunType ty = TyCon l qNameRefSrcPos `typeFun` TyCon l qNameRefExp `typeFun` 
+  wrapType (tType ty)
+  where 
+  l = ann ty
+
+-- Build type of worker from original type
+tWorkerType :: Environment -> Arity -> Type l -> Type l
+tWorkerType _ 0 ty
+  TyCon (ann ty) qNameRefExp `typeFun` wrapType (tType ty)
+tWorkerType env a ty = tWorkerSynExpand env a ty []
+
+-- Expand a type synonym and then apply worker type transformation.
+-- Need to collect type arguments.
+tWorkerSynExpand :: Environment -> Arity -> Type l -> [Type l] -> 
+                    Type l
+tWorkerSynExpand env a (TyFun l tyL tyR) [] =
+  wrapType (tType tyL) `typeFun` tWorkerType env (a-1) tyR
+tWorkerSynExpand env a (TyCon l qname) [tyL, tyR] | isFunTyCon qname =
+  wrapType (tType tyL) `typeFun` tWorkerType env (a-1) tyR
+tWorkerSynExpand env a (TyCon l qname) tys =
+  tWorkerType env a (expandTypeSynonym env qname tys)
+tWorkerSynExpand env a (TyApp l tyL tyR) tys = 
+  tWorkerSynExpand env a tyL (tyR : tys)
+tWorkerSynExpand env a (TyParen l ty) tys =
+  TyParen l (tWorkerSynExpand env a ty tys)
+tWorkerSynExpand _ _ _ _ = 
+  error "TraceTrans.tWorkerSynExpand: type must be a function but is not"
+
+-- Expand only to expose function type constructors.
+-- Uses the helper type synonyms introduced by the transformation.
+expandTypeSynonym :: Environment -> QName l -> [Type l] -> Type l
+expandTypeSynonym env tySyn tys =
+  case typeSynonymBody env tySyn of
+    Nothing -> error ("TraceTrans.expandTypeSynonym: " ++ show tySyn ++
+                      " is not a type synonym.")
+    Just body = fst (go body 1)
+  where
+  l = ann tySyn
+  go :: TySynBody -> Int -> (Type l, Int)
+  go THelper n = tyAppN (TyCon l (nameTransTySynHelper tySyn n) : tys)
+  go (TVar v) n = (tys!!v, n)
+  go TFun n = (TyCon l (Special l (FunCon l)), n)
+  go (TApp tyL tyR) n = (TyApp l ty1' ty2', n2)
+    where
+    (ty1', n1) = go ty1 n
+    (ty2', n2) = go ty2 n1
+
+-- Just rewrite built-in type constructors, especially function type.
+-- (Otherwise type names stay unchanged, they will refer to different modules.)
+-- t1 -> t2 ==> Fun [[t1]] [[t2]]
+tType :: Type l -> Type l
+tType (TyForall l maybeTyVarBinds maybeContext ty) =
+  TyForall l maybeTyVarBinds maybeContext (tType ty)
+tType (TyFun l tyL tyR) = 
+  tType (tyAppN [TyCon l (Special l (FunCon l)), tyL, tyR])
+tType (TyTuple l boxed tys) =
+  tType (tyAppN (TyCon l (Special l (TupleCon l boxed (length tys))) : tys))
+tType (TyList l ty) =
+  tType (TyApp l (TyCon l (Special l (ListCon l))) ty)
+tType (TyApp l tyL tyR) = TyApp l (tType tyL) (tType tyR)
+tType (TyVar l name) = TyVar l (nameTransTyVar name)
+tType (TyCon l name) = TyCon l (nameTransTy name)
+tType (TyParen l ty) = TyParen l (tType ty)
+tType (TyInfix l tyL name tyR) = 
+  TyInfix l (tType tyL) (nameTransTy name) (tType tyR)
+tType (TyKind l ty kind) = TyKind l (tType ty) kind
+
+-- ty ==> R ty
+wrapType :: Type l -> Type l
+wrapType ty = TyApp l (TyCon l (qNameR l)) ty
+  where
+  l = ann ty
+
+-- function type constructor
+infixr 6 `typeFun`
+typeFun :: Type l -> Type l -> Type l
+typeFun ty1 ty2 = TyFun (ann ty1) ty1 ty2
+
 
 -- ----------------------------------------------------------------------------
 -- Error for non-supported language features
@@ -858,6 +1122,7 @@ nameTransModule (ModuleName l name) = ModuleName l
 
 -- The unqualfied names in the namespace of classes, types and type synonyms 
 -- are left unchanged, but the module changes.
+-- Names of some built-in type constructors (e.g ->, [], (,)) are changed!
 -- Similarly type variable names are left unchanged.
 
 nameTransCls :: Id i => i -> i
@@ -1081,22 +1346,52 @@ mkTypeToken l id =
 
 -- names for trace constructors
 
-qNameHatMkModule :: l -> QName l
-qNameHatMkModule l = qNameHatIdent l "mkModule"
+qNameMkRoot :: l -> QName l
+qNameMkRoot l = qNameShortIdent l "mkRoot"
 
-qNameHatMkAtomConstructor :: l -> Bool -> QName l
-qNameHatMkAtomConstructor l withFields =
-  qNameHatIdent l 
+qNameR :: l -> QName l
+qNameR l = qNameShortIdent l "R"
+
+qNameMkModule :: l -> QName l
+qNameMkModule l = qNameShortIdent l "mkModule"
+
+qNameMkAtomConstructor :: l -> Bool -> QName l
+qNameMkAtomConstructor l withFields =
+  qNameShortIdent l 
     (if withFields then "mkConstructorWFields" else "mkConstructor")
 
-qNameHatMkAtomVariable :: l -> QName l
-qNameHatMkAtomVariable = qNameHatIdent l "mkVariable"
+qNameMkAtomVariable :: l -> QName l
+qNameMkAtomVariable = qNameShortIdent l "mkVariable"
 
-qNameHatMkSpan :: l -> QName l
-qNameHatMkSpan l = qNameHatIdent l "mkSrcPos"
+qNameMkSpan :: l -> QName l
+qNameMkSpan l = qNameShortIdent l "mkSrcPos"
 
-qNameHatMkNoSpan :: L -> QName l
-qNameHatMkNoSpan l = qNameHatIdent l "mkNoSrcPos"
+qNameMkNoSpan :: L -> QName l
+qNameMkNoSpan l = qNameShortIdent l "mkNoSrcPos"
+
+qNameMkAtomVariable :: l -> QName l
+qNameMkAtomVariable l = qNameShortIdent l "mkVariable"
+
+qNameMkExpValueApp :: l -> Arity -> QName l
+qNameMkExpValueApp l a = qNameShortIdent l ("mkValueApp" ++ show a)
+
+qNameMkExpValueUse :: l -> QName l
+qNameMkExpValueUse l = qNameShortIdent l "mkValueUse"
+
+qNameMkAtomRational :: l -> QName l
+qNameMkAtomRationl l = qNameShortIdent l "mkAtomRational"
+
+qNameMkAtomLambda :: l -> QName l
+qNameMkAtomLambda l = qNameShortIdent l "mkLambda"
+
+qNameMkAtomDoLambda :: l -> QName l
+qNameMkAtomDoLambda l = qNameShortIdent l "mkDoLambda"
+
+
+-- function for pattern-match failure error message
+qNameFatal :: l -> QName l
+qNameFatal l = qNameShortIdent "fatal"
+
 
 qNamePreludeTrue :: l -> QName l
 qNamePreludeTrue l = qNamePreludeIdent l "True"
@@ -1109,6 +1404,9 @@ qNamePreludeIdent l ident = Qual l (ModuleName l "Prelude") (Ident l ident)
 
 qNameHatIdent :: l -> String -> QName l
 qNameHatIdent l ident = Qual l (ModuleName l "Hat") (Ident l ident)
+
+qNameShortIdent :: l -> String -> QName l
+qNameShortIdent l ident = Qual l (ModuleName l "T") (Ident l ident)
 
 
 -- ----------------------------------------------------------------------------
@@ -1151,6 +1449,21 @@ prefix False = "from"
 -- ----------------------------------------------------------------------------
 -- Useful stuff
 
+-- Test for specific names:
+
+isFunTyCon :: QName l -> Bool
+isFunTyCon (Special _ (FunCon _)) = True
+isFunTyCon _ = False
+
+
+-- Frequently used in transformed code:
+
+mkFailExp :: Exp l -> Exp l
+mkFailExp parent = App l [Var l (qNameFatal l), parent]
+  where
+  l = ann parent
+
+
 -- Build parts of syntax tree:
 
 -- Build n-ary application
@@ -1159,13 +1472,45 @@ appN :: l -> [Exp l] -> Exp l
 appN _ [e] = e
 appN l (e:es) = App l e (appN l es)
 
+-- Build n-ary type application
+-- pre-condiiton: list is non-empy
+tyAppN :: [Type l] -> Type l
+tyAppN [t] = t
+tyAppN (t:ts) = TyApp (ann t) t (tyAppN ts)
+
 litInt :: Integral i => l -> i -> Lit l
 litInt l i = Lit l (Int l (fromIntegral i) (show i))
 
 litString :: l -> String -> Lit l
 litString l str = Lit l (Str l str str) 
   
+matchArity :: Match l -> Arity 
+matchArity (Match _ _ pats _ _) = length pats
+matchArity (InfixMatch _ p _ pats _ _) = 1 + length pats
+
+changeInfixMatch :: Match l -> Match l
+changeInfixMatch m@(Match _ _ _ _ _) = m
+changeInfixMatch (InfixMatch l p n pats rhs maybeBinds) = 
+  Match l n (p:pats) rhs maybeBinds
 
 -- bogus span, does not appear in the source
 noSpan :: SrcSpanInfo
 noSpan = noInfoSpan (SrcSpan "" 0 0 0 0)
+
+-- Test for specific names
+
+-- Is this the module name "Main"?
+isMain :: String -> Bool
+isMain = (== "Main")
+
+-- This test is an unsafe hack.
+-- Even with qualification "Prelude" this may be a different "True"
+isTrue :: QName l -> Bool
+isTrue (Qual _ (ModuleName _ "Prelude") (Identifier "True")) = True
+isTrue (UnQual _ (Identifier "True")) = True
+isTrue _ = False
+
+isOtherwise :: QName l -> Bool
+isOtherwise (Qual _ (ModuleName _ "Prelude") (Identifier "otherwise")) = True
+isOtherwise (UnQual _ (Identifier "otherwise")) = True
+isOtherwise _ = False
