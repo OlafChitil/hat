@@ -685,7 +685,11 @@ tMatch :: Environment ->
           ContExp l -> continuation in case of match failure
           Match l ->
           (Match l, ModuleConsts)
-tMatch env tracing cr parent contExp (Match _ _ pats rhs maybeDecls) =
+tMatch env tracing cr parent contExp (Match l _ pats rhs maybeDecls) =
+  if isNothing numericLitInfos
+    then (Match l funName pats' (UnGuardedRhs rhs') maybeDecls'
+         ,declsConsts `withLocal` rhsConsts)
+    else
 
 -- Here failure means a failed test that can be observed in the trace,
 -- not simply non-matching of data constructors.
@@ -725,6 +729,20 @@ gdRhsCanFail (GuardedRhs _ [Qualifier _ (Var _ name)] _) =
   not (isTrue name || isOtherwise name)
 gdRhsCanFail _ = True
 
+
+tRhs :: Environment ->
+        Tracing ->
+        Bool ->  -- equal to parent?
+        Exp SrcSpanInfo ->  -- parent
+        ContExp SrcSpanInfo ->  -- continuation in case of match failure
+        Rhs SrcSpanInfo ->
+        (Exp SrcSpanInfo, ModuleConsts)
+
+tRhs env tracing cr parent failCont (UnGuardedRhs _ exp) =
+  tExp env tracing cr parent exp
+tRhs env tracing cr parent failCont (GuardedRhss _ gdRhss) =
+  tG
+  
 
 -- Process foreign import:
 
