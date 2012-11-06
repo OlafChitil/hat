@@ -1,6 +1,6 @@
 
 name:                hat
-version:             2.7.0.4
+version:             2.7.0.5
 synopsis:            The Haskell tracer, generating and viewing Haskell execution traces
 description:
   hat-trans transforms Module.hs into Hat/Module.hs such that when the program is
@@ -76,7 +76,7 @@ executable hat-trans
   main-is:           HatTrans.hs
   hs-source-dirs:    trans, compiler98
   other-modules:     TraceDerive, AuxLabelAST, AuxFixity, AuxFile, AuxTypes, TraceId, Flags, PrettyTraceId, HatTrans, Wrapper, AssocTree, Error, Extra, HbcOnly, Id, IdKind, Info, IntState, Lex, LexLow, LexPre, LexStr, Lexical, MergeSort, MkSyntax, NT, Nice, OsOnly, Parse, Parse2, ParseCore, ParseLex, ParseLib, PrettyLib, PrettySyntax, Reduce, Syntax, SyntaxPos, SyntaxUtil, SysDeps, TokenId, Tree234, Unlit, Paths_hat
-  build-depends:     base >=4.5, bytestring ==0.9.*, directory ==1.1.*
+  build-depends:     base >=4.5, bytestring >=0.9, directory >=1.1
   includes:	     hat-c.h, art.h, ntohl.h
   include-dirs:	     include, Hat
   c-sources:	     Hat/hat-c.c
@@ -86,7 +86,7 @@ executable hat-trail
   main-is:           HatTrail.hs
   hs-source-dirs:    tools        
   other-modules:     LowLevel, SrcRef, Ident, SExp, PrettyLibHighlight, HighlightStyle, CommonUI
-  build-depends:     base >=4.5, containers ==0.4.*, directory ==1.1.*, process ==1.1.*
+  build-depends:     base >=4.5, containers >=0.4, directory >=1.1, process >=1.1
   extensions:        ForeignFunctionInterface
   includes:          art.h
   include-dirs:      include
@@ -97,7 +97,7 @@ executable hat-observe
   main-is:           HatObserve.hs
   hs-source-dirs:    tools
   other-modules:     Observe, LowLevel, SExp, Ident, PrettyLibHighlight, HighlightStyle, Pattern, ParseLib, Idents, CmdLine, CommonUI, SrcRef, Trie, TExp
-  build-depends:     base >=4.5, process ==1.1.*, haskeline >=0.6
+  build-depends:     base >=4.5, process >=1.1, haskeline >=0.6
   extensions:        ForeignFunctionInterface
   includes:          art.h
   include-dirs:      include
@@ -108,7 +108,7 @@ executable hat-stack
   main-is:           HatStackText.hs
   hs-source-dirs:    tools
   other-modules:     HatStack, LowLevel, SExp, PrettyLibHighlight, HighlightStyle, Ident, SrcRef, CommonUI
-  build-depends:     base >=4.5, process ==1.1.*
+  build-depends:     base >=4.5, process >=1.1
   extensions:	     ForeignFunctionInterface
   includes:	     art.h
   include-dirs:	     include
@@ -119,7 +119,7 @@ executable hat-explore
   main-is:           HatExplore.hs
   hs-source-dirs:    tools
   other-modules:     Explore, CommonUI, HighlightStyle, LowLevel, Ident, SrcRef, SExp, Detect, NodeExp, Slice, ADT, Detect, PrettyLibHighlight
-  build-depends:     base >=4.5, process ==1.1.*
+  build-depends:     base >=4.5, process >=1.1
   extensions:	     ForeignFunctionInterface
   includes:	     art.h
   include-dirs:	     include
@@ -131,7 +131,7 @@ executable hat-detect
   main-is:	     HatDetect.hs
   hs-source-dirs:    tools
   other-modules:     LowLevel, SExp, TExp, HighlightStyle, CommonUI, SrcRef
-  build-depends:     base >=4.5, directory ==1.1.*, process ==1.1.*, haskeline >=0.6
+  build-depends:     base >=4.5, directory >=1.1, process >=1.1, haskeline >=0.6
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h
   include-dirs:	     include
@@ -141,7 +141,7 @@ executable hat-detect
 executable hat-check
   main-is:	     HatCheck.hs
   hs-source-dirs:    tools
-  build-depends:     base >=4.5, process ==1.1.*
+  build-depends:     base >=4.5, process >=1.1
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h
   include-dirs:	     include
@@ -152,7 +152,7 @@ executable hat-view
   main-is:	     SrcRefViewer.hs
   hs-source-dirs:    tools
   other-modules:     HighlightStyle, Run
-  build-depends:     base >=4.5, process ==1.1.*, directory ==1.1.*
+  build-depends:     base >=4.5, process >=1.1, directory >=1.1
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h
   include-dirs:	     include
@@ -162,7 +162,7 @@ executable hat-cover
   main-is:	     HatCoverText.hs
   hs-source-dirs:    tools
   other-modules:     HatCover, LowLevel, SrcRef, HighlightStyle
-  build-depends:     base >=4.5, process ==1.1.*
+  build-depends:     base >=4.5, process >=1.1
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h
   include-dirs:	     include
@@ -173,7 +173,7 @@ executable black-hat
   main-is:	     BlackHat.hs
   hs-source-dirs:    tools
   other-modules:     LowLevel, SExp, PrettyLibHighlight, HighlightStyle, Run, NonTermLib
-  build-depends:     base >=4.5, process ==1.1.*
+  build-depends:     base >=4.5, process >=1.1
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h
   include-dirs:	     include
@@ -184,7 +184,7 @@ executable hat-nonterm
   main-is:	     HatNonTerm.hs
   hs-source-dirs:    tools
   other-modules:     LowLevel, SExp, PrettyLibHighlight, HighlightStyle, Run, NonTermLib
-  build-depends:     base >=4.5, process ==1.1.*
+  build-depends:     base >=4.5, process >=1.1
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h
   include-dirs:	     include
@@ -195,7 +195,7 @@ executable hat-anim
   main-is:	     HatAnim.hs
   hs-source-dirs:    tools
   other-modules:     NodeExp, Pretty, CommonUI, LowLevel, HighlightStyle
-  build-depends:     base >=4.5, process ==1.1.*, containers ==0.4.*
+  build-depends:     base >=4.5, process >=1.1, containers >=0.4
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h
   include-dirs:	     include
@@ -206,7 +206,7 @@ executable pretty-hat
   main-is:	     PrettyHat.hs
   hs-source-dirs:    tools
   other-modules:     Pretty, NodeExp, EDT, HighlightStyle, Delta, Slice, ADT, Explore, SExp, CommonUI, SrcRef, Ident, LowLevel, PrettyLibHighlight
-  build-depends:     base >=4.5, process ==1.1.*, containers ==0.4.*
+  build-depends:     base >=4.5, process >=1.1, containers >=0.4
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h
   include-dirs:	     include
@@ -217,7 +217,7 @@ executable hat-delta
   main-is:	     HatDelta.hs
   hs-source-dirs:    tools
   other-modules:     Pretty, Slice, LowLevel, CommonUI, NodeExp, SExp, ADT, EDT, SrcRef, FDT, Delta, Explore, HighlightStyle, PrettyLibHighlight, Ident
-  build-depends:     base >=4.5, process ==1.1.*, containers ==0.4.*
+  build-depends:     base >=4.5, process >=1.1, containers >=0.4
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h
   include-dirs:	     include
@@ -227,4 +227,4 @@ executable hat-delta
 executable hat-make
   main-is:	     HatMake.hs
   hs-source-dirs:    tools
-  build-depends:     base >=4.5, process ==1.1.*, directory ==1.1.*
+  build-depends:     base >=4.5, process >=1.1, directory >=1.1
