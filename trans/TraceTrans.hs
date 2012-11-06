@@ -620,8 +620,43 @@ tPatBind env scope tracing l pat maybeType rhs maybeBinds =
   -- patId = case e' of 
   --           p' -> (t,y1,..,yn)
   --           _  -> fail noPos parent
-
-
+  (map (useDef tracing) patNames ++
+   map projDef patNames ++
+   [PatBind l (PVar l patName) Nothing (UnGuardedRhs l (
+     (Case l exp'
+       [Alt l pat'' (UnGuardedAlt l tuple) Nothing
+       ,Alt (PWildcard l) (UnGuardedAlt l (mkFailExp expParent)) Nothing])))
+     Nothing]
+  ,foldr addVar (emptyModuleConsts `withLocal` altConsts) patNames)
+  where
+  firstName = head (patNames)
+  patName = nameTraceShared l firstName
+  resultTraceName = nameTrace2 firstName
+  expTuple = Tuple l (map (Var l . UnQual l) (resultTraceName : patNames'))
+  patTuple = PTuple l (map (PVar l) (resultTraceName : patNames'))
+  patNames = map (\(PVar _ name) -> name) patVars
+  (patVars', Nothing) = tPats patVars
+  patVars = getPatVars pat
+  pat'' = case pat' of
+            PApp l r [v, _] ->
+              PApp l r [v, PVar l resultTraceName]
+  (Match _ _ [pat'] (UnGuardedRhs _ exp') maybeBinds', altConsts) =
+    tMatch env tracing False failContinuation 
+      (Match l firstName [pat] rhs maybeBinds)
+  
+-- Build the first set of definitions for pattern bindings.
+useDef :: Tracing -> Name SrcSpanInfo -> Decl SrcSpanInfo
+useDef tracing name =
+  FunBind l [Match l (nameTransLetVar name) [PVar l sr, patParent]
+               (UnGuardedRhs l (appN l
+                  [combConstUse l tracing 
+                  ,Var l (UnQual l sr)
+                  ,expParent
+                  ,Var l (UnQual l (nameShare name))]))
+               Nothing]
+  where
+  l = ann name
+  sr = nameSR name 
 
 
 
