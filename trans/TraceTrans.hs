@@ -51,10 +51,12 @@ traceTrans moduleFilename tracing env
     (map tModulePragma modulePragmas) 
     (tImpDecls tracing impDecls)
     (declsExported ++
+      [PatBind span patParent Nothing 
+        (UnGuardedRhs span (Var span (qNameMkRoot span))) Nothing] ++
       [defNameMod pos modId filename traced] ++ 
       map (defNameVar Global Local modTrace) mvars ++ 
       map (defNameVar Local Local modTrace) vars ++ 
-      (if traced then map (defNamePos modTrace) poss else []) 
+      (if traced then map (defNameSpan modTrace) poss else []) 
   where
   modId = maybe "Main" getModuleId maybeModuleHead
   declsExported = decls' ++ conNameDefs ++ glabalVarNameDefs ++
@@ -66,7 +68,7 @@ traceTrans moduleFilename tracing env
   modId' = nameTransModule modId
   modTrace = ExpVar pos (nameTraceInfoModule modId)
   (poss,tvars,vars,mvars,cons) = getModuleConsts consts
-  (decls',consts) = tDecls Global tracing (mkRoot span) decls
+  (decls',consts) = tDecls Global tracing decls
 traceTrans _ _ (XmlPage span _ _ _ _ _ _) = notSupported span "XmlPage"
 traceTrans _ _ (XmlHybrid span _ _ _ _ _ _ _ _) = notSupported span "XmlHybrid"
 
@@ -482,7 +484,7 @@ tDecl env Global tracing d@(DataDecl span dataOrNew maybeContext declHead
   ,foldr addConInfo (fieldSelectorConsts `merge` deriveConsts) qualConDecls)
   where
   (deriveDecls, deriveConsts) = 
-    tDecls env Global Trusted (mkRoot noSpan) (derive d)
+    tDecls env Global Trusted (derive d)
   instDecl = wrapValInstDecl env tracing maybeContext declHead qualConDecls
   (fieldSelectorDecls, fieldSelectorConsts) = mkFieldSelectors qualConDecls
 tDecl _ _ _ (GDataDecl l _ _ _ _ _ _) =
@@ -621,7 +623,7 @@ tPatBind env scope tracing l pat maybeType rhs maybeBinds =
   --           p' -> (t,y1,..,yn)
   --           _  -> fail noPos parent
   (map (useDef tracing) patNames ++
-   map projDef patNames ++
+   map (projDef patTuple (Var l (UnQual l resultTraceName))) patNames ++
    [PatBind l (PVar l patName) Nothing (UnGuardedRhs l (
      (Case l exp'
        [Alt l pat'' (UnGuardedAlt l tuple) Nothing
@@ -636,6 +638,7 @@ tPatBind env scope tracing l pat maybeType rhs maybeBinds =
   patTuple = PTuple l (map (PVar l) (resultTraceName : patNames'))
   patNames = map (\(PVar _ name) -> name) patVars
   (patVars', Nothing) = tPats patVars
+  -- Nothing means that we do not supported numeric patterns (k and n+k)
   patVars = getPatVars pat
   pat'' = case pat' of
             PApp l r [v, _] ->
@@ -658,7 +661,55 @@ useDef tracing name =
   l = ann name
   sr = nameSR name 
 
+-- Caf for one variable in a pattern binding
+projDef :: Scope -> Tracing -> Pat SrcSpanInfo -> Exp SrcSpanInfo -> 
+           Name SrcSpanInfo -> Decl SrcSpanInfo
+projDef scope tracing patTuple expVarResultTrace name =
+  PatBind l (PVar l (nameShare name)) Nothing 
+    (UnGuardedRhs l (appN l 
+      [combConstDef l tracing
+      ,expParent
+      ,Var l (nameTraceInfoVar l scope name)
+      ,Lambda l (PWildcard l)
+         Case l (Var l patName)
+           [Alt l patTuple (UnGuardedAlt l 
+             (if isLocal scope && tracing == Trusted
+                then varLambdaName
+                else appN l
+                       [Var l qNameProjection
+                       ,mkSRExp l tracing
+                       ,Var l resultTraceName
+                       ,varLambdaName]))
+             Nothing]]
+    Nothing
+  where
+  l = ann name
+  varLambdaName = Var l (UnQual l (nameTransLambdaVar name))
 
+-- Extract all variables from a pattern, left-to-right
+getPatVars :: Pat l -> [Pat l]
+getPatVars p@(PVar _ _) = [p]
+getPatVars (PLit _ _) = []
+getPatVars (PNeg _ p) = getPatVars p
+getPatVars (PNPlusK l _ _) = notSupported l "n+k pattern in pattern binding"
+getPatVars (PInfixApp _ pl _ pr) = getPatVars pl ++ getPatVars pr
+getPatVars (PApp _ _ ps) = concatMap getPatVars ps
+getPatVars (PTuple _ ps) = concatMap getPatVars ps
+getPatVars (PList _ ps) = concatMap getPatVars ps
+getPatVars (PParen _ p) = getPatVars p
+getPatVars (PRec _ _ patFields) = concatMap getPatFieldVars patFields
+  where
+  getPatFieldVars :: PatField l -> [Pat l]
+  getPatFieldVars (PFieldPat _ _ p) = getPatVars p
+  getPatFieldVars (PFieldPun _ _) = []
+  getPatFieldVars (PFieldWildcard _) = []
+getPatVars (PAsPat _ p) = getPatVars p
+getPatVars (PWildCard _) = []
+getPatVars (PIrrPat _ p) = getPatVars p
+getPatVars (PatTypeSig _ p _) = getPatVars p
+getPatVars (PViewPat _ _ p) = getPatVars p
+getPatVars (PBangPat _ p) = getPatVars p
+getPatVars p = notSupported (ann p) "in pattern binding"
 
 
 -- Process function binding:
@@ -908,7 +959,7 @@ tForeignImp l foreignName name ty =
           ,PatBind l (PVar l shareName) Nothing        
             (UnGuardedRhs l (appN l 
               [combConstDef l False
-              ,mkRoot l
+              ,expParent
               ,Var l (nameTraceInfoVar l Global name) 
               ,Lambda l [patParent]
                  (appN l
@@ -1116,10 +1167,8 @@ mapDeclHead f (DHParen l declHead) = DHParen l (mapDeclHead f declHead)
 -- Process data type declarations:
 
 addConInfo :: QualConDecl SrcSpanInfo -> ModuleConsts -> ModuleConsts
-addConInfo (QualConDecl _ Nothing Nothing condecl) =
+addConInfo (QualConDecl _ _ _ condecl) =
   addConDeclModuleConsts condecl
-addConInfo (QualConDecl l _ _ _) = 
-  notSupported l "existential quantification with data constructor"
 
 addConDeclModuleConsts :: ConDecl SrcSpanInfo -> ModuleConsts -> ModuleConsts
 addConDeclModuleConsts (ConDecl l name bangtypes) =
@@ -1128,6 +1177,128 @@ addConDeclModuleConsts (InfixConDecl l btL name btR) =
   addCon name []
 addConDeclModuleConsts (RecDecl l name fieldDecls) =
   addCon name (concatMap (\(FieldDecl _ names _) -> names) fieldDecls)
+
+tQualConDecl :: QualConDecl SrcSpanInfo -> QualConDecl SrcSpanInfo
+tQualConDecl (QualConDecl l maybeTyVarBinds maybeContext condecl) =
+  QualConDecl l (fmap (map tTyVarBind) maybeTyVarBinds)
+    (fmap tContext maybeContext) (tConDecl condecl)
+
+tConDecl :: ConDecl SrcSpanInfo -> ConDecl SrcSpanInfo
+tConDecl (ConDecl l name bangTys) = 
+  ConDecl l (nameTransCon name) (map tBangType bangTys)
+tConDecl (InfixConDecl l btL name btR) =
+  InfixConDecl l (tBangType btL) (nameTransCon name) (tBangType btR)
+tConDecl (RecDecl l name fieldDecls) =
+  RecDecl l (nameTransCon name) (map fieldDecl fieldDecls)
+
+tFieldDecl :: FieldDecl SrcSpanInfo -> FieldDecl SrcSpanInfo
+tFieldDecl (FieldDecl l fieldNames bangTy) =
+  FieldDecl l (map nameTransField fieldNames) (tBangType bangTy)
+
+tBangType :: BangType SrcSpanInfo -> BangType SrcSpanInfo
+tBangType (BangedTy l ty) = BangedTy l (wrapType (tType ty))
+tBangType (UnBangedTy l ty) = UnBangedTy l (wrapType (tType ty))
+tBangType (UnpackedTy l ty) = UnpackedTy l (wrapType (tType ty))
+
+
+
+
+-- Build field selectors:
+
+mkFieldSelectors :: [QualConDecl SrcSpanInfo] -> 
+                    ([Decl SrcSpanInfo], ModuleConsts)
+mkFieldSelectors qualConDecls =
+  foldr combine ([], emptyModuleConsts) . map mkFieldSelector . nubBy eqName . 
+    concatMap getFieldNamesFromQualConDecl $ qualConDecls
+  where
+  combine :: ([Decl SrcSpanInfo], ModuleConsts) -> 
+             ([Decl SrcSpanInfo], ModuleConsts) -> 
+             ([Decl SrcSpanInfo], ModuleConsts)
+  combine (decls1, modConsts1) (decls2, modConsts2) = 
+    (decls1++decls2, modConsts1 `merge` modConsts2)
+
+-- construct the traced version of a field selector, using the 
+-- normal field selector, i.e. from zname :: T -> R Int construct
+-- gname :: SR -> Trace -> R (Fun T Int)
+-- gname sr p = fun1 "name" hname sr p
+-- hname :: Trace -> R T -> R Int
+-- hname p (R v _) = projection mkNoSrcPos p (zname v)
+mkFieldSelector :: Name SrcSpanInfo -> ([Decl SrcSpanInfo], ModuleConsts)
+mkFieldSelector fieldName =
+  ([FunBind l [Match l (nameTransLetVar fieldName) 
+                [PVar l (nameSR fieldName), patParent]
+                (UnGuardedRhs l (appN l
+                   [combFun l False 1
+                   ,Var l (UnQual l (nameTraceInfoVar l Global fieldName))
+                   ,Var l (UnQual l (nameSR fieldName))
+                   ,expParent
+                   ,Var l (UnQual l wrappedName)]))
+                Nothing]
+   ,FunBind l [Match l wrappedName
+                [wrapPat (PVar l varName) (PWildcard l), patParent]
+                (UnGuardedRhs l (appN l
+                   [Var l qNameProjection
+                   ,mkSRExp l False
+                   ,expParent
+                   ,App l (Var l (UnQual l (nameTransField fieldName))) 
+                      (Var l (UnQual l varName))]))
+                Nothing]]
+  ,addVar fieldName emptyModuleConsts)
+  where
+  l = ann fieldName
+  wrappedName = nameWorker fieldName
+  varName:_ = nameArgs fieldName
+
+-- Build the instance of class WrapVal for type with given data constructors.
+-- This instance is needed for constructing and updating with labelled fields.
+wrapValInstDecl :: Environment -> Tracing ->
+                   Maybe (Context SrcSpanInfo) -> 
+                   DeclHead SrcSpanInfo ->
+                   [QualConDecl SrcSpanInfo] -> 
+                   Decl SrcSpanInfo
+wrapValInstDecl env tracing maybeContext declHead qualConDecls =
+  InstDecl l maybeContext 
+    (IHead l (qNameWrapValClass l) [dataDeclHeadToTy declHead])
+    (Just [InsDecl l (FunBind l (map wrapValMatch conDecls))])
+  where
+  l = ann declHead
+  conDecls = map (\(QualConDecl _ _ _ conDecl) -> conDecl) qualConDecls
+  
+dataDeclHeadToType :: DeclHead l -> Type l
+dataDeclHeadToType (DHead l name tyVarBinds) =
+  tyAppN (TyCon l (UnQual l name) : map tyVarBindToType tyVarBinds)
+
+
+tyVarBindToType :: TyVarBind l -> Type l
+tyVarBindToType (KindedVar l name kind) = 
+  TyParen l (TyKind l (TyVar l name) kind)
+tyVarBindToType (UnkindedVar l name) = TyVar l name
+
+wrapValMatch :: ConDecl SrcSpanInfo :: Match SrcSpanInfo
+wrapValMatch conDecl =
+  Match l (nameWrapValFun l) 
+    [PVar l (nameSR (nameWrapValFun l))
+    ,PAsPat l varName patConsApp
+    ,patParent]
+    (UnGuardedRhs (wrapExp l var consAppTrace))
+    Nothing
+  where
+  l = ann constr
+  consAppTrace =
+    if numOfArgs == 0
+      then appN l (Var l qNameMkExpValueUse : expParent :
+                   map (Var l . UnQual l) [srName, funAtom])
+      else appN l (Var l (qNameMkExpValueApp numOfArgs) : expParent :
+                   map (Var l . UnQual l) (srName : funAtom : traces))
+  funAtom = nameTraceInfoCon consName
+  patConsApp =
+    PApp l consName (map (wrapPat l (PWildcard l) . PVar l) traces)
+  consName = getConstructorFromConDecl conDecl
+  traces = take numOfArgs (nameArgs (nameWrapValFun l)) :: Name SrcSpanInfo
+  numOfArgs = getArityFromConDecl conDecl
+  varName = nameTrace2 (nameWrapValFun l)
+  
+  
 
 -- ----------------------------------------------------------------------------
 -- Abstract continuation for guards
@@ -1231,10 +1402,9 @@ wrapType ty = TyApp l (TyCon l (qNameR l)) ty
   where
   l = ann ty
 
--- function type constructor
-infixr 6 `typeFun`
-typeFun :: Type l -> Type l -> Type l
-typeFun ty1 ty2 = TyFun (ann ty1) ty1 ty2
+-- Class contexts remain unchanged
+tContext :: Context SrcSpanInfo -> Context SrcSpanInfo
+tContext cx = cx
 
 
 -- ----------------------------------------------------------------------------
@@ -1550,6 +1720,21 @@ qNameMkAtomLambda l = qNameShortIdent l "mkLambda"
 qNameMkAtomDoLambda :: l -> QName l
 qNameMkAtomDoLambda l = qNameShortIdent l "mkDoLambda"
 
+-- tokens for expression combinators
+
+qNameAp :: l -> Arity -> QName l
+qNameAp l a = qNameShortIdent l ("ap" ++ show a)
+qNameUAp :: l -> Arity -> QName l
+qNameUAp l a = qNameShortIdent l ("uap" ++ show a)
+
+
+
+qNameWrapValClass :: l -> Name l
+qNameWrapValClass l = qNameShortIdent l "WrapVal"
+
+nameWrapValFun :: l -> Name l
+nameWrapValFun l = Ident l "wrapVal"
+
 
 -- function for pattern-match failure error message
 qNameFatal :: l -> QName l
@@ -1661,6 +1846,46 @@ changeInfixMatch m@(Match _ _ _ _ _) = m
 changeInfixMatch (InfixMatch l p n pats rhs maybeBinds) = 
   Match l n (p:pats) rhs maybeBinds
 
+-- General working on AST:
+
+-- function type constructor
+infixr 6 `typeFun`
+typeFun :: Type l -> Type l -> Type l
+typeFun ty1 ty2 = TyFun (ann ty1) ty1 ty2
+
+-- Compare two names ignoring location
+eqName :: Name l -> Name l -> Bool
+eqName (Ident _ n1) (Ident _ n2) = n1==n2
+eqName (Symbol _ n1) (Symbol _ n2) = n1==n2
+eqName _ _ = False 
+
+getFieldNamesFromQualConDecl :: QualConDecl l -> [Name l]
+getFieldNamesFromQualConDecl (QualConDecl _ _ _ conDecl) =
+  getFieldNamesFromConDecl conDecl
+
+getFieldNamesFromConDecl :: ConDecl l -> [Name l]
+getFieldNamesFromConDecl (ConDecl _ _ _) = []
+getFieldNamesFromConDecl (InfixConDecl _ _ _ _) = []
+getFieldNamesFromConDecl (RecDecl _ _ fieldDecls) = 
+  map getFieldNamesFromFieldDecl fieldDecls
+
+getFieldNameFromFieldDecl :: FieldDecl l -> [Name l]
+getFieldNameFromFieldDecl (FieldDecl _ names _) = names
+
+getConstructorFromConDecl :: ConDecl l -> Name l
+getConstructorFromConDecl (ConDecl _ c _) = c
+getConstructorFromConDecl (InfixConDecl _ _ c _) = c
+getConstructorFromConDecl (RecDecl _ c _) = c
+
+getArityFromConDecl :: ConDecl l -> Int
+getArityFromConDecl (ConDecl _ _ bTys) = length bTys
+getArityFromConDecl (InfixConDecl _ _ _ _) = 2
+getArityFromConDecl (RecDecl _ c fieldDecls) = 
+  sum (map getArityFromFieldDecl fieldDecls)
+
+getArityFromFieldDecl :: FieldDecl l -> Int
+getArityFromFieldDecl (FieldDecl _ names _) = length names
+
 -- bogus span, does not appear in the source
 noSpan :: SrcSpanInfo
 noSpan = noInfoSpan (SrcSpan "" 0 0 0 0)
@@ -1673,6 +1898,7 @@ isMain = (== "Main")
 
 -- This test is an unsafe hack.
 -- Even with qualification "Prelude" this may be a different "True"
+-- There is no origin-tracking
 isTrue :: QName l -> Bool
 isTrue (Qual _ (ModuleName _ "Prelude") (Identifier "True")) = True
 isTrue (UnQual _ (Identifier "True")) = True
