@@ -724,12 +724,11 @@ tFunBind :: Environment -> Scope -> Tracing -> SrcSpanInfo ->
 tFunBind env scope tracing l matches =
   (FunBind l [Match l (nameTransLetVar orgName) 
                [PVar l sr, patParent]
-               (UnGuardedRhs l (appN l
-                 [combFun l traced funArity
-                 ,Var l (nameTraceInfoVar l scope orgName)
-                 ,Var l (UnQual sr), expParent
-                 ,Var l wrappedId']))
-               Nothing] 
+               (UnGuardedRhs l 
+                 (mkExpFun tracing (Var l (UnQual sr)) 
+                   (Var l (nameTraceInfoVar l scope orgName)) 
+                   (Var l wrappedId') funArity))
+               Nothing]
   :if isLocal scope 
      then (PatBind l (PVar l (nameTraceInfoVar l Global orgName)) Nothing 
             (UnGuardedRhs l (Var l (nameTraceInfoVar l Local orgName))) 
@@ -972,12 +971,10 @@ tForeignImp l foreignName name ty =
          ,addVar l name emptyModuleConsts)
     else ([TypeSig l letVarName] (tFunType ty)
           ,FunBind l [Match l letVarName [PVar l sr, patParent]
-            (UnGuardedRhs l (appN l 
-              [combFun l False arity
-              ,Var l (nameTraceInfoVar l Global name)
-              ,Var l (UnQual l sr)
-              ,expParent
-              ,Var l (UnQual l workerName)]))
+            (UnGuardedRhs l 
+              (mkExpFun Trusted (Var l (UnQual l sr))
+                (Var l (nameTraceInfoVar l Global name))
+                (Var l (UnQual l workerName)) arity))
             Nothing]
           ,FunBind l [Match l workerName (map (PVar l) (args++[hidden]))
             (UnGuardedRhs l (appN l
@@ -1231,18 +1228,16 @@ mkFieldSelector :: Name SrcSpanInfo -> ([Decl SrcSpanInfo], ModuleConsts)
 mkFieldSelector fieldName =
   ([FunBind l [Match l (nameTransLetVar fieldName) 
                 [PVar l (nameSR fieldName), patParent]
-                (UnGuardedRhs l (appN l
-                   [combFun l False 1
-                   ,Var l (UnQual l (nameTraceInfoVar l Global fieldName))
-                   ,Var l (UnQual l (nameSR fieldName))
-                   ,expParent
-                   ,Var l (UnQual l wrappedName)]))
+                (UnGuardedRhs l 
+                   (mkExpFun Trusted (Var l (UnQual l (nameSR fieldName)))
+                     (Var l (UnQual l (nameTraceInfoVar l Global fieldName)))
+                     (Var l (UnQual l wrappedName)) 1)
                 Nothing]
    ,FunBind l [Match l wrappedName
                 [wrapPat (PVar l varName) (PWildcard l), patParent]
                 (UnGuardedRhs l (appN l
                    [Var l qNameProjection
-                   ,mkSRExp l False
+                   ,mkExpSR l False
                    ,expParent
                    ,App l (Var l (UnQual l (nameTransField fieldName))) 
                       (Var l (UnQual l varName))]))
@@ -1347,6 +1342,74 @@ tExpA env tracing cr (Con l qName) ls es =
   tConApp env tracing qName ls es
 tExpA env tracing cr (Lit l literal) [] [] =  -- no arguments possible
   (tLiteral env tracing literal, ann literal `addSpan` emptyModuleConsts)
+tExpA env tracing cr (InfixApp l e1 qop e2) ls es =
+  tExpA env tracing cr (App l (App (ann e1 <++> ann qop) f e1) e2) ls es
+  where
+  f = case qop of
+        VarOp l qName -> Var l qName
+        ConOp l qName -> Con l qName
+tExpA env tracing cr (NegApp l e) ls es =
+  tExpA env tracing cr (App l (Var l (qNamePreludeSymbol "-" l)) e) ls es
+tExpA env tracing cr (Lambda l pats exp) ls es =
+  tExpF tracing ls es
+    (mkExpFun tracing sr expMkAtomLambda fun funArity
+    ,l `addSpan` bodyConsts)
+  where
+  fun = if neverFailingPats pats
+          then Lambda l (pats' ++ [patParent]) body'
+          else Lambda l (map (PVar l) nameVars ++ [patParent])
+                 (Case l (mkExpTuple (map (Var l . UnQual l) nameVars))
+                    [Alt l (mkPatTuple pats') (UnGuardedAlt l body') Nothing
+                    ,Alt l (PWildcard l) (UnGuardedAlt l expFail) Nothing]
+                 )
+  (Match _ _ pats' (UnGuardedRhs _ body') _, bodyConsts) =
+    tMatch tracing True failContinuation 
+      (Match l undefined (UnGuardedRhs l body) Nothing)
+  nameVars = take funArity (namesFromSpan l)
+  funArity = length pats
+tExpA env tracing cr (Let l binds body) ls es =
+  tExpF tracing ls es
+    (Let l binds' exp', bindsConsts `withLocal` bodyConsts)
+  where
+  (binds', bindsConsts) = tBinds env tracing binds
+  (body', bodyConsts) = tExp env tracing cr body
+tExpA env Traced cr (If l cond e1 e2) ls es =
+  tExpF tracing ls es
+    (mkExpIf l Tracing cond' 
+       (Lambda l [patParent] e1') (Lambda l [patParent] e2')
+    ,l `addSpan` condConsts `merge` e1Consts `merge` e2Consts)
+  where
+  (cond', condConsts) = tExp env Tracing False cond
+  (e1', e1Consts) = tExp env Tracing True e1
+  (e2', e2Consts) = tExp env Tracing True e2
+tExpA env Trusted cr (If l cond e1 e2) ls es =
+  tExpF tracing ls es
+    (mkExpIf l Trusted cond' e1' e2'
+    ,condConsts `merge` e1Consts `merge` e2Consts)
+  where
+  (cond', condConsts) = tExp env Trusted False cond
+  (e1', e1Consts) = tExp env Trusted True e1
+  (e2', e2Consts) = tExp env Trusted True e2
+tExpA env tracing cr (Case l exp alts) ls es =
+  -- translate case into if:
+  -- case exp of
+       pat1 -> exp1
+       pat2 -> exp2
+       ...
+  -- ==>
+     (let f pat1 = exp1; f pat2 = exp2;... in f) exp
+  -- but not fully, as we don't want to trace function f and the application
+  tExpF tracing ls es
+    (mkExpCase l tracing 
+       (Let l (BDecls l (Fun l matches' : decls))
+          (Var l (UnQual funName))) exp'
+    ,l `addSpan` expConsts `merge` funConsts)
+  where
+  (funName : argName : funsNames) = namesFromSpan l
+  (exp', expConsts) = tExp env tracing False exp
+  (matches', decls', funConsts) =
+    tMatches env tracing l funsNames [ExpVar l (UnQual l argName)] 
+      funName 1 True (map alt2Match alts)
 
 -- At end of transforming expressions possibly add deferred applications.
 -- Lists are ordered from innermost to outermost.
@@ -1405,15 +1468,36 @@ tLiteral env tracing lit@(Frac l rational _) =
           ,appN [expConRational
                 ,mkExpConInteger sr litNum
                 ,mkExpConInteger sr litDenom] 
-          ,appN [Var noSpan qNameMkAtomRational, sr, expParent, Lit noSpan lit]
+          ,appN [expMkAtomRational, sr, expParent, Lit noSpan lit]
     ]]
   where
   sr = mkExpSR l tracing
   Lit _ litNum = litInt noSpan (numerator rational)
   Lit _ litDenom = litInt noSpan (denominator rational)
+tLiteral env tracing lit = 
+  notSupported (ann lit) "unboxed literal"
 
 
+-- return False if matching the pattern may fail
+-- otherwise try to return True
+-- (safe approximation)
+neverFailingPat :: Pat l -> Bool
+neverFailingPat (PVar _ _) = True
+neverFailingPat (PNeg _ p) = neverFailingPat p
+neverFailingPat (PTuple _ ps) = all neverFailingPat p
+neverFailingPat (PParen _ p) = neverFailingPat p
+neverFailingPat (PAsPat _ _ p) = neverFailingPat p
+neverFailingPat (PWildcard _) = True
+neverFailingPat (PIrrPat _ _) = True
+neverFailingPat (PatTypeSig _ p _) = neverFailingPat p
+neverFailingPat (PBangPat _ p) = neverFailingPat p
+neverFailingPat _ = False
 
+tBinds :: Environment -> Tracing -> Binds SrcSpanInfo ->
+          (Binds SrcSpanInfo, ModuleDecls)
+tBinds env tracing (BDecls l decls) = tDecls env Local tracing decls
+tBinds env tracing (IPBinds l _) =
+  notSupported l "binding group for implicit parameters"
 
 -- ----------------------------------------------------------------------------
 -- Abstract continuation for guards
@@ -1863,6 +1947,36 @@ mkExpConInteger :: Exp SrcSpanInfo ->
 mkExpConInteger sr lit =
   appN [expConInteger, sr, expParent, Lit noSpan lit]
 
+mkExpFun :: Tracing -> Exp SrcSpanInfo -> Exp SrcSpanInfo -> Exp SrcSpanInfo ->
+            Arity
+            Exp SrcSpanInfo
+mkExpFun tracing sr funName fun a =
+  appN [Var noSpan ((if tracing then qNameFun else qNameUFun) noSpan a)
+       ,funName
+       ,sr
+       ,expParent
+       ,fun]
+
+mkExpIf :: SrcSpanInfo -> Tracing -> 
+           Exp SrcSpanInfo -> Exp SrcSpanInfo -> Exp SrcSpanInfo -> 
+           Exp SrcSpanInfo
+mkExpIf l tracing cond e1 e2 =
+  appN [Var noSpan ((if isTraced tracing then qNameIf else qNameUIf) noSpan)
+       ,mkExpSR l Tracing
+       ,expParent
+       ,cond
+       ,e1
+       ,e2]
+
+mkExpCase :: SrcSpanInfo -> Tracing -> Exp SrcSpanInfo -> Exp SrcSpanInfo ->
+             Exp SrcSpanInfo
+mkExpCase l tracing caseFun arg =
+  appN [Var noSpan ((if isTraced tracing then qNameCase else qNameUCase) noSpan)
+       ,mkExpSR l tracing
+       ,expParent
+       ,caseFun
+       ,arg]
+
 expShortIdent :: String -> Exp SrcSpanInfo
 expShortIdent ident = Var noSpan (qNameShortIdent ident)
 
@@ -1917,6 +2031,8 @@ qNameMkExpValueUse = qNameShortIdent "mkValueUse"
 
 qNameMkAtomRational :: l -> QName l
 qNameMkAtomRationl = qNameShortIdent "mkAtomRational"
+expMkAtomRational :: Exp SrcSpanInfo
+expMkAtomRational = Var noSpan (qNameMkAtomRational noSpan)
 
 qNameMkAtomLambda :: l -> QName l
 qNameMkAtomLambda = qNameShortIdent "mkLambda"
@@ -2014,6 +2130,19 @@ qNameUWrapForward = qNameShortIdent "uwrapForward"
 
 -- names from the Prelude:
 
+expUndefined :: Exp SrcSpanInfo
+expUndefined = Var noSpan (qNameHatPreludeIdent "gundefined" noSpan)
+
+-- for integer literals
+expFromInteger :: Exp SrcSpanInfo
+expFromInteger = Var noSpan (qNameHatPreludeIdent "gfromInteger" noSpan)
+
+-- for rational literals:
+expConRational :: Exp SrcSpanInfo
+expConRational = Var noSpan (qNameHatPreludeSymbol ":%" noSpan)
+
+expFromRational :: Exp SrcSpanInfo
+expFromRational = Var noSpan (qNameHatPreludeIdent "gfromRational" noSpan)
 
 -- function for pattern-match failure error message
 qNameFatal :: l -> QName l
@@ -2026,8 +2155,23 @@ qNamePreludeTrue = qNamePreludeIdent "True"
 qNamePreludeFalse :: l -> QName l
 qNamePreludeFalse = qNamePreludeIdent "False"
 
+-- Building name qualifiers
+
+qNameHatPreludeIdent :: String -> l -> QName l
+qNameHatPreludeIdent ident l = 
+  Qual l (ModuleName l "Hat.Prelude") (Ident l ident)
+
+qNameHatPreludeSymbol :: String -> l -> QName l
+qNameHatPreludeSymbol ident l = 
+  Qual l (ModuleName l "Hat.Prelude") (Symbol l ident)
+
 qNamePreludeIdent :: String -> l -> QName l
-qNamePreludeIdent ident l = Qual l (ModuleName l "Prelude") (Ident l ident)
+qNamePreludeIdent ident l = 
+  Qual l (ModuleName l "Prelude") (Ident l ident)
+
+qNamePreludeSymbol :: String -> l -> QName l
+qNamePreludeSymbol ident l = 
+  Qual l (ModuleName l "Prelude") (Symbol l ident)
 
 qNameHatIdent :: String -> l -> QName l
 qNameHatIdent ident l = Qual l (ModuleName l "Hat") (Ident l ident)
@@ -2088,10 +2232,19 @@ isFunTyCon _ = False
 
 -- Frequently used in transformed code:
 
+mkExpTuple :: [Exp SrcSpanInfo] -> Exp SrcSpanInfo
+mkExpTuple es = Tuple noSpan es
+
+mkPatTuple :: [Pat SrcSpanInfo] -> Pat SrcSpanInfo
+mkPatTuple ps = PTuple noSpan ps 
+
 mkFailExp :: Exp l -> Exp l
-mkFailExp parent = App l [Var l (qNameFatal l), parent]
+mkFailExp parent = App l (Var l (qNameFatal l)) parent
   where
   l = ann parent
+
+expFail :: Exp SrcSpanInfo
+expFail = mkFailExp expParent
 
 patParent :: Pat SrcSpanInfo
 patParent = PVar noSpan nameParent
@@ -2167,6 +2320,18 @@ getArityFromConDecl (RecDecl _ c fieldDecls) =
 
 getArityFromFieldDecl :: FieldDecl l -> Int
 getArityFromFieldDecl (FieldDecl _ names _) = length names
+
+alt2Match :: Alt l -> Match l
+alt2Match (Alt l pat guardedAlts maybeBinds) = 
+  Match l undefined [pat] (guardedAlts2Rhs guardedAlts) maybeBinds
+
+guardedAlts2Rhs :: GuardedAlts l -> Rhs l
+guardedAlts2Rhs (UnGuardedAlt l exp) = UnGuardedRhs l exp
+guardedAlts2Rhs (GuardedAlts l gdAlts) = 
+  GuardedRhs l (map guardedAlt2GuardedRhs gdAlts)
+
+guardedAlt2GuardedRhs :: GuardedAlt l -> GuardedRhs l
+guardedAlt2 (GuardedAlt l stmts exp) = GuardedRhs l stmts exp
 
 -- bogus span, does not appear in the source
 noSpan :: SrcSpanInfo
