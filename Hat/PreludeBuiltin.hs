@@ -1256,7 +1256,7 @@ gcatch pcatch p = T.ufun2 acatch pcatch p hcatch
 
 hcatch z1catch z2catch kcatch =
   (T.fromIO T.fromId) kcatch
-    (System.IO.Error.catch ((T.toIO T.toId) kcatch z1catch)
+    (System.IO.Error.catchIOError ((T.toIO T.toId) kcatch z1catch)
       ((toFun fromIOError (T.toIO T.toId)) kcatch z2catch))
 
 gputChar :: T.RefSrcPos -> T.RefExp -> T.R (T.Fun Char (IO T.Tuple0))
