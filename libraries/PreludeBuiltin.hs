@@ -337,7 +337,7 @@ foreign import haskell "Prelude.ioError"
 foreign import haskell "Prelude.userError"
   userError ::  String -> IOError
 
-foreign import haskell "System.IO.Error.catch"
+foreign import haskell "System.IO.Error.catchIOError"
   catch ::  IO a -> (IOError -> IO a) -> IO a 
 
 -- foreign import haskell "Prelude.putChar"
