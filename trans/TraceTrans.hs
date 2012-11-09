@@ -1410,6 +1410,17 @@ tExpA env tracing cr (Case l exp alts) ls es =
   (matches', decls', funConsts) =
     tMatches env tracing l funsNames [ExpVar l (UnQual l argName)] 
       funName 1 True (map alt2Match alts)
+tExpA env tracing cr (Do l stmts) ls es =
+  tExpF tracing ls es (tExpA env tracing cr (removeDo stmts))
+tExpA env tracing cr (MDo l _) ls es =
+  notSupported l "mdo-expression"
+tExpA env tracing cr (Tuple l exps) [] [] =
+  tConApp env tracing (Special l (TupleCon l True arity)) 
+    (replicate arity l) exps
+tExpA env tracing cr (TupleSection l maybeExps) ls es =
+  -- desugar tuple section into lambda
+  tExpA env tracing cr 
+    
 
 -- At end of transforming expressions possibly add deferred applications.
 -- Lists are ordered from innermost to outermost.
@@ -1498,6 +1509,32 @@ tBinds :: Environment -> Tracing -> Binds SrcSpanInfo ->
 tBinds env tracing (BDecls l decls) = tDecls env Local tracing decls
 tBinds env tracing (IPBinds l _) =
   notSupported l "binding group for implicit parameters"
+
+-- Desugar do-statements
+removeDo :: Tracing -> [Stmt l] -> Exp l
+removeDo [Qualifier l exp] =  -- last stmt in do-expression
+  exp
+removeDo (Qualifier l exp : stmts) =
+  appN [Var l (qNamePreludeGtGt l), e, removeDo stmts]
+removeDo (LetStmt l binds : stmts) =
+  Let l binds (removeDo stmts)
+removeDo (Generator l pat e : stmts) =
+  appN [Var l (qNamePreludeGtGtEq l)
+       ,e
+       ,SCCPragma l "" $  -- hack to inform this really from a do-stmt
+        if neverFailingPat pat
+          then Lambda l [pat] (removeDo stmts)
+          else Lambda l [PVar l newName]
+                 (Case l (Var l (UnQual l newName))
+                   [Alt l pat (UnGuardedAlt l (removeDo stmts)) Nothing
+                   ,Alt l (PWildcard l)
+                     (UnGuardedAlt l 
+                       (App l (Var l (qNamePreludeFail l)) 
+                              (Lit l (String l msg msg))))
+                     Nothing])]
+  where
+  newName : _ = namesFromSpan l
+  msg = "pattern-match failure in do-expression"
 
 -- ----------------------------------------------------------------------------
 -- Abstract continuation for guards
@@ -2154,6 +2191,17 @@ qNamePreludeTrue = qNamePreludeIdent "True"
 
 qNamePreludeFalse :: l -> QName l
 qNamePreludeFalse = qNamePreludeIdent "False"
+
+-- Names from original (NotHat) prelude:
+
+qNamePreludeGtGt :: l -> QName l
+qNamePreludeGtGt = qNamePreludeSymbol ">>"
+
+qNamePreludeGtGtEq :: l -> QName l
+qNamePreludeGtGtEq = qNamePreludeSymbol ">>="
+
+qNamePreludeFail :: l -> QName l
+qNamePreludeFail = qNamePreludeIdent "fail"
 
 -- Building name qualifiers
 
