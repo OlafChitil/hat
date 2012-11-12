@@ -1,6 +1,6 @@
 
 name:                hat
-version:             2.7.0.10
+version:             2.7.0.11
 synopsis:            The Haskell tracer, generating and viewing Haskell execution traces
 description:
   hat-trans transforms Module.hs into Hat/Module.hs such that when the program is
@@ -75,7 +75,7 @@ library
 executable hat-trans
   main-is:           HatTrans.hs
   hs-source-dirs:    trans, compiler98
-  other-modules:     TraceDerive, AuxLabelAST, AuxFixity, AuxFile, AuxTypes, TraceId, Flags, PrettyTraceId, HatTrans, Wrapper, AssocTree, Error, Extra, HbcOnly, Id, IdKind, Info, IntState, Lex, LexLow, LexPre, LexStr, Lexical, MergeSort, MkSyntax, NT, Nice, OsOnly, Parse, Parse2, ParseCore, ParseLex, ParseLib, PrettyLib, PrettySyntax, Reduce, Syntax, SyntaxPos, SyntaxUtil, SysDeps, TokenId, Tree234, Unlit, Paths_hat
+  other-modules:     TraceTrans, TraceDerive, AuxLabelAST, AuxFixity, AuxFile, AuxTypes, TraceId, Flags, PrettyTraceId, HatTrans, Wrapper, AssocTree, Error, Extra, HbcOnly, Id, IdKind, Info, IntState, Lex, LexLow, LexPre, LexStr, Lexical, MergeSort, MkSyntax, NT, Nice, OsOnly, Parse, Parse2, ParseCore, ParseLex, ParseLib, PrettyLib, PrettySyntax, Reduce, Syntax, SyntaxPos, SyntaxUtil, SysDeps, TokenId, Tree234, Unlit, Paths_hat
   build-depends:     base >=4.5, bytestring >=0.9, directory >=1.1
   includes:	     hat-c.h, art.h, ntohl.h
   include-dirs:	     include, Hat
