@@ -10,8 +10,7 @@ module Hat.Directory
     ,asetCurrentDirectory,hsetCurrentDirectory,gdoesFileExist,adoesFileExist
     ,hdoesFileExist,gdoesDirectoryExist,adoesDirectoryExist,hdoesDirectoryExist
     ,ggetPermissions,agetPermissions,hgetPermissions,gsetPermissions
-    ,asetPermissions,hsetPermissions,ggetModificationTime,agetModificationTime
-    ,hgetModificationTime) where
+    ,asetPermissions,hsetPermissions) where
 
 import qualified Hat.PreludeBasic 
 import qualified Prelude 
@@ -19,7 +18,6 @@ import Hat.Hack
 import qualified Hat.Hat as T 
 import Hat.Hat  (WrapVal(wrapVal))
 import Hat.Prelude 
-import Hat.Time  (ClockTime())
 import Hat.PreludeBuiltinTypes 
 import Hat.DirectoryBuiltinTypes 
 import Hat.DirectoryBuiltin 
@@ -32,7 +30,7 @@ instance Eq (Permissions)
   (!==) (%==) p = T.uconstUse (%==) p (|==)
   
   (|==) =
-    T.uconstDef T.mkRoot (+#@=&=#@=$+==)
+    T.uconstDef T.mkRoot (+$!=&=$!=$+==)
       (\ p -> gprimPermissionsEq T.mkNoSrcPos p)
   
 
@@ -42,13 +40,13 @@ instance Ord (Permissions)
   gcompare pcompare p = T.uconstUse pcompare p scompare
   
   scompare =
-    T.uconstDef T.mkRoot a21v3v21v34compare
+    T.uconstDef T.mkRoot a23v3v23v34compare
       (\ p -> gprimPermissionsCompare T.mkNoSrcPos p)
   
   (!<=) (%<=) p = T.uconstUse (%<=) p (|<=)
   
   (|<=) =
-    T.uconstDef T.mkRoot (+$$=&=$$=$@<=)
+    T.uconstDef T.mkRoot (+$&=&=$&=$@<=)
       (\ p -> gprimPermissionsLeEq T.mkNoSrcPos p)
   
 
@@ -58,7 +56,7 @@ instance Read (Permissions)
   greadsPrec preadsPrec p = T.uconstUse preadsPrec p sreadsPrec
   
   sreadsPrec =
-    T.uconstDef T.mkRoot a25v3v25v38readsPrec
+    T.uconstDef T.mkRoot a27v3v27v38readsPrec
       (\ p -> gprimPermissionsReadsPrec T.mkNoSrcPos p)
   
 
@@ -68,7 +66,7 @@ instance Show (Permissions)
   gshowsPrec pshowsPrec p = T.uconstUse pshowsPrec p sshowsPrec
   
   sshowsPrec =
-    T.uconstDef T.mkRoot a28v3v28v38showsPrec
+    T.uconstDef T.mkRoot a30v3v30v38showsPrec
       (\ p -> gprimPermissionsShowsPrec T.mkNoSrcPos p)
   
 
@@ -263,85 +261,71 @@ hsetPermissions z1setPermissions z2setPermissions ksetPermissions =
     (Directory.setPermissions (toString ksetPermissions z1setPermissions)
       (toPermissions ksetPermissions z2setPermissions))
 
-ggetModificationTime ::
-  T.RefSrcPos -> T.RefExp -> T.R (T.Fun String (IO ClockTime))
-
-ggetModificationTime pgetModificationTime p =
-  T.ufun1 agetModificationTime pgetModificationTime p hgetModificationTime
-
-hgetModificationTime z1getModificationTime kgetModificationTime =
-  (T.fromIO fromClockTime) kgetModificationTime
-    (Directory.getModificationTime
-      (toString kgetModificationTime z1getModificationTime))
-
 tDirectory = T.mkModule "Directory" "Directory.hs" Prelude.False
 
 aprimPermissionsEq =
-  T.mkVariable tDirectory 300001 310056 3 2 "primPermissionsEq" Prelude.False
+  T.mkVariable tDirectory 320001 330056 3 2 "primPermissionsEq" Prelude.False
 
 aprimPermissionsCompare =
-  T.mkVariable tDirectory 330001 340065 3 2 "primPermissionsCompare"
+  T.mkVariable tDirectory 350001 360065 3 2 "primPermissionsCompare"
     Prelude.False
 
 aprimPermissionsLeEq =
-  T.mkVariable tDirectory 360001 370058 3 2 "primPermissionsLeEq" Prelude.False
+  T.mkVariable tDirectory 380001 390058 3 2 "primPermissionsLeEq" Prelude.False
 
 aprimPermissionsReadsPrec =
-  T.mkVariable tDirectory 390001 400047 3 2 "primPermissionsReadsPrec"
+  T.mkVariable tDirectory 410001 420047 3 2 "primPermissionsReadsPrec"
     Prelude.False
 
 aprimPermissionsShowsPrec =
-  T.mkVariable tDirectory 420001 430067 3 3 "primPermissionsShowsPrec"
+  T.mkVariable tDirectory 440001 450067 3 3 "primPermissionsShowsPrec"
     Prelude.False
 
 acreateDirectory =
-  T.mkVariable tDirectory 460001 470033 3 1 "createDirectory" Prelude.False
+  T.mkVariable tDirectory 480001 490033 3 1 "createDirectory" Prelude.False
 
 aremoveDirectory =
-  T.mkVariable tDirectory 480001 490033 3 1 "removeDirectory" Prelude.False
+  T.mkVariable tDirectory 500001 510033 3 1 "removeDirectory" Prelude.False
 
 aremoveFile =
-  T.mkVariable tDirectory 500001 510028 3 1 "removeFile" Prelude.False
+  T.mkVariable tDirectory 520001 530028 3 1 "removeFile" Prelude.False
 
 arenameDirectory =
-  T.mkVariable tDirectory 520001 530043 3 2 "renameDirectory" Prelude.False
+  T.mkVariable tDirectory 540001 550043 3 2 "renameDirectory" Prelude.False
 
 arenameFile =
-  T.mkVariable tDirectory 540001 550038 3 2 "renameFile" Prelude.False
+  T.mkVariable tDirectory 560001 570038 3 2 "renameFile" Prelude.False
 
 agetDirectoryContents =
-  T.mkVariable tDirectory 570001 580038 3 1 "getDirectoryContents" Prelude.False
+  T.mkVariable tDirectory 590001 600038 3 1 "getDirectoryContents" Prelude.False
 
 agetCurrentDirectory =
-  T.mkVariable tDirectory 590001 600027 3 0 "getCurrentDirectory" Prelude.False
+  T.mkVariable tDirectory 610001 620027 3 0 "getCurrentDirectory" Prelude.False
 
 asetCurrentDirectory =
-  T.mkVariable tDirectory 610001 620037 3 1 "setCurrentDirectory" Prelude.False
+  T.mkVariable tDirectory 630001 640037 3 1 "setCurrentDirectory" Prelude.False
 
 adoesFileExist =
-  T.mkVariable tDirectory 640001 650030 3 1 "doesFileExist" Prelude.False
+  T.mkVariable tDirectory 660001 670030 3 1 "doesFileExist" Prelude.False
 
 adoesDirectoryExist =
-  T.mkVariable tDirectory 660001 670035 3 1 "doesDirectoryExist" Prelude.False
+  T.mkVariable tDirectory 680001 690035 3 1 "doesDirectoryExist" Prelude.False
 
 agetPermissions =
-  T.mkVariable tDirectory 690001 700031 3 1 "getPermissions" Prelude.False
+  T.mkVariable tDirectory 710001 720031 3 1 "getPermissions" Prelude.False
 
 asetPermissions =
-  T.mkVariable tDirectory 710001 720046 3 2 "setPermissions" Prelude.False
+  T.mkVariable tDirectory 730001 740046 3 2 "setPermissions" Prelude.False
 
-agetModificationTime =
-  T.mkVariable tDirectory 740001 750036 3 1 "getModificationTime" Prelude.False
+(+$!=&=$!=$+==) = T.mkVariable tDirectory 200004 200026 16 0 "==" Prelude.False
 
-(+#@=&=#@=$+==) = T.mkVariable tDirectory 180004 180026 16 0 "==" Prelude.False
+a23v3v23v34compare =
+  T.mkVariable tDirectory 230003 230034 3 0 "compare" Prelude.False
 
-a21v3v21v34compare =
-  T.mkVariable tDirectory 210003 210034 3 0 "compare" Prelude.False
+(+$&=&=$&=$@<=) = T.mkVariable tDirectory 240004 240028 16 0 "<=" Prelude.False
 
-(+$$=&=$$=$@<=) = T.mkVariable tDirectory 220004 220028 16 0 "<=" Prelude.False
+a27v3v27v38readsPrec =
+  T.mkVariable tDirectory 270003 270038 3 0 "readsPrec" Prelude.False
 
-a25v3v25v38readsPrec =
-  T.mkVariable tDirectory 250003 250038 3 0 "readsPrec" Prelude.False
-
-a28v3v28v38showsPrec =
-  T.mkVariable tDirectory 280003 280038 3 0 "showsPrec" Prelude.False
+a30v3v30v38showsPrec =
+  T.mkVariable tDirectory 300003 300038 3 0 "showsPrec" Prelude.False

@@ -4,7 +4,6 @@ module Directory
 (Var "doesFileExist",Value {args = 1, fixity = Def, priority = 9, letBound = True, traced = False})
 (Var "getCurrentDirectory",Value {args = 0, fixity = Def, priority = 9, letBound = True, traced = False})
 (Var "getDirectoryContents",Value {args = 1, fixity = Def, priority = 9, letBound = True, traced = False})
-(Var "getModificationTime",Value {args = 1, fixity = Def, priority = 9, letBound = True, traced = False})
 (Var "getPermissions",Value {args = 1, fixity = Def, priority = 9, letBound = True, traced = False})
 (Var "removeDirectory",Value {args = 1, fixity = Def, priority = 9, letBound = True, traced = False})
 (Var "removeFile",Value {args = 1, fixity = Def, priority = 9, letBound = True, traced = False})
