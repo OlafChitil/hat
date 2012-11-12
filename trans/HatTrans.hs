@@ -10,6 +10,7 @@ import System.IO
 import System.Environment(getArgs)
 import System.Exit(exitWith,ExitCode(..))
 import System.IO.Error(isAlreadyExistsError)
+import Control.Exception
 import Control.Monad(when)
 import Data.List(isPrefixOf,intersperse,inits)
 import System.Directory(doesDirectoryExist,createDirectory)
