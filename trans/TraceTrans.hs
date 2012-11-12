@@ -1343,11 +1343,8 @@ tExpA env tracing cr (Con l qName) ls es =
 tExpA env tracing cr (Lit l literal) [] [] =  -- no arguments possible
   (tLiteral env tracing literal, ann literal `addSpan` emptyModuleConsts)
 tExpA env tracing cr (InfixApp l e1 qop e2) ls es =
-  tExpA env tracing cr (App l (App (ann e1 <++> ann qop) f e1) e2) ls es
-  where
-  f = case qop of
-        VarOp l qName -> Var l qName
-        ConOp l qName -> Con l qName
+  tExpA env tracing cr 
+    (App l (App (ann e1 <++> ann qop) (qOp2Exp qop) e1) e2) ls es
 tExpA env tracing cr (NegApp l e) ls es =
   tExpA env tracing cr (App l (Var l (qNamePreludeSymbol "-" l)) e) ls es
 tExpA env tracing cr (Lambda l pats exp) ls es =
@@ -1419,8 +1416,91 @@ tExpA env tracing cr (Tuple l exps) [] [] =
     (replicate arity l) exps
 tExpA env tracing cr (TupleSection l maybeExps) ls es =
   -- desugar tuple section into lambda
-  tExpA env tracing cr 
-    
+  tExpA env tracing cr (desugarTupleSection l maybeExps) ls es
+tExpA env tracing cr (List l exps) [] [] =
+  -- use special combinator that transforms list at runtime;
+  -- desugaring and subsequent transformation would lead to large program.
+  (appN [expFromExpList, mkExpSR l tracing, expParent, List l exps']
+  ,l `addSpan` expsConsts)
+  where
+  (exps', expsConsts) = tExps env tracing exps
+tExpA env tracing cr (Paren l exp) ls es =
+  tExpA env tracing cr exp ls es
+tExpA env tracing cr (LeftSection l exp qOp) ls es =
+  -- desugar into normal function application
+  tExpA env tracing cr (App l (qOp2Exp qOp) exp) ls es
+tExpA env tracing cr (RightSection l exp qOp) ls es
+  -- desugar into a lambda abstraction
+  tExpA env tracing cr
+    (Lambda noSpan [EVar noSpan name] 
+      (App l (App l (qOp2Exp qOp) (Var noSpan (UnQual noSpan name))) exp)) 
+    ls es
+  where
+  name : _ = namesFromSpan l
+tExpA env tracing cr (RecConstr l qName fieldUpdates) ls es
+  tExpF tracing ls es $
+    (appN [expWrapValFun, mkExpSR l tracing, 
+           RecUpdate l consUndefined fieldUpdates', expParent]
+    ,l `addSpan` fieldsConsts)
+  where
+  consUndefined =
+    if consArity == 0 
+      then Con l (nameTransCon qName)
+      else appN (Con l (nameTransCon qName) : replicate consArity
+                   (appN [expUndefined, expSR, expParent]))
+  Just consArity = arity env qName
+  expSR = mkExpSR l False
+  (fieldUpdates', fieldsConsts) = mapMerge2 (tField env tracing) fieldUpdates
+tExpA env Traced cr (RecUpdate l exp fieldUpdates) ls es
+  tExpF Traced ls es $
+    (Let l (BDecls l fieldVarDecls) 
+       (appN (mkExpUpdate Traced (length labels)
+             :mkExpSR l Traced
+             :expParent
+             :exp'
+             :Lambda l [PVar l nameVar] 
+               (RecUpdate l (Var l (UnQual l nameVar)) varFields')
+             :labels ++ fieldVars))
+    ,l `addSpan` expConsts `merge` fieldsConsts)
+  where
+  (exp', expConsts) = tExp env Traced False exp
+  (fieldUpdates', fieldsConsts) = mapMerge2 (tField env Tracing) fieldUpdates
+  labels = map (Var l . nameTraceInfoVar l Global) labelIds
+  varFields' = zipWith (FieldUpdate l) (map fieldLabel fieldUpdates') fieldVars
+  fieldExps' = map fieldExp fields'
+  fieldVars = map (Var l) fieldVarQNames
+  fieldVarQNames = map nameShare labelQNames
+  labelQNames = map fieldLabel fieldUpdates
+  nameVar = nameFromSpan l
+  fieldLabel (FieldUpdate _ qNameLabel _) = qNameLabel
+  fieldLabel (FieldPun l) = notSupported l "record field pun"
+  fieldLabel (FieldWildcard l) = notSupported l "record field wildcard"
+  fieldExp (FieldUpdate _ _ exp) = exp
+  fieldExp (FieldPun l) = notSupported l "record field pun"
+  fieldExp (FieldWildcard l) = notSupported l "record field wildcard"
+tExp env Trusted cr (RecUpdate l exp fieldUpdates) ls es
+  tExpF Trusted ls es $
+    (appN [mkExpUpdate Trusted (-1) 
+          ,expParent
+          ,exp'
+          ,Lambda l [PVar l nameVar] 
+            (RecUpdate l (Var l (UnQual l nameVar)) fieldUpdates')]
+    ,expConsts `merge` fieldsConsts)
+  where
+  (exp', expConsts) = tExp env Trusted False exp
+  (fieldUpdates', fieldsConsts) = mapMerge2 (tField env Trusted) fieldUpdates
+  nameVar = nameFromSpan l
+tExp env tracing cr (EnumFrom l exp) ls es =
+  -- desugar list comprehension [from ..]
+  tExp env tracing cr (App l (mkExpPreludeEnumFrom l) exp) ls es
+tExp env tracing cr (EnumFromTo l from to) ls es =
+  tExp env tracing cr (App l (App l (mkExpPreludeEnumFromTo l) from) to) ls es
+tExp env tracing cr (EnumFromThen l from the) ls es =
+  tExp env tracing cr 
+    (App l (App l (mkExpPreludeEnumFromThen l) from) the) ls es
+tExp env tracing cr (EnumFromThenTo l from the to) ls es =
+  tExp env tracing cr
+    (App l (App l (App l (mkExpPreludeEnumFromThenTo l) from) the) to) ls es
 
 -- At end of transforming expressions possibly add deferred applications.
 -- Lists are ordered from innermost to outermost.
@@ -1434,6 +1514,18 @@ tExpF tracing ls es (e, consts) =
   (mkExpApply tracing (mkExpSR l tracing) (e : es), l `addSpan` appConsts)
   where
   l = last ls
+
+-- Transform a list of expressions.
+-- Mainly have to merge all constants.
+tExps :: Environment -> Tracing -> [Exp SrcSpanInfo] ->
+         ([Exp SrcSpanInfo], ModuleConsts)
+tExps env tracing = mapMerge2 (tExp tracing False)
+
+mapMerge2 :: (a -> (b, ModuleConsts)) -> [a] -> ([b], ModuleConsts)
+mapMerge2 f = mapSnd (foldr merge emptyModuleConsts) . unzip . map f
+
+mapSnd :: (a -> b) -> (c, a) -> (c, b)
+mapSnd f (x,y) = (x, f y)
 
 -- Transform data constructor application.
 -- Number of arguments may be smaller than arity of the data constructor.
@@ -1505,13 +1597,26 @@ neverFailingPat (PBangPat _ p) = neverFailingPat p
 neverFailingPat _ = False
 
 tBinds :: Environment -> Tracing -> Binds SrcSpanInfo ->
-          (Binds SrcSpanInfo, ModuleDecls)
+          (Binds SrcSpanInfo, ModuleConsts)
 tBinds env tracing (BDecls l decls) = tDecls env Local tracing decls
 tBinds env tracing (IPBinds l _) =
   notSupported l "binding group for implicit parameters"
 
+-- Minor transformation here.
+-- The main step is in the construction or update expression for a record.
+tField :: Environment -> Tracing -> FieldUpdate SrcSpanInfo -> 
+          (FieldUpdate SrcSpanInfo, ModuleConsts)
+tField env tracing (FieldUpdate l qName exp) =
+  (FieldUpdate l (nameTransField qName) exp', expConsts)
+  where
+  (exp', expConsts) = tExp env tracing False exp
+tField env tracing (FieldPun l name) =
+  notSupported l "record field pun"
+tField env tracing (FieldWildcard l) =
+  notSupported l "record field wildcard"
+
 -- Desugar do-statements
-removeDo :: Tracing -> [Stmt l] -> Exp l
+removeDo :: [Stmt SrcSpanInfo] -> Exp SrcSpanInfo
 removeDo [Qualifier l exp] =  -- last stmt in do-expression
   exp
 removeDo (Qualifier l exp : stmts) =
@@ -1535,6 +1640,22 @@ removeDo (Generator l pat e : stmts) =
   where
   newName : _ = namesFromSpan l
   msg = "pattern-match failure in do-expression"
+
+-- Desugar tuple section  (,4,,1)
+-- Replace by a lambda abstraction  \x1 x2 -> (x1,4,x2,1)
+desugarTupleSection :: SrcSpanInfo -> [Maybe (Exp SrcSpanInfo)] -> 
+                       Exp SrcSpanInfo
+desugarTupleSection l maybeExps =
+  Lambda l (map (PVar l) varNames) (Tuple l (mkTuple maybeExps varNames))
+  where
+  arity = length (filter isNothing maybeExps)
+  varNames = take arity (namesFromSpan l)
+  mkTuple :: [Maybe (Exp SrcSpanInfo)] -> [Name SrcSpanInfo] -> 
+             [Exp SrcSpanInfo]
+  mkTuple [] _ = []
+  mkTuple (Nothing : mes) (name : names) = 
+    Var l (UnQual l name) : mkTuple mes names
+  mkTuple (Just e : mes) names = e : mkTuple mes names
 
 -- ----------------------------------------------------------------------------
 -- Abstract continuation for guards
@@ -2133,6 +2254,11 @@ qNameUpdate = qNameShortArity "update"
 qNameUUpdate :: l -> Arity -> QName l
 qNameUUpdate = qNameShortArity "uupdate"
 
+mkExpUpdate :: Tracing -> Arity -> Exp SrcSpanInfo
+mkExpUpdate tracing arity =
+  Var noSpan 
+    (if isTraced tracing then qNameUpdate noSpan arity else qNameUUpdate)
+
 qNameProjection :: l -> QName l
 qNameProjection = qNameShortIdent "projection"
 expProjection :: Exp SrcSpanInfo
@@ -2155,12 +2281,17 @@ expFromLitString = Var noSpan (qNameFromLitString noSpan)
 
 qNameFromExpList :: l -> QName l
 qNameFromExpList = qNameShortIdent "fromExpList"
+expFromExpList :: Exp SrcSpanInfo
+expFromExpList = Var noSpan (qNameFromExpList noSpan)
 
 qNameWrapValClass :: l -> QName l
 qNameWrapValClass = qNameShortIdent "WrapVal"
 
 nameWrapValFun :: l -> Name l
 nameWrapValFun l = Ident l "wrapVal"
+
+expWrapValFun :: Exp SrcSpanInfo
+expWrapValFun = Var noSpan (Var noSpan (UnQual noSpan (nameWrapValFun noSpan)))
 
 qNameUWrapForward :: l -> QName l
 qNameUWrapForward = qNameShortIdent "uwrapForward"
@@ -2202,6 +2333,18 @@ qNamePreludeGtGtEq = qNamePreludeSymbol ">>="
 
 qNamePreludeFail :: l -> QName l
 qNamePreludeFail = qNamePreludeIdent "fail"
+
+mkExpPreludeEnumFrom :: l -> Exp l
+mkExpPreludeEnumFrom l = Var l (qNamePreludeIdent "enumFrom")
+
+mkExpPreludeEnumFromTo :: l -> Exp l
+mkExpPreludeEnumFromTo l = Var l (qNamePreludeIdent "enumFromTo")
+
+mkExpPreludeEnumFromThen :: l -> Exp l
+mkExpPreludeEnumFromThen l = Var l (qNamePreludeIdent "enumFromThen")
+
+mkExpPreludeEnumFromThenTo :: l -> Exp l
+mkExpPreludeEnumFromThenTo l = Var l (qNamePreludeIdent "enumFromThenTo")
 
 -- Building name qualifiers
 
@@ -2380,6 +2523,10 @@ guardedAlts2Rhs (GuardedAlts l gdAlts) =
 
 guardedAlt2GuardedRhs :: GuardedAlt l -> GuardedRhs l
 guardedAlt2 (GuardedAlt l stmts exp) = GuardedRhs l stmts exp
+
+qOp2Exp :: QOp l -> Exp l
+qOp2Exp (QVarOp l qName) = Var l qName
+qOp2Exp (QConOp l qName) = Con l qName
 
 -- bogus span, does not appear in the source
 noSpan :: SrcSpanInfo
