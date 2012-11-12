@@ -1478,7 +1478,7 @@ tExpA env Traced cr (RecUpdate l exp fieldUpdates) ls es
   fieldExp (FieldUpdate _ _ exp) = exp
   fieldExp (FieldPun l) = notSupported l "record field pun"
   fieldExp (FieldWildcard l) = notSupported l "record field wildcard"
-tExp env Trusted cr (RecUpdate l exp fieldUpdates) ls es
+tExpA env Trusted cr (RecUpdate l exp fieldUpdates) ls es
   tExpF Trusted ls es $
     (appN [mkExpUpdate Trusted (-1) 
           ,expParent
@@ -1490,17 +1490,67 @@ tExp env Trusted cr (RecUpdate l exp fieldUpdates) ls es
   (exp', expConsts) = tExp env Trusted False exp
   (fieldUpdates', fieldsConsts) = mapMerge2 (tField env Trusted) fieldUpdates
   nameVar = nameFromSpan l
-tExp env tracing cr (EnumFrom l exp) ls es =
-  -- desugar list comprehension [from ..]
+tExpA env tracing cr (EnumFrom l exp) ls es =
+  -- desugar list enumeration [from ..]
   tExp env tracing cr (App l (mkExpPreludeEnumFrom l) exp) ls es
-tExp env tracing cr (EnumFromTo l from to) ls es =
+tExpA env tracing cr (EnumFromTo l from to) ls es =
   tExp env tracing cr (App l (App l (mkExpPreludeEnumFromTo l) from) to) ls es
-tExp env tracing cr (EnumFromThen l from the) ls es =
+tExpA env tracing cr (EnumFromThen l from the) ls es =
   tExp env tracing cr 
     (App l (App l (mkExpPreludeEnumFromThen l) from) the) ls es
-tExp env tracing cr (EnumFromThenTo l from the to) ls es =
+tExpA env tracing cr (EnumFromThenTo l from the to) ls es =
   tExp env tracing cr
     (App l (App l (App l (mkExpPreludeEnumFromThenTo l) from) the) to) ls es
+tExpA env tracing cr (ListComp l exp qualStmts) ls es =
+  tExpF tracing ls es $
+    tExpA env tracing cr (desugarListComprehension l exp qualStmts) ls es
+tExpA env tracing cr (ParComp l _ _) ls es =
+  notSupported l "parallel list comprehension"
+tExpA env tracing cr (ExpTypeSig l exp ty) ls es =
+  tExpF tracing ls es $
+    (ExpTypeSig l exp' ty', expConsts)
+  where
+  (exp', expConsts) = tExp env tracing cr exp
+  ty' = tType ty
+tExpA env tracing cr (VarQuote l _) ls es =
+  notSupported l "template Haskell reifying of expressions"
+tExpA env tracing cr (TypQuote l _) ls es =
+  notSupported l "template Haskell reifying of types"
+tExpA env tracing cr (BracketExp l _) ls es =
+  notSupported l "template Haskell bracket expression"
+tExpA env tracing cr (SpliceExp l _) ls es =
+  notSupported l "template Haskell splice expression"
+tExpA env tracing cr (QuasiQuote l _ _) ls es =
+  notSupported l "template Haskell quasi-quote"
+tExpA env tracing cr (XTag l _ _ _ _) ls es =
+  notSupported l "xml element with attributes and children"
+tExpA env tracing cr (XETag l _ _ _) ls es =
+  notSupported l "empty xml element, with attributes"
+tExpA env tracing cr (XPcdata l _) ls es =
+  notSupported l "PCDATA child element"
+tExpA env tracing cr (XExpTag l _) ls es =
+  notSupported l "escaped Haskell expression inside XML"
+tExpA env tracing cr (XChildTag l _) ls es =
+  notSupported l "children of an xml element"
+tExpA env tracing cr (CorePragma l _ _) ls es =
+  notSupported l "CORE pragma" 
+tExpA env tracing cr (SCCPragma l str exp) ls es =
+  tExpF tracing ls es $
+    (SCCPragma l str exp', expConsts)
+  where
+  (exp', expConsts) = tExp env tracing cr exp
+tExpA env tracing cr (GenPragma l _ _ _ _) ls es =
+  notSupported l "GENERATED pragma"
+tExpA env tracing cr (Proc l _ _) ls es =
+  notSupported l "arrows proc"
+tExpA env tracing cr (LeftArrApp l _ _) ls es =
+  notSupported l "arrow application from left"
+tExpA env tracing cr (RightArrApp l _ _) ls es =
+  notSupported l "arrow application from right"
+tExpA env tracing cr (LeftArrHighApp l _ _) ls es =
+  notSupported l "higher-order arrow application from left"
+tExpA env tracing cr (RightArrHighApp l _ _) ls es =
+  notSupported l "higher-order arrow application from right"
 
 -- At end of transforming expressions possibly add deferred applications.
 -- Lists are ordered from innermost to outermost.
@@ -1656,6 +1706,55 @@ desugarTupleSection l maybeExps =
   mkTuple (Nothing : mes) (name : names) = 
     Var l (UnQual l name) : mkTuple mes names
   mkTuple (Just e : mes) names = e : mkTuple mes names
+
+desugarListComprehension :: SrcSpanInfo -> Exp SrcSpanInfo -> 
+                            [QualStmt SrcSpanInfo] -> 
+                            Exp SrcSpanInfo
+desugarListComprehension l exp qualStmts =
+  App noSpan (trans (map unQual qualStmts)) (List noSpan [])
+  where
+  unQual :: QualStmt SrcSpanInfo -> Stmt SrcSpanInfo
+  unQual (QualStmt _ stmt) = stmt
+  unQual qs = notSupported l 
+                "qualifier beyond a statement in list comprehension"
+  trans [] = App l (mkExpPreludeColon l) e
+  trans (LetStmt l binds : stmts) = 
+    Let l binds (trans stmts)
+  trans (Qualifier l exp : stmts) =
+    App l (App l (mkExpPreludeFiler l) exp) (trans stmts)
+  trans (Generator l pat expG : stmts) =
+    App l (App l (mkExpPreludeFoldr l) 
+            (Lambda l [PVar l nameX, PVar l nameY]
+                      (Case l (Var l (UnQual l nameX))
+                        [Alt l pat (UnGuardedAlt l 
+                                      (App l (trans stmts) 
+                                         (Var l (UnQual l nameY)))) 
+                           Nothing
+                        ,Alt l (PWildcard l) (UnGuardedAlt l 
+                                                (Var l (UnQual l nameY))) 
+                           Nothing])))
+       expG
+    where
+    nameX : nameY : _ = namesFromSpan l
+
+-- ----------------------------------------------------------------------------
+-- Transform patterns
+
+tPats :: [Pat SrcSpanInfo] ->
+         ([Pat SrcSpanInfo]    -- transformed patterns
+         ,Maybe       -- only if there is a numeric pattern (k or n+k)
+           (Exp SrcSpanInfo    -- test for the numeric pattern (e.g. x==k)
+           ,[Decl SrcSpanInfo]  -- binding for n if there is an n+k pattern
+           ,[Exp SrcSpanInfo]   -- variables inserted in pattern after num pat
+           ,[Pat SrcSpanInfo])) -- original patterns after num pat
+tPats = mapCombindPats tPat
+
+
+tPat :: Pat SrcSpanInfo ->
+        (Pat SrcSpanInfo
+        ,Maybe (Exp SrcSpanInfo, [Decl SrcSpanInfo], [Exp SrcSpanInfo], 
+                [Pat SrcSpanInfo]))
+tPat (PVar l name) = (PVar l (nameTransLambdaVar name), Nothing)
 
 -- ----------------------------------------------------------------------------
 -- Abstract continuation for guards
@@ -2335,16 +2434,25 @@ qNamePreludeFail :: l -> QName l
 qNamePreludeFail = qNamePreludeIdent "fail"
 
 mkExpPreludeEnumFrom :: l -> Exp l
-mkExpPreludeEnumFrom l = Var l (qNamePreludeIdent "enumFrom")
+mkExpPreludeEnumFrom l = Var l (qNamePreludeIdent "enumFrom" l)
 
 mkExpPreludeEnumFromTo :: l -> Exp l
-mkExpPreludeEnumFromTo l = Var l (qNamePreludeIdent "enumFromTo")
+mkExpPreludeEnumFromTo l = Var l (qNamePreludeIdent "enumFromTo" l)
 
 mkExpPreludeEnumFromThen :: l -> Exp l
-mkExpPreludeEnumFromThen l = Var l (qNamePreludeIdent "enumFromThen")
+mkExpPreludeEnumFromThen l = Var l (qNamePreludeIdent "enumFromThen" l)
 
 mkExpPreludeEnumFromThenTo :: l -> Exp l
-mkExpPreludeEnumFromThenTo l = Var l (qNamePreludeIdent "enumFromThenTo")
+mkExpPreludeEnumFromThenTo l = Var l (qNamePreludeIdent "enumFromThenTo" l)
+
+mkExpPreludeColon :: l -> Exp l
+mkExpPreludeColon l = Var l (Special l (Cons l))
+
+mkExpPreludeFilter :: l -> Exp l
+mkExpPreludeFilter l = Var l (qNamePreludeIdent "filter" l)
+
+mkExpPreludeFoldr :: l -> Exp l
+mkExpPreludeFoldr l = Var l (qNamePreludeFoldr "foldr" l)
 
 -- Building name qualifiers
 
