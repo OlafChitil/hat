@@ -15,6 +15,7 @@ import HighlightStyle	(goto,cls,clearDown,clearUp,cleareol,highlightOff
 			,highlight,Highlight(..),Colour(..)
 			,enableScrollRegion,getTerminalSize
 			,savePosition,restorePosition)
+import Control.Exception(catch,IOException)
 import Control.Monad	(when,liftM)
 import System.Cmd       (system)
 import System.Environment (getArgs,getProgName,getEnv)
@@ -72,7 +73,8 @@ main = do
     (style0,style1) <- catch (do home <- getEnv "HOME"
                                  f <- readFile (home++"/.hattrailrc")
                                  return (read f))
-                             (\e-> return ( [Dim,Foreground Red]
+                             (\e-> (e :: IOException) `seq`
+                                   return ( [Dim,Foreground Red]
                                           , [Bold,Foreground Magenta] ))
     (columns,lines) <- getTerminalSize
     let state = State { file=hatfile, width=columns, height=lines, startLine=0
