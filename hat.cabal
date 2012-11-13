@@ -1,6 +1,6 @@
 
 name:                hat
-version:             2.7.0.11
+version:             2.7.0.12
 synopsis:            The Haskell tracer, generating and viewing Haskell execution traces
 description:
   hat-trans transforms Module.hs into Hat/Module.hs such that when the program is
@@ -41,7 +41,7 @@ description:
 
   There is documentation in the "docs" folder, but much of it is outdated.
   There are a few small programs for exploring tracing in the "examples" folder.
-homepage:            http://www.cs.kent.ac.uk/~oc
+homepage:            http://olafchitil.github.com/hat/
 license:             OtherLicense
 license-file:        docs/copyright.html
 copyright:	     (c) 2000-2012 Hat team

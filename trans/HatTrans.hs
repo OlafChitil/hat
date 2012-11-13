@@ -10,7 +10,7 @@ import System.IO
 import System.Environment(getArgs)
 import System.Exit(exitWith,ExitCode(..))
 import System.IO.Error(isAlreadyExistsError)
-import Control.Exception
+import qualified Control.Exception (catch)
 import Control.Monad(when)
 import Data.List(isPrefixOf,intersperse,inits)
 import System.Directory(doesDirectoryExist,createDirectory)
@@ -82,7 +82,7 @@ main' args = do
   {- lex source code -}
   beginPhase "lex"
   mainChar	-- :: String
-           <- catch (readFile filename) (can'tOpen filename) 
+           <- Control.Exception.catch (readFile filename) (can'tOpen filename) 
   lexdata	-- :: [PosToken]
            <- return (lexical (sUnderscore flags) (sSourceFile flags)
                               (if sUnlit flags 
@@ -177,7 +177,7 @@ createDirectoriesRecursively path = do
         accum xs = map (concat . intersperse "/") (tail (inits xs))
         wordsBy c s = let (w,s') = break (==c) s
                       in w: case s' of [] -> []; (_:s'') -> wordsBy c s''
-        safeCreate path = catch (createDirectory path)
+        safeCreate path = Control.Exception.catch (createDirectory path)
                                 (\e-> if isAlreadyExistsError e then return ()
                                       else ioError e)
 

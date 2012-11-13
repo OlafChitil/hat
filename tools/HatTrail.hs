@@ -15,7 +15,7 @@ import HighlightStyle	(goto,cls,clearDown,clearUp,cleareol,highlightOff
 			,highlight,Highlight(..),Colour(..)
 			,enableScrollRegion,getTerminalSize
 			,savePosition,restorePosition)
-import Control.Exception(catch,IOException)
+import qualified Control.Exception(catch,IOException)
 import Control.Monad	(when,liftM)
 import System.Cmd       (system)
 import System.Environment (getArgs,getProgName,getEnv)
@@ -70,10 +70,11 @@ main = do
     errmsg <- getErrorMessage
     output <- readOutputFile hatfile
     bridge <- readBridgeFile
-    (style0,style1) <- catch (do home <- getEnv "HOME"
-                                 f <- readFile (home++"/.hattrailrc")
-                                 return (read f))
-                             (\e-> (e :: IOException) `seq`
+    (style0,style1) <- Control.Exception.catch (do 
+                         home <- getEnv "HOME"
+                         f <- readFile (home++"/.hattrailrc")
+                         return (read f))
+                             (\e-> (e :: Control.Exception.IOException) `seq`
                                    return ( [Dim,Foreground Red]
                                           , [Bold,Foreground Magenta] ))
     (columns,lines) <- getTerminalSize

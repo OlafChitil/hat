@@ -1,7 +1,7 @@
 module Extra(module Extra, module HbcOnly, module Data.Maybe, trace) where
 
 import HbcOnly
-import Control.Exception
+import qualified Control.Exception (catch, IOException)
 import Data.Char
 import Data.List
 import Data.Maybe
@@ -287,8 +287,8 @@ readFirst [x]    = do
   finput <- readFile x
   return (x,finput)
 readFirst (x:xs) =
-  catch (do finput <- readFile x
-            return (x,finput))
-        (\ y -> (y :: IOException) `seq` readFirst xs)
+  Control.Exception.catch (do finput <- readFile x
+                              return (x,finput))
+        (\ y -> (y :: Control.Exception.IOException) `seq` readFirst xs)
 
 ------------------------
