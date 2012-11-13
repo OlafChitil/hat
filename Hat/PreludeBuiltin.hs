@@ -94,6 +94,7 @@ import Hat.Hat  (WrapVal(wrapVal))
 import Hat.PreludeBuiltinTypes 
 import Hat.Hat 
 import qualified Prelude 
+import qualified System.IO.Error 
 import qualified Data.Char as Char 
 
 gseq :: T.RefSrcPos -> T.RefExp -> T.R (T.Fun a (T.Fun b b))
@@ -1255,7 +1256,7 @@ gcatch pcatch p = T.ufun2 acatch pcatch p hcatch
 
 hcatch z1catch z2catch kcatch =
   (T.fromIO T.fromId) kcatch
-    (Prelude.catch ((T.toIO T.toId) kcatch z1catch)
+    (System.IO.Error.catchIOError ((T.toIO T.toId) kcatch z1catch)
       ((toFun fromIOError (T.toIO T.toId)) kcatch z2catch))
 
 gputChar :: T.RefSrcPos -> T.RefExp -> T.R (T.Fun Char (IO T.Tuple0))
@@ -1312,422 +1313,422 @@ happendFile z1appendFile z2appendFile kappendFile =
 
 tPreludeBuiltin = T.mkModule "Prelude" "PreludeBuiltin.hs" Prelude.False
 
-aseq = T.mkVariable tPreludeBuiltin 670001 680020 1 2 "seq" Prelude.False
+aseq = T.mkVariable tPreludeBuiltin 680001 690020 1 2 "seq" Prelude.False
 
 aisAscii =
-  T.mkVariable tPreludeBuiltin 700001 710025 3 1 "isAscii" Prelude.False
+  T.mkVariable tPreludeBuiltin 710001 720025 3 1 "isAscii" Prelude.False
 
 aisLatin1 =
-  T.mkVariable tPreludeBuiltin 720001 730026 3 1 "isLatin1" Prelude.False
+  T.mkVariable tPreludeBuiltin 730001 740026 3 1 "isLatin1" Prelude.False
 
 aisControl =
-  T.mkVariable tPreludeBuiltin 740001 750027 3 1 "isControl" Prelude.False
+  T.mkVariable tPreludeBuiltin 750001 760027 3 1 "isControl" Prelude.False
 
 aisPrint =
-  T.mkVariable tPreludeBuiltin 760001 770025 3 1 "isPrint" Prelude.False
+  T.mkVariable tPreludeBuiltin 770001 780025 3 1 "isPrint" Prelude.False
 
 aisSpace =
-  T.mkVariable tPreludeBuiltin 780001 790025 3 1 "isSpace" Prelude.False
+  T.mkVariable tPreludeBuiltin 790001 800025 3 1 "isSpace" Prelude.False
 
 aisUpper =
-  T.mkVariable tPreludeBuiltin 800001 810025 3 1 "isUpper" Prelude.False
+  T.mkVariable tPreludeBuiltin 810001 820025 3 1 "isUpper" Prelude.False
 
 aisLower =
-  T.mkVariable tPreludeBuiltin 820001 830025 3 1 "isLower" Prelude.False
+  T.mkVariable tPreludeBuiltin 830001 840025 3 1 "isLower" Prelude.False
 
 aisAlpha =
-  T.mkVariable tPreludeBuiltin 840001 850025 3 1 "isAlpha" Prelude.False
+  T.mkVariable tPreludeBuiltin 850001 860025 3 1 "isAlpha" Prelude.False
 
 aisDigit =
-  T.mkVariable tPreludeBuiltin 860001 870025 3 1 "isDigit" Prelude.False
+  T.mkVariable tPreludeBuiltin 870001 880025 3 1 "isDigit" Prelude.False
 
 aisOctDigit =
-  T.mkVariable tPreludeBuiltin 880001 890028 3 1 "isOctDigit" Prelude.False
+  T.mkVariable tPreludeBuiltin 890001 900028 3 1 "isOctDigit" Prelude.False
 
 aisHexDigit =
-  T.mkVariable tPreludeBuiltin 900001 910028 3 1 "isHexDigit" Prelude.False
+  T.mkVariable tPreludeBuiltin 910001 920028 3 1 "isHexDigit" Prelude.False
 
 aisAlphaNum =
-  T.mkVariable tPreludeBuiltin 920001 930028 3 1 "isAlphaNum" Prelude.False
+  T.mkVariable tPreludeBuiltin 930001 940028 3 1 "isAlphaNum" Prelude.False
 
 atoUpper =
-  T.mkVariable tPreludeBuiltin 950001 960025 3 1 "toUpper" Prelude.False
+  T.mkVariable tPreludeBuiltin 960001 970025 3 1 "toUpper" Prelude.False
 
 atoLower =
-  T.mkVariable tPreludeBuiltin 970001 980025 3 1 "toLower" Prelude.False
+  T.mkVariable tPreludeBuiltin 980001 990025 3 1 "toLower" Prelude.False
 
 aprimCharToInt =
-  T.mkVariable tPreludeBuiltin 1010001 1020030 3 1 "primCharToInt" Prelude.False
+  T.mkVariable tPreludeBuiltin 1020001 1030030 3 1 "primCharToInt" Prelude.False
 
 aprimIntToChar =
-  T.mkVariable tPreludeBuiltin 1030001 1040031 3 1 "primIntToChar" Prelude.False
+  T.mkVariable tPreludeBuiltin 1040001 1050031 3 1 "primIntToChar" Prelude.False
 
 aprimUnicodeMaxBound =
-  T.mkVariable tPreludeBuiltin 1060001 1070029 3 0 "primUnicodeMaxBound"
+  T.mkVariable tPreludeBuiltin 1070001 1080029 3 0 "primUnicodeMaxBound"
     Prelude.False
 
 aprimIntMinBound =
-  T.mkVariable tPreludeBuiltin 1130001 1140024 3 0 "primIntMinBound"
+  T.mkVariable tPreludeBuiltin 1140001 1150024 3 0 "primIntMinBound"
     Prelude.False
 
 aprimIntMaxBound =
-  T.mkVariable tPreludeBuiltin 1150001 1160024 3 0 "primIntMaxBound"
+  T.mkVariable tPreludeBuiltin 1160001 1170024 3 0 "primIntMaxBound"
     Prelude.False
 
 aprimIntEq =
-  T.mkVariable tPreludeBuiltin 1180001 1190033 3 2 "primIntEq" Prelude.False
+  T.mkVariable tPreludeBuiltin 1190001 1200033 3 2 "primIntEq" Prelude.False
 
 aprimIntNe =
-  T.mkVariable tPreludeBuiltin 1200001 1210033 3 2 "primIntNe" Prelude.False
+  T.mkVariable tPreludeBuiltin 1210001 1220033 3 2 "primIntNe" Prelude.False
 
 aprimIntLt =
-  T.mkVariable tPreludeBuiltin 1220001 1230033 3 2 "primIntLt" Prelude.False
+  T.mkVariable tPreludeBuiltin 1230001 1240033 3 2 "primIntLt" Prelude.False
 
 aprimIntLe =
-  T.mkVariable tPreludeBuiltin 1240001 1250033 3 2 "primIntLe" Prelude.False
+  T.mkVariable tPreludeBuiltin 1250001 1260033 3 2 "primIntLe" Prelude.False
 
 aprimIntGt =
-  T.mkVariable tPreludeBuiltin 1260001 1270033 3 2 "primIntGt" Prelude.False
+  T.mkVariable tPreludeBuiltin 1270001 1280033 3 2 "primIntGt" Prelude.False
 
 aprimIntGe =
-  T.mkVariable tPreludeBuiltin 1280001 1290033 3 2 "primIntGe" Prelude.False
+  T.mkVariable tPreludeBuiltin 1290001 1300033 3 2 "primIntGe" Prelude.False
 
 aprimIntQuot =
-  T.mkVariable tPreludeBuiltin 1300001 1310036 3 2 "primIntQuot" Prelude.False
+  T.mkVariable tPreludeBuiltin 1310001 1320036 3 2 "primIntQuot" Prelude.False
 
 aprimIntRem =
-  T.mkVariable tPreludeBuiltin 1320001 1330036 3 2 "primIntRem" Prelude.False
+  T.mkVariable tPreludeBuiltin 1330001 1340036 3 2 "primIntRem" Prelude.False
 
 aprimIntPlus =
-  T.mkVariable tPreludeBuiltin 1340001 1350036 3 2 "primIntPlus" Prelude.False
+  T.mkVariable tPreludeBuiltin 1350001 1360036 3 2 "primIntPlus" Prelude.False
 
 aprimIntMinus =
-  T.mkVariable tPreludeBuiltin 1360001 1370036 3 2 "primIntMinus" Prelude.False
+  T.mkVariable tPreludeBuiltin 1370001 1380036 3 2 "primIntMinus" Prelude.False
 
 aprimIntTimes =
-  T.mkVariable tPreludeBuiltin 1380001 1390036 3 2 "primIntTimes" Prelude.False
+  T.mkVariable tPreludeBuiltin 1390001 1400036 3 2 "primIntTimes" Prelude.False
 
 aprimIntNegate =
-  T.mkVariable tPreludeBuiltin 1400001 1410029 3 1 "primIntNegate" Prelude.False
+  T.mkVariable tPreludeBuiltin 1410001 1420029 3 1 "primIntNegate" Prelude.False
 
 aprimIntAbs =
-  T.mkVariable tPreludeBuiltin 1420001 1430029 3 1 "primIntAbs" Prelude.False
+  T.mkVariable tPreludeBuiltin 1430001 1440029 3 1 "primIntAbs" Prelude.False
 
 aprimIntSignum =
-  T.mkVariable tPreludeBuiltin 1440001 1450029 3 1 "primIntSignum" Prelude.False
+  T.mkVariable tPreludeBuiltin 1450001 1460029 3 1 "primIntSignum" Prelude.False
 
 aprimIntegerFromInt =
-  T.mkVariable tPreludeBuiltin 1470001 1480038 3 1 "primIntegerFromInt"
+  T.mkVariable tPreludeBuiltin 1480001 1490038 3 1 "primIntegerFromInt"
     Prelude.False
 
 aprimIntFromInteger =
-  T.mkVariable tPreludeBuiltin 1490001 1500038 3 1 "primIntFromInteger"
+  T.mkVariable tPreludeBuiltin 1500001 1510038 3 1 "primIntFromInteger"
     Prelude.False
 
 aprimIntegerEq =
-  T.mkVariable tPreludeBuiltin 1520001 1530045 3 2 "primIntegerEq" Prelude.False
+  T.mkVariable tPreludeBuiltin 1530001 1540045 3 2 "primIntegerEq" Prelude.False
 
 aprimIntegerNe =
-  T.mkVariable tPreludeBuiltin 1540001 1550045 3 2 "primIntegerNe" Prelude.False
+  T.mkVariable tPreludeBuiltin 1550001 1560045 3 2 "primIntegerNe" Prelude.False
 
 aprimIntegerLt =
-  T.mkVariable tPreludeBuiltin 1560001 1570045 3 2 "primIntegerLt" Prelude.False
+  T.mkVariable tPreludeBuiltin 1570001 1580045 3 2 "primIntegerLt" Prelude.False
 
 aprimIntegerLe =
-  T.mkVariable tPreludeBuiltin 1580001 1590045 3 2 "primIntegerLe" Prelude.False
+  T.mkVariable tPreludeBuiltin 1590001 1600045 3 2 "primIntegerLe" Prelude.False
 
 aprimIntegerGt =
-  T.mkVariable tPreludeBuiltin 1600001 1610045 3 2 "primIntegerGt" Prelude.False
+  T.mkVariable tPreludeBuiltin 1610001 1620045 3 2 "primIntegerGt" Prelude.False
 
 aprimIntegerGe =
-  T.mkVariable tPreludeBuiltin 1620001 1630045 3 2 "primIntegerGe" Prelude.False
+  T.mkVariable tPreludeBuiltin 1630001 1640045 3 2 "primIntegerGe" Prelude.False
 
 aprimIntegerQuot =
-  T.mkVariable tPreludeBuiltin 1640001 1650053 3 2 "primIntegerQuot"
+  T.mkVariable tPreludeBuiltin 1650001 1660053 3 2 "primIntegerQuot"
     Prelude.False
 
 aprimIntegerRem =
-  T.mkVariable tPreludeBuiltin 1660001 1670053 3 2 "primIntegerRem"
+  T.mkVariable tPreludeBuiltin 1670001 1680053 3 2 "primIntegerRem"
     Prelude.False
 
 aprimIntegerQuotRem =
-  T.mkVariable tPreludeBuiltin 1680001 1690062 3 2 "primIntegerQuotRem"
+  T.mkVariable tPreludeBuiltin 1690001 1700062 3 2 "primIntegerQuotRem"
     Prelude.False
 
 aprimIntegerAdd =
-  T.mkVariable tPreludeBuiltin 1700001 1710053 3 2 "primIntegerAdd"
+  T.mkVariable tPreludeBuiltin 1710001 1720053 3 2 "primIntegerAdd"
     Prelude.False
 
 aprimIntegerSub =
-  T.mkVariable tPreludeBuiltin 1720001 1730053 3 2 "primIntegerSub"
+  T.mkVariable tPreludeBuiltin 1730001 1740053 3 2 "primIntegerSub"
     Prelude.False
 
 aprimIntegerMul =
-  T.mkVariable tPreludeBuiltin 1740001 1750053 3 2 "primIntegerMul"
+  T.mkVariable tPreludeBuiltin 1750001 1760053 3 2 "primIntegerMul"
     Prelude.False
 
 aprimIntegerNeg =
-  T.mkVariable tPreludeBuiltin 1760001 1770042 3 1 "primIntegerNeg"
+  T.mkVariable tPreludeBuiltin 1770001 1780042 3 1 "primIntegerNeg"
     Prelude.False
 
 aprimFloatFromInteger =
-  T.mkVariable tPreludeBuiltin 1790001 1800043 3 1 "primFloatFromInteger"
+  T.mkVariable tPreludeBuiltin 1800001 1810043 3 1 "primFloatFromInteger"
     Prelude.False
 
 aprimFloatRadix =
-  T.mkVariable tPreludeBuiltin 1810001 1820043 3 1 "primFloatRadix"
+  T.mkVariable tPreludeBuiltin 1820001 1830043 3 1 "primFloatRadix"
     Prelude.False
 
 aprimFloatDigits =
-  T.mkVariable tPreludeBuiltin 1830001 1840039 3 1 "primFloatDigits"
+  T.mkVariable tPreludeBuiltin 1840001 1850039 3 1 "primFloatDigits"
     Prelude.False
 
 aprimFloatRange =
-  T.mkVariable tPreludeBuiltin 1850001 1860044 3 1 "primFloatRange"
+  T.mkVariable tPreludeBuiltin 1860001 1870044 3 1 "primFloatRange"
     Prelude.False
 
 aprimDecodeFloat =
-  T.mkVariable tPreludeBuiltin 1870001 1880048 3 1 "primDecodeFloat"
+  T.mkVariable tPreludeBuiltin 1880001 1890048 3 1 "primDecodeFloat"
     Prelude.False
 
 aprimEncodeFloat =
-  T.mkVariable tPreludeBuiltin 1890001 1900050 3 2 "primEncodeFloat"
+  T.mkVariable tPreludeBuiltin 1900001 1910050 3 2 "primEncodeFloat"
     Prelude.False
 
 aprimFloatIsNaN =
-  T.mkVariable tPreludeBuiltin 1910001 1920035 3 1 "primFloatIsNaN"
+  T.mkVariable tPreludeBuiltin 1920001 1930035 3 1 "primFloatIsNaN"
     Prelude.False
 
 aprimFloatIsInfinite =
-  T.mkVariable tPreludeBuiltin 1930001 1940040 3 1 "primFloatIsInfinite"
+  T.mkVariable tPreludeBuiltin 1940001 1950040 3 1 "primFloatIsInfinite"
     Prelude.False
 
 aprimFloatIsDenormalized =
-  T.mkVariable tPreludeBuiltin 1950001 1960044 3 1 "primFloatIsDenormalized"
+  T.mkVariable tPreludeBuiltin 1960001 1970044 3 1 "primFloatIsDenormalized"
     Prelude.False
 
 aprimFloatIsNegativeZero =
-  T.mkVariable tPreludeBuiltin 1970001 1980044 3 1 "primFloatIsNegativeZero"
+  T.mkVariable tPreludeBuiltin 1980001 1990044 3 1 "primFloatIsNegativeZero"
     Prelude.False
 
 aprimFloatIsIEEE =
-  T.mkVariable tPreludeBuiltin 1990001 2000036 3 1 "primFloatIsIEEE"
+  T.mkVariable tPreludeBuiltin 2000001 2010036 3 1 "primFloatIsIEEE"
     Prelude.False
 
 aprimFloatEq =
-  T.mkVariable tPreludeBuiltin 2020001 2030039 3 2 "primFloatEq" Prelude.False
+  T.mkVariable tPreludeBuiltin 2030001 2040039 3 2 "primFloatEq" Prelude.False
 
 aprimFloatNe =
-  T.mkVariable tPreludeBuiltin 2040001 2050039 3 2 "primFloatNe" Prelude.False
+  T.mkVariable tPreludeBuiltin 2050001 2060039 3 2 "primFloatNe" Prelude.False
 
 aprimFloatLt =
-  T.mkVariable tPreludeBuiltin 2060001 2070039 3 2 "primFloatLt" Prelude.False
+  T.mkVariable tPreludeBuiltin 2070001 2080039 3 2 "primFloatLt" Prelude.False
 
 aprimFloatLe =
-  T.mkVariable tPreludeBuiltin 2080001 2090039 3 2 "primFloatLe" Prelude.False
+  T.mkVariable tPreludeBuiltin 2090001 2100039 3 2 "primFloatLe" Prelude.False
 
 aprimFloatGt =
-  T.mkVariable tPreludeBuiltin 2100001 2110039 3 2 "primFloatGt" Prelude.False
+  T.mkVariable tPreludeBuiltin 2110001 2120039 3 2 "primFloatGt" Prelude.False
 
 aprimFloatGe =
-  T.mkVariable tPreludeBuiltin 2120001 2130039 3 2 "primFloatGe" Prelude.False
+  T.mkVariable tPreludeBuiltin 2130001 2140039 3 2 "primFloatGe" Prelude.False
 
 aprimFloatPi =
-  T.mkVariable tPreludeBuiltin 2140001 2150022 3 0 "primFloatPi" Prelude.False
+  T.mkVariable tPreludeBuiltin 2150001 2160022 3 0 "primFloatPi" Prelude.False
 
 aprimFloatExp =
-  T.mkVariable tPreludeBuiltin 2160001 2170033 3 1 "primFloatExp" Prelude.False
+  T.mkVariable tPreludeBuiltin 2170001 2180033 3 1 "primFloatExp" Prelude.False
 
 aprimFloatLog =
-  T.mkVariable tPreludeBuiltin 2180001 2190033 3 1 "primFloatLog" Prelude.False
+  T.mkVariable tPreludeBuiltin 2190001 2200033 3 1 "primFloatLog" Prelude.False
 
 aprimFloatSqrt =
-  T.mkVariable tPreludeBuiltin 2200001 2210033 3 1 "primFloatSqrt" Prelude.False
+  T.mkVariable tPreludeBuiltin 2210001 2220033 3 1 "primFloatSqrt" Prelude.False
 
 aprimFloatSin =
-  T.mkVariable tPreludeBuiltin 2220001 2230033 3 1 "primFloatSin" Prelude.False
+  T.mkVariable tPreludeBuiltin 2230001 2240033 3 1 "primFloatSin" Prelude.False
 
 aprimFloatCos =
-  T.mkVariable tPreludeBuiltin 2240001 2250033 3 1 "primFloatCos" Prelude.False
+  T.mkVariable tPreludeBuiltin 2250001 2260033 3 1 "primFloatCos" Prelude.False
 
 aprimFloatTan =
-  T.mkVariable tPreludeBuiltin 2260001 2270033 3 1 "primFloatTan" Prelude.False
+  T.mkVariable tPreludeBuiltin 2270001 2280033 3 1 "primFloatTan" Prelude.False
 
 aprimFloatAsin =
-  T.mkVariable tPreludeBuiltin 2280001 2290033 3 1 "primFloatAsin" Prelude.False
+  T.mkVariable tPreludeBuiltin 2290001 2300033 3 1 "primFloatAsin" Prelude.False
 
 aprimFloatAcos =
-  T.mkVariable tPreludeBuiltin 2300001 2310033 3 1 "primFloatAcos" Prelude.False
+  T.mkVariable tPreludeBuiltin 2310001 2320033 3 1 "primFloatAcos" Prelude.False
 
 aprimFloatAtan =
-  T.mkVariable tPreludeBuiltin 2320001 2330033 3 1 "primFloatAtan" Prelude.False
+  T.mkVariable tPreludeBuiltin 2330001 2340033 3 1 "primFloatAtan" Prelude.False
 
 aprimFloatDiv =
-  T.mkVariable tPreludeBuiltin 2340001 2350042 3 2 "primFloatDiv" Prelude.False
+  T.mkVariable tPreludeBuiltin 2350001 2360042 3 2 "primFloatDiv" Prelude.False
 
 aprimFloatAdd =
-  T.mkVariable tPreludeBuiltin 2360001 2370042 3 2 "primFloatAdd" Prelude.False
+  T.mkVariable tPreludeBuiltin 2370001 2380042 3 2 "primFloatAdd" Prelude.False
 
 aprimFloatSub =
-  T.mkVariable tPreludeBuiltin 2380001 2390042 3 2 "primFloatSub" Prelude.False
+  T.mkVariable tPreludeBuiltin 2390001 2400042 3 2 "primFloatSub" Prelude.False
 
 aprimFloatMul =
-  T.mkVariable tPreludeBuiltin 2400001 2410042 3 2 "primFloatMul" Prelude.False
+  T.mkVariable tPreludeBuiltin 2410001 2420042 3 2 "primFloatMul" Prelude.False
 
 aprimFloatAbs =
-  T.mkVariable tPreludeBuiltin 2420001 2430035 3 1 "primFloatAbs" Prelude.False
+  T.mkVariable tPreludeBuiltin 2430001 2440035 3 1 "primFloatAbs" Prelude.False
 
 aprimFloatSignum =
-  T.mkVariable tPreludeBuiltin 2440001 2450035 3 1 "primFloatSignum"
+  T.mkVariable tPreludeBuiltin 2450001 2460035 3 1 "primFloatSignum"
     Prelude.False
 
 aprimDoubleFromInteger =
-  T.mkVariable tPreludeBuiltin 2470001 2480044 3 1 "primDoubleFromInteger"
+  T.mkVariable tPreludeBuiltin 2480001 2490044 3 1 "primDoubleFromInteger"
     Prelude.False
 
 aprimDoubleRadix =
-  T.mkVariable tPreludeBuiltin 2490001 2500040 3 1 "primDoubleRadix"
+  T.mkVariable tPreludeBuiltin 2500001 2510040 3 1 "primDoubleRadix"
     Prelude.False
 
 aprimDoubleDigits =
-  T.mkVariable tPreludeBuiltin 2510001 2520036 3 1 "primDoubleDigits"
+  T.mkVariable tPreludeBuiltin 2520001 2530036 3 1 "primDoubleDigits"
     Prelude.False
 
 aprimDoubleRange =
-  T.mkVariable tPreludeBuiltin 2530001 2540041 3 1 "primDoubleRange"
+  T.mkVariable tPreludeBuiltin 2540001 2550041 3 1 "primDoubleRange"
     Prelude.False
 
 aprimDecodeDouble =
-  T.mkVariable tPreludeBuiltin 2550001 2560044 3 1 "primDecodeDouble"
+  T.mkVariable tPreludeBuiltin 2560001 2570044 3 1 "primDecodeDouble"
     Prelude.False
 
 aprimEncodeDouble =
-  T.mkVariable tPreludeBuiltin 2570001 2580046 3 2 "primEncodeDouble"
+  T.mkVariable tPreludeBuiltin 2580001 2590046 3 2 "primEncodeDouble"
     Prelude.False
 
 aprimDoubleIsNaN =
-  T.mkVariable tPreludeBuiltin 2590001 2600037 3 1 "primDoubleIsNaN"
+  T.mkVariable tPreludeBuiltin 2600001 2610037 3 1 "primDoubleIsNaN"
     Prelude.False
 
 aprimDoubleIsInfinite =
-  T.mkVariable tPreludeBuiltin 2610001 2620042 3 1 "primDoubleIsInfinite"
+  T.mkVariable tPreludeBuiltin 2620001 2630042 3 1 "primDoubleIsInfinite"
     Prelude.False
 
 aprimDoubleIsDenormalized =
-  T.mkVariable tPreludeBuiltin 2630001 2640046 3 1 "primDoubleIsDenormalized"
+  T.mkVariable tPreludeBuiltin 2640001 2650046 3 1 "primDoubleIsDenormalized"
     Prelude.False
 
 aprimDoubleIsNegativeZero =
-  T.mkVariable tPreludeBuiltin 2650001 2660046 3 1 "primDoubleIsNegativeZero"
+  T.mkVariable tPreludeBuiltin 2660001 2670046 3 1 "primDoubleIsNegativeZero"
     Prelude.False
 
 aprimDoubleIsIEEE =
-  T.mkVariable tPreludeBuiltin 2670001 2680038 3 1 "primDoubleIsIEEE"
+  T.mkVariable tPreludeBuiltin 2680001 2690038 3 1 "primDoubleIsIEEE"
     Prelude.False
 
 aprimDoubleEq =
-  T.mkVariable tPreludeBuiltin 2700001 2710042 3 2 "primDoubleEq" Prelude.False
+  T.mkVariable tPreludeBuiltin 2710001 2720042 3 2 "primDoubleEq" Prelude.False
 
 aprimDoubleNe =
-  T.mkVariable tPreludeBuiltin 2720001 2730042 3 2 "primDoubleNe" Prelude.False
+  T.mkVariable tPreludeBuiltin 2730001 2740042 3 2 "primDoubleNe" Prelude.False
 
 aprimDoubleLt =
-  T.mkVariable tPreludeBuiltin 2740001 2750042 3 2 "primDoubleLt" Prelude.False
+  T.mkVariable tPreludeBuiltin 2750001 2760042 3 2 "primDoubleLt" Prelude.False
 
 aprimDoubleLe =
-  T.mkVariable tPreludeBuiltin 2760001 2770042 3 2 "primDoubleLe" Prelude.False
+  T.mkVariable tPreludeBuiltin 2770001 2780042 3 2 "primDoubleLe" Prelude.False
 
 aprimDoubleGt =
-  T.mkVariable tPreludeBuiltin 2780001 2790042 3 2 "primDoubleGt" Prelude.False
+  T.mkVariable tPreludeBuiltin 2790001 2800042 3 2 "primDoubleGt" Prelude.False
 
 aprimDoubleGe =
-  T.mkVariable tPreludeBuiltin 2800001 2810042 3 2 "primDoubleGe" Prelude.False
+  T.mkVariable tPreludeBuiltin 2810001 2820042 3 2 "primDoubleGe" Prelude.False
 
 aprimDoublePi =
-  T.mkVariable tPreludeBuiltin 2820001 2830024 3 0 "primDoublePi" Prelude.False
+  T.mkVariable tPreludeBuiltin 2830001 2840024 3 0 "primDoublePi" Prelude.False
 
 aprimDoubleExp =
-  T.mkVariable tPreludeBuiltin 2840001 2850036 3 1 "primDoubleExp" Prelude.False
+  T.mkVariable tPreludeBuiltin 2850001 2860036 3 1 "primDoubleExp" Prelude.False
 
 aprimDoubleLog =
-  T.mkVariable tPreludeBuiltin 2860001 2870036 3 1 "primDoubleLog" Prelude.False
+  T.mkVariable tPreludeBuiltin 2870001 2880036 3 1 "primDoubleLog" Prelude.False
 
 aprimDoubleSqrt =
-  T.mkVariable tPreludeBuiltin 2880001 2890036 3 1 "primDoubleSqrt"
+  T.mkVariable tPreludeBuiltin 2890001 2900036 3 1 "primDoubleSqrt"
     Prelude.False
 
 aprimDoubleSin =
-  T.mkVariable tPreludeBuiltin 2900001 2910036 3 1 "primDoubleSin" Prelude.False
+  T.mkVariable tPreludeBuiltin 2910001 2920036 3 1 "primDoubleSin" Prelude.False
 
 aprimDoubleCos =
-  T.mkVariable tPreludeBuiltin 2920001 2930036 3 1 "primDoubleCos" Prelude.False
+  T.mkVariable tPreludeBuiltin 2930001 2940036 3 1 "primDoubleCos" Prelude.False
 
 aprimDoubleTan =
-  T.mkVariable tPreludeBuiltin 2940001 2950036 3 1 "primDoubleTan" Prelude.False
+  T.mkVariable tPreludeBuiltin 2950001 2960036 3 1 "primDoubleTan" Prelude.False
 
 aprimDoubleAsin =
-  T.mkVariable tPreludeBuiltin 2960001 2970036 3 1 "primDoubleAsin"
+  T.mkVariable tPreludeBuiltin 2970001 2980036 3 1 "primDoubleAsin"
     Prelude.False
 
 aprimDoubleAcos =
-  T.mkVariable tPreludeBuiltin 2980001 2990036 3 1 "primDoubleAcos"
+  T.mkVariable tPreludeBuiltin 2990001 3000036 3 1 "primDoubleAcos"
     Prelude.False
 
 aprimDoubleAtan =
-  T.mkVariable tPreludeBuiltin 3000001 3010036 3 1 "primDoubleAtan"
+  T.mkVariable tPreludeBuiltin 3010001 3020036 3 1 "primDoubleAtan"
     Prelude.False
 
 aprimDoubleDiv =
-  T.mkVariable tPreludeBuiltin 3020001 3030046 3 2 "primDoubleDiv" Prelude.False
+  T.mkVariable tPreludeBuiltin 3030001 3040046 3 2 "primDoubleDiv" Prelude.False
 
 aprimDoubleAdd =
-  T.mkVariable tPreludeBuiltin 3040001 3050046 3 2 "primDoubleAdd" Prelude.False
+  T.mkVariable tPreludeBuiltin 3050001 3060046 3 2 "primDoubleAdd" Prelude.False
 
 aprimDoubleSub =
-  T.mkVariable tPreludeBuiltin 3060001 3070046 3 2 "primDoubleSub" Prelude.False
+  T.mkVariable tPreludeBuiltin 3070001 3080046 3 2 "primDoubleSub" Prelude.False
 
 aprimDoubleMul =
-  T.mkVariable tPreludeBuiltin 3080001 3090046 3 2 "primDoubleMul" Prelude.False
+  T.mkVariable tPreludeBuiltin 3090001 3100046 3 2 "primDoubleMul" Prelude.False
 
 aprimDoubleAbs =
-  T.mkVariable tPreludeBuiltin 3100001 3110038 3 1 "primDoubleAbs" Prelude.False
+  T.mkVariable tPreludeBuiltin 3110001 3120038 3 1 "primDoubleAbs" Prelude.False
 
 aprimDoubleSignum =
-  T.mkVariable tPreludeBuiltin 3120001 3130038 3 1 "primDoubleSignum"
+  T.mkVariable tPreludeBuiltin 3130001 3140038 3 1 "primDoubleSignum"
     Prelude.False
 
 aprimIOBind =
-  T.mkVariable tPreludeBuiltin 3180001 3190041 3 2 "primIOBind" Prelude.False
+  T.mkVariable tPreludeBuiltin 3190001 3200041 3 2 "primIOBind" Prelude.False
 
 aprimIOReturn =
-  T.mkVariable tPreludeBuiltin 3200001 3210025 3 1 "primIOReturn" Prelude.False
+  T.mkVariable tPreludeBuiltin 3210001 3220025 3 1 "primIOReturn" Prelude.False
 
 aprimIOErrorShow =
-  T.mkVariable tPreludeBuiltin 3240001 3250038 3 1 "primIOErrorShow"
+  T.mkVariable tPreludeBuiltin 3250001 3260038 3 1 "primIOErrorShow"
     Prelude.False
 
 aioError =
-  T.mkVariable tPreludeBuiltin 3330001 3340027 3 1 "ioError" Prelude.False
+  T.mkVariable tPreludeBuiltin 3340001 3350027 3 1 "ioError" Prelude.False
 
 auserError =
-  T.mkVariable tPreludeBuiltin 3360001 3370033 3 1 "userError" Prelude.False
+  T.mkVariable tPreludeBuiltin 3370001 3380033 3 1 "userError" Prelude.False
 
-acatch = T.mkVariable tPreludeBuiltin 3390001 3400043 3 2 "catch" Prelude.False
+acatch = T.mkVariable tPreludeBuiltin 3400001 3410043 3 2 "catch" Prelude.False
 
 aputChar =
-  T.mkVariable tPreludeBuiltin 3450001 3470023 3 1 "putChar" Prelude.False
+  T.mkVariable tPreludeBuiltin 3460001 3480023 3 1 "putChar" Prelude.False
 
 agetChar =
-  T.mkVariable tPreludeBuiltin 3490001 3500024 3 0 "getChar" Prelude.False
+  T.mkVariable tPreludeBuiltin 3500001 3510024 3 0 "getChar" Prelude.False
 
 agetContents =
-  T.mkVariable tPreludeBuiltin 3520001 3530024 3 0 "getContents" Prelude.False
+  T.mkVariable tPreludeBuiltin 3530001 3540024 3 0 "getContents" Prelude.False
 
 areadFile =
-  T.mkVariable tPreludeBuiltin 3550001 3560034 3 1 "readFile" Prelude.False
+  T.mkVariable tPreludeBuiltin 3560001 3570034 3 1 "readFile" Prelude.False
 
 awriteFile =
-  T.mkVariable tPreludeBuiltin 3580001 3590044 3 2 "writeFile" Prelude.False
+  T.mkVariable tPreludeBuiltin 3590001 3600044 3 2 "writeFile" Prelude.False
 
 aappendFile =
-  T.mkVariable tPreludeBuiltin 3610001 3620044 3 2 "appendFile" Prelude.False
+  T.mkVariable tPreludeBuiltin 3620001 3630044 3 2 "appendFile" Prelude.False

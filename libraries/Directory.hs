@@ -1,13 +1,15 @@
+-- A Haskell 98 module (not Haskell 2010)
+
 module Directory ( 
      Permissions( Permissions, readable, writable, executable, searchable ), 
      createDirectory, removeDirectory, removeFile, 
      renameDirectory, renameFile, getDirectoryContents,
      getCurrentDirectory, setCurrentDirectory,
      doesFileExist, doesDirectoryExist,
-     getPermissions, setPermissions,
-     getModificationTime ) where
+     getPermissions, setPermissions --, getModificationTime 
+     ) where
 
-import Time ( ClockTime )
+-- import Time ( ClockTime )
 import PreludeBuiltinTypes
 import DirectoryBuiltinTypes
 import DirectoryBuiltin
@@ -71,5 +73,6 @@ foreign import haskell "Directory.getPermissions"
 foreign import haskell "Directory.setPermissions"
  setPermissions :: String -> Permissions -> IO ()
 
-foreign import haskell "Directory.getModificationTime"
- getModificationTime :: String -> IO ClockTime
+-- Removed, because in base-4.6 this function has a different type.
+-- foreign import haskell "Directory.getModificationTime"
+--  getModificationTime :: String -> IO ClockTime

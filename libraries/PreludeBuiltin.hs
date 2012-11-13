@@ -55,6 +55,7 @@ module PreludeBuiltin (
 import PreludeBuiltinTypes
 import NotHat.Hat.Hat  -- for some primitive types
 import qualified NotHat.Prelude  -- not to be transformed
+import qualified NotHat.System.IO.Error  -- for catch
 import qualified NotHat.Data.Char as NotHat.Char  -- not to be transformed
 
 -- types appearing here
@@ -336,7 +337,7 @@ foreign import haskell "Prelude.ioError"
 foreign import haskell "Prelude.userError"
   userError ::  String -> IOError
 
-foreign import haskell "Prelude.catch"
+foreign import haskell "System.IO.Error.catchIOError"
   catch ::  IO a -> (IOError -> IO a) -> IO a 
 
 -- foreign import haskell "Prelude.putChar"
