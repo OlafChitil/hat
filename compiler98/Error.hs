@@ -1,5 +1,6 @@
 module Error where
 
+import Control.Exception
 import Data.List
 import System.IO
 import System.Exit
@@ -7,7 +8,7 @@ import System.Exit
 exit :: IO a
 exit = exitWith (ExitFailure 1)
 
-can'tOpen :: String -> a -> IO b
+can'tOpen :: String -> IOException -> IO a
 can'tOpen filename ioError =
   do
     hPutStr stderr ("Can't open "++filename ++ "\n")
