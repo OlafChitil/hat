@@ -20,6 +20,7 @@ import Language.Haskell.Exts.Annotated
 import System.FilePath (takeBaseName)
 import Data.Maybe (fromMaybe, isNothing)
 import Data.List (stripPrefix)
+import Data.Char (digitToInt)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -59,20 +60,20 @@ traceTrans moduleFilename tracing env
     (declsExported ++
       [PatBind span patParent Nothing 
         (UnGuardedRhs span (Var span (qNameMkRoot span))) Nothing] ++
-      [defNameMod pos modId filename traced] ++ 
+      [defNameMod span modId moduleFilename tracing] ++ 
       map (defNameVar Global Local modTrace) mvars ++ 
       map (defNameVar Local Local modTrace) vars ++ 
-      (if traced then map (defNameSpan modTrace) poss else []))
+      (if isTraced tracing then map (defNameSpan modTrace) poss else []))
   where
   modId = maybe "Main" getModuleId maybeModuleHead
-  declsExported = decls' ++ conNameDefs ++ glabalVarNameDefs ++
+  declsExported = decls' ++ conNameDefs ++ globalVarNameDefs ++
                     if isMain modId 
-                      then [defMain traced (traceBaseFilename moduleFilename)] 
+                      then [defMain tracing (traceBaseFilename moduleFilename)] 
                       else []
   conNameDefs = map (defNameCon modTrace) cons 
   globalVarNameDefs = map (defNameVar Global Global modTrace) tvars 
   modId' = nameTransModule modId
-  modTrace = ExpVar pos (nameTraceInfoModule modId)
+  modTrace = Var span (nameTraceInfoModule modId)
   (poss,tvars,vars,mvars,cons) = getModuleConsts consts
   (decls',consts) = tDecls Global tracing decls
 traceTrans _ _ (XmlPage span _ _ _ _ _ _) = notSupported span "XmlPage"
@@ -107,6 +108,30 @@ tModulePragma (OptionsPragma l maybeTool string) =
   OptionsPragma l maybeTool string
 tModulePragma (AnnModulePragma l _) = 
   notSupported l "ANN pragma with module scope"
+
+-- ----------------------------------------------------------------------------
+-- construct new main function definition
+
+-- main = T.traceIO "artFilename" gmain
+--  equivalent to
+-- main = do
+--  T.openTrace "artFilename"
+--  case omain Prelude.undefined Prelude.undefined of
+--    T.R v _ -> v
+--  T.closeTrace
+defMain :: Tracing -> String -> Decl SrcSpanInfo
+defMain tracing artFileName =
+  PatBind noSpan (PVar noSpan (qNameMain noSpan)) Nothing
+    (UnGuardedRhs noSpan (appN
+       [expTraceIO
+       ,litString noSpan artFileName
+       ,appN [Var noSpan qNameGMain, mkExpSR noSpan Trusted, mkRoot noSpan]]))
+    Nothing
+  where
+  qNameGMain = nameTransLetVar (qNameMain noSpan)
+  
+
+
 -- ----------------------------------------------------------------------------
 -- Produce export list
 
@@ -302,11 +327,11 @@ tEntityThingWith env qname cnames =
 -- position in the name, because the same variable name may be used several 
 -- times.
 
-defNameMod :: ModuleName -> String -> Bool -> Decl l
+defNameMod :: ModuleName -> String -> Bool -> Decl SrcSpanInfo
 defNameMod modName@(ModuleName l modId) filename traced =
   PatBind l (PVar l (nameTraceInfoModule modName)) Nothing
     (UnGuardedRhs l
-      (appN l
+      (appN
         [Var l nameMkModule
         ,litString l modId
         ,litString l filename
@@ -320,7 +345,7 @@ defNameCon :: Environment ->
 defNameCon env moduleTrace (conName, fieldNames) =
   PatBind l (PVar l (nameTraceInfoCon conName)) Nothing
     (UnGuardedRhs l
-      (appN l
+      (appN
         (Var l (qNameHatMkAtomConstructor l withLabels) :
          moduleTrace :
          encodeSpan l ++
@@ -344,7 +369,7 @@ defNameVar :: Scope -> Scope -> Exp SrcSpanInfo -> Name SrcSpanInfo ->
 defNameVar defScope visScope moduleTrace varName =
   PatBind l (PVar l (nameTraceInfoVar visScope varName)) Nothing
     (UnGuardedRhs l
-      (appN l
+      (appN
         (Var l (qNameHatMkAtomVariable l)) :
          moduleTrace :
          encodeSpan l ++
@@ -364,7 +389,7 @@ defNameSpan :: Exp SrcSpanInfo -> SrcSpanInfo -> Decl SrcSpanInfo
 defNameSpan moduleTrace span =
   PatBind l (PVar l (nameTraceInfoSpan span)) Nothing
     (UnGuardedRhs l
-      (appN l
+      (appN
         (Var l (qNameHatMkSpan l) :
          moduleTrace :
          encodeSpan span)))
@@ -657,7 +682,7 @@ tPatBind env scope tracing l pat maybeType rhs maybeBinds =
 useDef :: Tracing -> Name SrcSpanInfo -> Decl SrcSpanInfo
 useDef tracing name =
   FunBind l [Match l (nameTransLetVar name) [PVar l sr, patParent]
-               (UnGuardedRhs l (appN l
+               (UnGuardedRhs l (appN
                   [combConstUse l tracing 
                   ,Var l (UnQual l sr)
                   ,expParent
@@ -672,7 +697,7 @@ projDef :: Scope -> Tracing -> Pat SrcSpanInfo -> Exp SrcSpanInfo ->
            Name SrcSpanInfo -> Decl SrcSpanInfo
 projDef scope tracing patTuple expVarResultTrace name =
   PatBind l (PVar l (nameShare name)) Nothing 
-    (UnGuardedRhs l (appN l 
+    (UnGuardedRhs l (appN 
       [combConstDef l tracing
       ,expParent
       ,Var l (nameTraceInfoVar l scope name)
@@ -681,7 +706,7 @@ projDef scope tracing patTuple expVarResultTrace name =
            [Alt l patTuple (UnGuardedAlt l 
              (if isLocal scope && tracing == Trusted
                 then varLambdaName
-                else appN l
+                else appN
                        [Var l qNameProjection
                        ,mkSRExp l tracing
                        ,Var l resultTraceName
@@ -820,18 +845,18 @@ tMatch env tracing cr funName contExp (Match l _ pats rhs maybeDecls) =
   if isNothing numericLitInfos
     then (Match l funName pats' (UnGuardedRhs l rhs') maybeDecls'
          ,declsConsts `withLocal` rhsConsts)
-    else (Match l funName pats' (UnGuardedRhs l (appN l (case tracing of
+    else (Match l funName pats' (UnGuardedRhs l (appN (case tracing of
            Traced -> [combGuard l True
                      ,mkSRExp l tracing
                      ,expParent
                      ,cond'
                      ,Lambda l [patParent]
-                       (appN l (Var l nameFun : argvars ++ [expParent]))
+                       (appN (Var l nameFun : argvars ++ [expParent]))
                      ,Lambda l [patParent]
                        (continuationToExp contExp)]
            Trusted -> [combGuard l False
                       ,cond'
-                      ,appN l (Var l nameFun : argvars ++ [expParent])
+                      ,appN (Var l nameFun : argvars ++ [expParent])
                       ,continuationToExp contExp])))
            (Just (def:decl'))
          ,l `addSpan` condConsts `merge` declConsts `merge` rhsConsts)
@@ -917,7 +942,7 @@ tGuardedRhss _ _ _ failCont [] =
   (continuationToExp failCont, emptyModuleConsts)
 tGuardedRhss env Traced cr failCont 
   (GuardedRhs _ (Qualifier l guard) exp : gdRhss) =
-  (appN l
+  (appN
     [combGuard l True
     ,mkSRExp l True
     ,expParent
@@ -932,7 +957,7 @@ tGuardedRhss env Traced cr failCont
     tGuardedRhss env Traced cr failCont gdRhss
 tGuardedRhss env Trusted cr failCont 
   (GuardedRhs _ (Qualifier l guard) exp : gdRhss) =
-  (appN l
+  (appN
     [combGuard l False
     ,guard'
     ,exp'
@@ -955,20 +980,20 @@ tForeignImp l foreignName name ty =
   if arity == 0 
     then ([TypeSig l letVarName] (tFunType ty)
           ,FunBind l [Match l letVarName [PVar l sr, patParent]
-            (UnGuardedRhs l (appN l 
+            (UnGuardedRhs l (appN 
               [combConstUse l False
               ,Var l (UnQual l sr)
               ,expParent
               ,Var l (Unqual lshareName)]))
             Nothing]
           ,PatBind l (PVar l shareName) Nothing        
-            (UnGuardedRhs l (appN l 
+            (UnGuardedRhs l (appN 
               [combConstDef l False
               ,expParent
               ,Var l (nameTraceInfoVar l Global name) 
               ,Lambda l [patParent]
-                 (appN l
-                   [expFrom l ty, expParent, Var l foreignName])]))
+                 (appN
+                   [expFrom ty, expParent, Var l foreignName])]))
             Nothing
          ,addVar l name emptyModuleConsts)
     else ([TypeSig l letVarName] (tFunType ty)
@@ -979,10 +1004,10 @@ tForeignImp l foreignName name ty =
                 (Var l (UnQual l workerName)) arity))
             Nothing]
           ,FunBind l [Match l workerName (map (PVar l) (args++[hidden]))
-            (UnGuardedRhs l (appN l
-              [expFrom l tyRes
+            (UnGuardedRhs l (appN
+              [expFrom tyRes
               ,ExpVar l hidden
-              ,appN l (Var l foreignName : zipWith to tyArgs args)]))
+              ,appN (Var l foreignName : zipWith to tyArgs args)]))
             Nothing]
          ,addVar l name emptyModuleConsts)
   where
@@ -992,8 +1017,8 @@ tForeignImp l foreignName name ty =
   shareName = nameShare name
   args = take arity (nameArgs name)
   hidden = nameTrace2 name
-  to :: Type l -> QName l -> Exp l
-  to ty arg = appN l [expTo l ty, Var l hidden, Var l arg]
+  to :: Type SrcSpanInfo -> QName SrcSpanInfo -> Exp SrcSpanInfo
+  to ty arg = appN [expTo ty, Var l hidden, Var l arg]
     where
     l = ann ty
   arity = length tyArgs
@@ -1237,7 +1262,7 @@ mkFieldSelector fieldName =
                 Nothing)]
    ,FunBind l [Match l wrappedName
                 [wrapPat (PVar l varName) (PWildcard l), patParent]
-                (UnGuardedRhs l (appN l
+                (UnGuardedRhs l (appN
                    [Var l qNameProjection
                    ,mkExpSR l False
                    ,expParent
@@ -1287,9 +1312,9 @@ wrapValMatch conDecl =
   l = ann constr
   consAppTrace =
     if numOfArgs == 0
-      then appN l (Var l qNameMkExpValueUse : expParent :
+      then appN (Var l qNameMkExpValueUse : expParent :
                    map (Var l . UnQual l) [srName, funAtom])
-      else appN l (Var l (qNameMkExpValueApp numOfArgs) : expParent :
+      else appN (Var l (qNameMkExpValueApp numOfArgs) : expParent :
                    map (Var l . UnQual l) (srName : funAtom : traces))
   funAtom = nameTraceInfoCon consName
   patConsApp =
@@ -1334,7 +1359,7 @@ tExpA env tracing cr (Var l qName) ls es =
              then (mkExpProjection sr e', l `addSpan` emptyModuleConsts)
              else (e', emptyModuleConsts)
       else
-        (appN l [Var l (nameTransLetVar qName), sr, expParent]
+        (appN [Var l (nameTransLetVar qName), sr, expParent]
         ,l `addSpan` emptyModuleConsts)
   where
   sr = mkExpSR l tracing
@@ -2093,7 +2118,7 @@ nameTransSyn = updateId id  -- unchanged
 -- Names of helper synonyms are a bit of a hack; a name conflict is possible.
 -- We just do not want to prefix all names in the namespace.
 nameTransSynHelper :: Id i => i -> Int -> i
-nameTransSynHelper syn no = updateToken (++ ("___" ++ show no)) syn
+nameTransSynHelper syn no = updateId (++ ("___" ++ show no)) syn
   where 
   update (Ident l name) = Ident l (name ++ "___" ++ show no)
   update (Symbol _ _) = 
@@ -2202,7 +2227,7 @@ prefixName c d = updateId update
 
 -- really used with that general type?
 prefixModName :: Id i => Char -> i -> i
-prefixModName c = updateToken update
+prefixModName c = updateId update
   where
   update (Ident l name) = Ident l (c: map (\c->if c=='.' then '_' else c) name)
 
@@ -2233,7 +2258,7 @@ class Id a where
 
 instance Id (QName SrcSpanInfo) where
   updateId f (Qual l moduleName name) = 
-    Qual l (tModuleName moduleName) (updateId f name)
+    Qual l (nameTransModule moduleName) (updateId f name)
   updateId f (UnQual l name) = UnQual l (updateId f name)
   updateId f (Special l specialCon) =
     case specialCon of
@@ -2256,9 +2281,9 @@ instance Id (QName SrcSpanInfo) where
 
 instance Id (Name l) where
   updateId f name = f name  
-  isSymbol (Identifier _ _) = False
+  isSymbol (Ident _ _) = False
   isSymbol (Symbol _ _) = True
-  getId (Identifier _ ident) = ident
+  getId (Ident _ ident) = ident
   getId (Symbol _ ident) = ident
 
 instance Id (QOp l) where
@@ -2293,7 +2318,7 @@ expRoot = expShortIdent "mkRoot"
 
 mkExpSR :: SrcSpanInfo -> Tracing -> Exp SrcSpanInfo
 mkExpSR l tracing = 
-  Var noSpan (if isTraced tracing then qNameTraceInfoSpan l else qNameMkNoSpan)
+  Var noSpan (if isTraced tracing then nameTraceInfoSpan l else qNameMkNoSpan)
 
 mkExpProjection :: Exp SrcSpanInfo -> Exp SrcSpanInfo -> Exp SrcSpanInfo
 mkExpProjection sr e =
@@ -2386,7 +2411,7 @@ mkExpIf :: SrcSpanInfo -> Tracing ->
            Exp SrcSpanInfo
 mkExpIf l tracing cond e1 e2 =
   appN [Var noSpan ((if isTraced tracing then qNameIf else qNameUIf) noSpan)
-       ,mkExpSR l Tracing
+       ,mkExpSR l tracing
        ,expParent
        ,cond
        ,e1
@@ -2441,11 +2466,8 @@ qNameMkAtomVariable = qNameShortIdent "mkVariable"
 qNameMkSpan :: l -> QName l
 qNameMkSpan = qNameShortIdent "mkSrcPos"
 
-qNameMkNoSpan :: L -> QName l
+qNameMkNoSpan :: l -> QName l
 qNameMkNoSpan = qNameShortIdent "mkNoSrcPos"
-
-qNameMkAtomVariable :: l -> QName l
-qNameMkAtomVariable = qNameShortIdent "mkVariable"
 
 qNameMkExpValueApp :: l -> Arity -> QName l
 qNameMkExpValueApp = qNameShortArity "mkValueApp"
@@ -2454,7 +2476,7 @@ qNameMkExpValueUse :: l -> QName l
 qNameMkExpValueUse = qNameShortIdent "mkValueUse"
 
 qNameMkAtomRational :: l -> QName l
-qNameMkAtomRationl = qNameShortIdent "mkAtomRational"
+qNameMkAtomRational = qNameShortIdent "mkAtomRational"
 expMkAtomRational :: Exp SrcSpanInfo
 expMkAtomRational = Var noSpan (qNameMkAtomRational noSpan)
 
@@ -2478,7 +2500,7 @@ qNameUApp = qNameShortArity "uapp"
 
 qNameFun :: l -> Arity -> QName l
 qNameFun = qNameShortArity "fun"
-qNameUFun :: l -> Arity -> Qname l
+qNameUFun :: l -> Arity -> QName l
 qNameUFun = qNameShortArity "ufun"
 
 qNameCon :: l -> Arity -> QName l
@@ -2511,9 +2533,9 @@ qNameUIf :: l -> QName l
 qNameUIf = qNameShortIdent "ucif"
 
 qNameCase :: l -> QName l
-qNameCase = qNameShortCase "ccase"
+qNameCase = qNameShortIdent "ccase"
 qNameUCase :: l -> QName l
-qNameUCase = qNameShortCase "uccase"
+qNameUCase = qNameShortIdent "uccase"
 
 qNameUpdate :: l -> Arity -> QName l
 qNameUpdate = qNameShortArity "update"
@@ -2621,7 +2643,7 @@ mkExpPreludeFilter :: l -> Exp l
 mkExpPreludeFilter l = Var l (qNamePreludeIdent "filter" l)
 
 mkExpPreludeFoldr :: l -> Exp l
-mkExpPreludeFoldr l = Var l (qNamePreludeFoldr "foldr" l)
+mkExpPreludeFoldr l = Var l (qNamePreludeIdent "foldr" l)
 
 mkExpPreludeEqualEqual :: l -> Exp l
 mkExpPreludeEqualEqual l = Var (qNamePreludeSymbol "==" l)
@@ -2630,7 +2652,11 @@ mkExpPreludeGreaterEqual :: l -> Exp l
 mkExpPreludeGreaterEqual l = Var (qNamePreludeSymbol ">=" l)
 
 mkExpPreludeMinus :: l -> Exp l
-mkExpPreludeMinus l = Var (qNamePreludeMinus "-" l)
+mkExpPreludeMinus l = Var (qNamePreludeSymbol "-" l)
+
+-- function main
+qNameMain :: l -> Exp l
+qNameMain l = UnQual l "main"
 
 -- Building name qualifiers
 
@@ -2663,33 +2689,33 @@ qNameShortArity ident l a = qNameShortIdent (ident ++ show a) l
 -- ----------------------------------------------------------------------------
 -- Wrapping of untransformed code
 
-expTo :: l -> Type l -> Exp l
+expTo :: Type SrcSpanInfo -> Exp SrcSpanInfo
 expTo = expType True
 
-expFrom :: l -> Type l -> Exp l
+expFrom :: Type SrcSpanInfo -> Exp SrcSpanInfo
 expFrom = expType False
 
 -- The following assumes a limited form of types as they
 -- occur in foreign import / export declarations.
 -- Variables of kind other than * pose a problem.
-expType :: Bool -> l -> Type l -> Exp l
-expType to l (TyForall l _ _ _) = notSupported undefined "local type forall"
-expType to l (TyFun l tyL tyR) =
-  appN l 
+expType :: Bool -> Type SrcSpanInfo -> Exp SrcSpanInfo
+expType to (TyForall l _ _ _) = notSupported l "local type forall"
+expType to (TyFun l tyL tyR) =
+  appN
     [Var l (mkTypeToken (prefix to ++ "Fun"))
-    ,expType (not to) l tyL
-    ,expType to pos tyR]
-expType to l (TyTuple l boxed tys) =
-  appN l
+    ,expType (not to) tyL
+    ,expType to tyR]
+expType to (TyTuple l boxed tys) =
+  appN
     (Var l (mkTypeToken (prefix to ++ "Tuple" ++ show (length tys))) :
-     map (expType to l) tys)
-expType to l (TyList l ty) =
-  appN l [Var l (mkTypeToken (prefix to ++ "List")), expType to l ty]
-expType to l (TyApp l tyL tyR) = 
-  App l (expType to l tyL) (expType to l tyR)
-expType to l (TyVar l _) =
+     map (expType to) tys)
+expType to (TyList l ty) =
+  appN [Var l (mkTypeToken (prefix to ++ "List")), expType to ty]
+expType to (TyApp l tyL tyR) = 
+  App l (expType to tyL) (expType to tyR)
+expType to (TyVar l _) =
   Var l (mkTypeToken (prefix to ++ "Id"))
-expType to l (TyCon l qName) = 
+expType to (TyCon l qName) = 
   Var l (mkTypeToken (prefix to ++ getId qName))
 
 prefix :: Bool -> String
@@ -2727,15 +2753,15 @@ patParent :: Pat SrcSpanInfo
 patParent = PVar noSpan nameParent
 
 expParent :: Exp SrcSpanInfo
-expParent = Var noSpan (UnQualified noSpan nameParent)
+expParent = Var noSpan (UnQual noSpan nameParent)
 
 -- Build parts of syntax tree:
 
 -- Build n-ary application
 -- pre-condition: list is non-empty
-appN :: l -> [Exp l] -> Exp l
-appN _ [e] = e
-appN l (e:es) = App l e (appN l es)
+appN :: [Exp SrcSpanInfo] -> Exp SrcSpanInfo
+appN [e] = e
+appN (e:es) = App noSpan e (appN es)
 
 -- Build n-ary type application
 -- pre-condiiton: list is non-empy
@@ -2743,11 +2769,11 @@ tyAppN :: [Type l] -> Type l
 tyAppN [t] = t
 tyAppN (t:ts) = TyApp (ann t) t (tyAppN ts)
 
-litInt :: Integral i => l -> i -> Lit l
+litInt :: Integral i => l -> i -> Exp l
 litInt l i = Lit l (Int l (fromIntegral i) (show i))
 
-litString :: l -> String -> Lit l
-litString l str = Lit l (Str l str str) 
+litString :: l -> String -> Exp l
+litString l str = Lit l (String l str str) 
   
 matchArity :: Match l -> Arity 
 matchArity (Match _ _ pats _ _) = length pats
@@ -2779,7 +2805,7 @@ getFieldNamesFromConDecl :: ConDecl l -> [Name l]
 getFieldNamesFromConDecl (ConDecl _ _ _) = []
 getFieldNamesFromConDecl (InfixConDecl _ _ _ _) = []
 getFieldNamesFromConDecl (RecDecl _ _ fieldDecls) = 
-  map getFieldNamesFromFieldDecl fieldDecls
+  map getFieldNameFromFieldDecl fieldDecls
 
 getFieldNameFromFieldDecl :: FieldDecl l -> [Name l]
 getFieldNameFromFieldDecl (FieldDecl _ names _) = names
@@ -2808,7 +2834,7 @@ guardedAlts2Rhs (GuardedAlts l gdAlts) =
   GuardedRhs l (map guardedAlt2GuardedRhs gdAlts)
 
 guardedAlt2GuardedRhs :: GuardedAlt l -> GuardedRhs l
-guardedAlt2 (GuardedAlt l stmts exp) = GuardedRhs l stmts exp
+guardedAlt2GuardedRhs (GuardedAlt l stmts exp) = GuardedRhs l stmts exp
 
 qOp2Exp :: QOp l -> Exp l
 qOp2Exp (QVarOp l qName) = Var l qName
@@ -2828,11 +2854,11 @@ isMain = (== "Main")
 -- Even with qualification "Prelude" this may be a different "True"
 -- There is no origin-tracking
 isTrue :: QName l -> Bool
-isTrue (Qual _ (ModuleName _ "Prelude") (Identifier "True")) = True
-isTrue (UnQual _ (Identifier "True")) = True
+isTrue (Qual _ (ModuleName _ "Prelude") (Ident "True")) = True
+isTrue (UnQual _ (Ident "True")) = True
 isTrue _ = False
 
 isOtherwise :: QName l -> Bool
-isOtherwise (Qual _ (ModuleName _ "Prelude") (Identifier "otherwise")) = True
-isOtherwise (UnQual _ (Identifier "otherwise")) = True
+isOtherwise (Qual _ (ModuleName _ "Prelude") (Ident "otherwise")) = True
+isOtherwise (UnQual _ (Ident "otherwise")) = True
 isOtherwise _ = False
