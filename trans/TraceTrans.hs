@@ -18,10 +18,12 @@ module TraceTrans (traceTrans, Tracing(..)) where
 
 import Language.Haskell.Exts.Annotated
 import System.FilePath (takeBaseName)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isNothing)
 import Data.List (stripPrefix)
 import Data.Set (Set)
 import qualified Data.Set as Set
+
+import Environment (Environment)
 
 -- ----------------------------------------------------------------------------
 -- central types
@@ -51,7 +53,7 @@ traceTrans ::
   Module SrcSpanInfo  -- some srcSpanInfo will be fake
 traceTrans moduleFilename tracing env
   (Module span maybeModuleHead modulePragmas impDecls decls) =
-  Module span (fmap (tModuleHead env declsExported maybeModuleHead) 
+  Module span (fmap (tModuleHead env declsExported) maybeModuleHead) 
     (map tModulePragma modulePragmas) 
     (tImpDecls tracing impDecls)
     (declsExported ++
@@ -60,7 +62,7 @@ traceTrans moduleFilename tracing env
       [defNameMod pos modId filename traced] ++ 
       map (defNameVar Global Local modTrace) mvars ++ 
       map (defNameVar Local Local modTrace) vars ++ 
-      (if traced then map (defNameSpan modTrace) poss else []) 
+      (if traced then map (defNameSpan modTrace) poss else []))
   where
   modId = maybe "Main" getModuleId maybeModuleHead
   declsExported = decls' ++ conNameDefs ++ glabalVarNameDefs ++
@@ -91,7 +93,7 @@ tModuleHead env decls
   (ModuleHead span moduleName maybeWarningText maybeExportSpecList) =
   ModuleHead span (nameTransModule moduleName) 
     (fmap tWarningText maybeWarningText)
-    (tMaybeExportSpecList (\(ModuleName _ modId) -> modId) moduleName) 
+    (tMaybeExportSpecList (map (\(ModuleName _ modId) -> modId) moduleName)
       env maybeExportSpecList decls)
 
 -- warnings stay unchanged
@@ -207,7 +209,7 @@ tImpDecls env impDecls =
                 importQualified = True,
                 importSrc = False,
                 importPkg = Nothing,
-                importAs = Just (ModuleName noSpan "T",
+                importAs = Just (ModuleName noSpan "T"),
                 importSpecs = Nothing}
   -- All types and combinators for tracing, inserted by the transformation
   : map (tImportDecl env) impDecls
@@ -330,7 +332,7 @@ defNameCon env moduleTrace (conName, fieldNames) =
                   map (Var l . UnQual l . nameTraceInfoVar l Global) $ 
                   fieldNames
            else []
-       )))
+       ))
     Nothing
   where
   l = ann conName
@@ -684,7 +686,7 @@ projDef scope tracing patTuple expVarResultTrace name =
                        ,mkSRExp l tracing
                        ,Var l resultTraceName
                        ,varLambdaName]))
-             Nothing]]
+             Nothing]]))
     Nothing
   where
   l = ann name
@@ -811,7 +813,7 @@ tMatch :: Environment ->
           Tracing ->
           Bool -> -- whether this is reduct of the parent
           Name l -> -- name for function this match partially defines
-          ContExp l -> continuation in case of match failure
+          ContExp l -> -- continuation in case of match failure
           Match l ->
           (Match l, ModuleConsts)
 tMatch env tracing cr funName contExp (Match l _ pats rhs maybeDecls) =
@@ -1232,7 +1234,7 @@ mkFieldSelector fieldName =
                    (mkExpFun Trusted (Var l (UnQual l (nameSR fieldName)))
                      (Var l (UnQual l (nameTraceInfoVar l Global fieldName)))
                      (Var l (UnQual l wrappedName)) 1)
-                Nothing]
+                Nothing)]
    ,FunBind l [Match l wrappedName
                 [wrapPat (PVar l varName) (PWildcard l), patParent]
                 (UnGuardedRhs l (appN l
@@ -1273,7 +1275,7 @@ tyVarBindToType (KindedVar l name kind) =
   TyParen l (TyKind l (TyVar l name) kind)
 tyVarBindToType (UnkindedVar l name) = TyVar l name
 
-wrapValMatch :: ConDecl SrcSpanInfo :: Match SrcSpanInfo
+wrapValMatch :: ConDecl SrcSpanInfo -> Match SrcSpanInfo
 wrapValMatch conDecl =
   Match l (nameWrapValFun l) 
     [PVar l (nameSR (nameWrapValFun l))
@@ -1291,7 +1293,7 @@ wrapValMatch conDecl =
                    map (Var l . UnQual l) (srName : funAtom : traces))
   funAtom = nameTraceInfoCon consName
   patConsApp =
-    PApp l consName (map (wrapPat l (PWildcard l) . PVar l) traces)
+    PApp l consName (map (wrapPat (PWildcard l) . PVar l) traces)
   consName = getConstructorFromConDecl conDecl
   traces = take numOfArgs (nameArgs (nameWrapValFun l)) :: Name SrcSpanInfo
   numOfArgs = getArityFromConDecl conDecl
@@ -1390,11 +1392,11 @@ tExpA env Trusted cr (If l cond e1 e2) ls es =
 tExpA env tracing cr (Case l exp alts) ls es =
   -- translate case into if:
   -- case exp of
-       pat1 -> exp1
-       pat2 -> exp2
-       ...
+  --   pat1 -> exp1
+  --   pat2 -> exp2
+  --   ...
   -- ==>
-     (let f pat1 = exp1; f pat2 = exp2;... in f) exp
+  -- (let f pat1 = exp1; f pat2 = exp2;... in f) exp
   -- but not fully, as we don't want to trace function f and the application
   tExpF tracing ls es
     (mkExpCase l tracing 
@@ -1429,15 +1431,15 @@ tExpA env tracing cr (Paren l exp) ls es =
 tExpA env tracing cr (LeftSection l exp qOp) ls es =
   -- desugar into normal function application
   tExpA env tracing cr (App l (qOp2Exp qOp) exp) ls es
-tExpA env tracing cr (RightSection l exp qOp) ls es
+tExpA env tracing cr (RightSection l exp qOp) ls es =
   -- desugar into a lambda abstraction
   tExpA env tracing cr
     (Lambda noSpan [EVar noSpan name] 
       (App l (App l (qOp2Exp qOp) (Var noSpan (UnQual noSpan name))) exp)) 
     ls es
   where
-  name : _ = namesFromSpan l
-tExpA env tracing cr (RecConstr l qName fieldUpdates) ls es
+  name = nameFromSpan l
+tExpA env tracing cr (RecConstr l qName fieldUpdates) ls es =
   tExpF tracing ls es $
     (appN [expWrapValFun, mkExpSR l tracing, 
            RecUpdate l consUndefined fieldUpdates', expParent]
@@ -1451,7 +1453,7 @@ tExpA env tracing cr (RecConstr l qName fieldUpdates) ls es
   Just consArity = arity env qName
   expSR = mkExpSR l False
   (fieldUpdates', fieldsConsts) = mapMerge2 (tField env tracing) fieldUpdates
-tExpA env Traced cr (RecUpdate l exp fieldUpdates) ls es
+tExpA env Traced cr (RecUpdate l exp fieldUpdates) ls es =
   tExpF Traced ls es $
     (Let l (BDecls l fieldVarDecls) 
        (appN (mkExpUpdate Traced (length labels)
@@ -1478,7 +1480,7 @@ tExpA env Traced cr (RecUpdate l exp fieldUpdates) ls es
   fieldExp (FieldUpdate _ _ exp) = exp
   fieldExp (FieldPun l) = notSupported l "record field pun"
   fieldExp (FieldWildcard l) = notSupported l "record field wildcard"
-tExpA env Trusted cr (RecUpdate l exp fieldUpdates) ls es
+tExpA env Trusted cr (RecUpdate l exp fieldUpdates) ls es =
   tExpF Trusted ls es $
     (appN [mkExpUpdate Trusted (-1) 
           ,expParent
@@ -1717,7 +1719,7 @@ desugarListComprehension l exp qualStmts =
   unQual (QualStmt _ stmt) = stmt
   unQual qs = notSupported l 
                 "qualifier beyond a statement in list comprehension"
-  trans [] = App l (mkExpPreludeColon l) e
+  trans [] = App l (mkExpPreludeCons l) e
   trans (LetStmt l binds : stmts) = 
     Let l binds (trans stmts)
   trans (Qualifier l exp : stmts) =
@@ -1749,12 +1751,177 @@ tPats :: [Pat SrcSpanInfo] ->
            ,[Pat SrcSpanInfo])) -- original patterns after num pat
 tPats = mapCombindPats tPat
 
+mapCombinePats :: (Pat SrcSpanInfo ->
+      (Pat SrcSpanInfo, Maybe (c,d,[Exp SrcSpanInfo],[Pat SrcSpanInfo]))) ->
+      [Pat SrcSpanInfo] ->
+      ([Pat SrcSpanInfo], Maybe (c,d,[Exp SrcSpanInfo],[Pat SrcSpanInfo]))
+mapCombinePats f [] = ([], Nothing)
+mapCombinePats f (x:xs) =
+  case f x of
+    (pat, Nothing) -> (pat:pats, numPatInfos)
+    (pat, Just (e,d,vs,ps)) -> (pat:xvs, Just (e,d,vs++xvs,ps++xs))
+  where
+  (pats, numPatInfos) = mapCombinePats f xs
+  xvs = map patToVar xs
+
+-- Replace every pattern by a variable pattern.
+patToVar :: Pat SrcSpanInfo -> Pat SrcSpanInfo
+patToVar (PVar l name) = PVar l (nameTransLambdaVar name)
+patToVar (PAsPat l name pat) = PVar l (nameTransLambdaVar name)
+patToVar pat = PVar l (nameFromSpan l)
+  where
+  l = ann pat
+
 
 tPat :: Pat SrcSpanInfo ->
         (Pat SrcSpanInfo
         ,Maybe (Exp SrcSpanInfo, [Decl SrcSpanInfo], [Exp SrcSpanInfo], 
                 [Pat SrcSpanInfo]))
 tPat (PVar l name) = (PVar l (nameTransLambdaVar name), Nothing)
+tPat (PLit _ lit@(Char l c str)) = 
+  (wrapPat (PLit l lit) (PWildcard l), Nothing)
+tPat (PLit _ (String l s str)) =
+  tPat . mkPatList l . map mkPatChar $ s
+  where
+  mkPatChar :: Char -> Pat SrcSpanInfo
+  mkPatChar c = PLit l (Char l c (show c)) 
+tPat (PLit _ lit@(Int l int str)) =
+  (PVar l (nameTransLambdaVar nameNew)
+  ,Just (App l (App l (Var l (qNamePreludeEqualEqual l)) 
+                      (Var l (UnQual l nameNew))) 
+               (Lit l lit)
+        ,[],[],[]))
+  where
+  nameNew = nameFromSpan l
+tPat (PLit _ lit@(Frac l rat str)) =
+  (PVar l (nameTransLambdaVar nameNew)
+  ,Just (App l (App l (mkExpPreludeEqualEqual l) 
+                      (Var l (UnQual l nameNew))) 
+               (Lit l lit)
+        ,[],[],[]))
+  where
+  nameNew = nameFromSpan l
+tPat (PLit l lit) =
+  notSupported l "unboxed literal"
+tPat (PNeg l (PLit _ (Int _ int str))) = 
+  -- a negative integer literal is represented as negate int
+  tPat (PLit l (Int l (-int) ('-':str)))
+tPat (PNeg l (PLit _ (Frac _ rat str))) =
+  -- a negative floating point literal is represented as negate frac
+  tPat (PLit l (Frac l (-rat) ('-':str))) 
+tPat (PNeg l _) =
+  notSupported l "negated pattern"
+tPat (PNPlusK l n k) =
+  (PVar l (nameTransLambdaVar nameNew)
+  ,Just (App l (App l (mkExpPreludeGreaterEqual l)
+                      varNew)
+               litK
+        ,[PatBind l (PVar l n) Nothing 
+           (UnGuardedRhs l (App l (App l (mkExpPreludeMinus l) varNew)
+                                  litK)) 
+           Nothing]
+        ,[],[]))
+  where
+  nameNew = nameFromSpan l
+  varNew = Var l (UnQual l nameNew)
+  litK = Lit l (Int l k (show k))
+tPat (PInfixApp l pL qName pR) =
+  tPat (PApp l qName [pL, pR])
+tPat (PApp l qName pats) =
+  (wrapPat (PApp l (nameTransCon qName) pats') (PWildcard l)
+  ,patsNumInfo)
+  where
+  (pats', patsNumInfo) = tPats pats
+tPat (PTuple l pats) =
+  tPat (PApp l (Special l (TupleCon l True arity)) pats)
+  where
+  arity = length pats
+tPat (PList l pats) =
+  tPat (mkPatList l pats)
+tPat (PParen l pat) = 
+  (PParen l pat', patNumInfo) 
+  where
+  (pat', patNumInfo) = tPat pat
+tPat (PRec l qName patFields) =
+  (wrapPat (PRec l (nameTransCon qName) patFields') (PWildcard l)
+  ,numInfos)
+  where
+  (patFields', numInfos) = tPatFields patFields
+tPat (PAsPat l name pat) =
+  (PAsPat l (nameTransLambdaVar name) pat', patNumInfos)
+  where
+  (pat', patNumInfos) = tPat pat
+tPat (PWildcard l) =
+  (PWildcard l, Nothing)
+tPat (PIrrPat l pat) =
+  if isNothing patNumInfos
+    then
+      (case pat' of
+         PApp l' nameR [p',t'] -> PApp l' nameR [PIrrPat l p', t']
+         x                     -> x  -- wildcard, ...
+      ,Nothing)
+    else notSupported l "numeric literal or n+k inside ~ pattern"
+  where
+  (pat', patNumInfos) = tPat pat
+tPat (PatTypeSig l pat ty) =
+  (PatTypeSig l pat' (tType ty), patNumInfos)
+  where
+  (pat', patNumInfos) = tPat pat
+tPat (PViewPat l _ _) =
+  notSupported l "view pattern"
+tPat (PRPat l _) =
+  notSupported l "regular list pattern"
+tPat (PXTag l _ _ _ _) =
+  notSupported l "XML element pattern"
+tPat (PXETag l _ _ _) =
+  notSupported l "XML singleton element pattern"
+tPat (PXPcdata l _) =
+  notSupported l "XML PCDATA pattern"
+tPat (PXPatTag l _) =
+  notSupported l "XML embedded pattern"
+tPat (PXRPats l _) =
+  notSupported l "XML regular list pattern"
+tPat (PExplTypeArg l _ _) =
+  notSupported l "explicit generics style type argument"
+tPat (PQuasiQuote l _ _) =
+  notSupported l "quasi quote pattern"
+tPat (PBangPat l pat) =
+  -- strictness is currently ignored
+  tPat pat
+
+
+-- Rename field labels and process patterns.
+tPatFields :: [PatField l] -> 
+              ([PatField l]
+              ,Maybe (Exp SrcSpanInfo, [Decl SrcSpanInfo], [Exp SrcSpanInfo], 
+                      [Pat SrcSpanInfo]))
+tPatFields patFields =
+  (patFields', numInfos)
+  where
+  (spans, names, pats) = unzipFields patFields
+  (pats', numInfos) = mapCombinePats tPat pats
+  patFields' = zipFields spans (map nameTransField names) pats'
+  unzipFields :: [PatField SrcSpanInfo] ->
+                 ([SrcSpanInfo], [QName SrcSpanInfo], [Pat SrcSpanInfo])
+  unzipFields [] = ([],[],[])
+  unzipFields (PFieldPat l qName pat : fields) = (l:ls, qName:names, pat:pats)
+    where
+    (ls, names, pats) = unzipFields fields
+  unzipFields (PFieldPun l _ : _) = notSupported l "record field pun"
+  unzipFields (PFieldWildcard l : _) = notSupported l "record field wildcard"
+  zipFields :: [SrcSpanInfo] -> [QName SrcSpanInfo] -> [Pat SrcSpanInfo] ->
+               [PatField SrcSpanInfo]
+  zipFields = zipWith3 PFieldPat
+
+-- apply data constructor R
+wrapPat :: Pat SrcSpanInfo -> Pat SrcSpanInfo -> Pat SrcSpanInfo
+wrapPat expVal expTrace = PApp noSpan qNameR [expVal, expTrace]
+
+mkPatList :: l -> [Pat l] -> Pat l
+mkPatList l =
+  foldr (\x xs -> PApp l cons [x,xs]) (PList l [])
+  where
+  cons = qNamePreludeCons l
 
 -- ----------------------------------------------------------------------------
 -- Abstract continuation for guards
@@ -1792,7 +1959,7 @@ tFunType ty = TyCon l qNameRefSrcPos `typeFun` TyCon l qNameRefExp `typeFun`
 
 -- Build type of worker from original type
 tWorkerType :: Environment -> Arity -> Type l -> Type l
-tWorkerType _ 0 ty
+tWorkerType _ 0 ty =
   TyCon (ann ty) qNameRefExp `typeFun` wrapType (tType ty)
 tWorkerType env a ty = tWorkerSynExpand env a ty []
 
@@ -1820,7 +1987,7 @@ expandTypeSynonym env tySyn tys =
   case typeSynonymBody env tySyn of
     Nothing -> error ("TraceTrans.expandTypeSynonym: " ++ show tySyn ++
                       " is not a type synonym.")
-    Just body = fst (go body 1)
+    Just body -> fst (go body 1)
   where
   l = ann tySyn
   go :: TySynBody -> Int -> (Type l, Int)
@@ -2257,8 +2424,8 @@ mkTypeToken l id =
 qNameMkRoot :: l -> QName l
 qNameMkRoot = qNameShortIdent "mkRoot"
 
-qNameR :: l -> QName l
-qNameR = qNameShortIdent "R"
+qNameR :: QName SrcSpanInfo
+qNameR = qNameShortIdent "R" noSpan
 
 qNameMkModule :: l -> QName l
 qNameMkModule = qNameShortIdent "mkModule"
@@ -2445,14 +2612,25 @@ mkExpPreludeEnumFromThen l = Var l (qNamePreludeIdent "enumFromThen" l)
 mkExpPreludeEnumFromThenTo :: l -> Exp l
 mkExpPreludeEnumFromThenTo l = Var l (qNamePreludeIdent "enumFromThenTo" l)
 
-mkExpPreludeColon :: l -> Exp l
-mkExpPreludeColon l = Var l (Special l (Cons l))
+qNamePreludeCons :: l -> QName l
+qNamePreludeCons l = Special l (Cons l)
+mkExpPreludeCons :: l -> Exp l
+mkExpPreludeCons l = Var l (qNamePreludeCons l)
 
 mkExpPreludeFilter :: l -> Exp l
 mkExpPreludeFilter l = Var l (qNamePreludeIdent "filter" l)
 
 mkExpPreludeFoldr :: l -> Exp l
 mkExpPreludeFoldr l = Var l (qNamePreludeFoldr "foldr" l)
+
+mkExpPreludeEqualEqual :: l -> Exp l
+mkExpPreludeEqualEqual l = Var (qNamePreludeSymbol "==" l)
+
+mkExpPreludeGreaterEqual :: l -> Exp l
+mkExpPreludeGreaterEqual l = Var (qNamePreludeSymbol ">=" l)
+
+mkExpPreludeMinus :: l -> Exp l
+mkExpPreludeMinus l = Var (qNamePreludeMinus "-" l)
 
 -- Building name qualifiers
 
