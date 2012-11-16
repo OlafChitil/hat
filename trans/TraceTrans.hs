@@ -20,7 +20,7 @@ import Language.Haskell.Exts.Annotated
 import System.FilePath (takeBaseName)
 import Data.Maybe (fromMaybe,isNothing,isJust,fromJust)
 import Data.List (stripPrefix,nubBy,partition)
-import Data.Char (digitToInt)
+import Data.Char (digitToInt,isAlpha)
 import Data.Ratio (numerator,denominator)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -35,7 +35,7 @@ import Derive (derive)
 -- ----------------------------------------------------------------------------
 -- central types
 
-data Tracing = Traced | Trusted
+data Tracing = Traced | Trusted deriving Eq
 
 isTraced :: Tracing -> Bool
 isTraced Traced = True
@@ -453,9 +453,10 @@ addSpan ssi (MC poss tids ids mids cons) =
   MC (Set.insert (srcInfoSpan ssi) poss) tids ids mids cons
 
 -- pre-condition: name is a variable
-addVar :: Name SrcSpanInfo -> ModuleConsts -> ModuleConsts
-addVar name (MC poss tids ids mids cons) = 
-  MC (Set.insert (srcInfoSpan (ann name)) poss) 
+addVar :: SrcSpanInfo ->  -- span of whole variable definition, not just variable
+          Name SrcSpanInfo -> ModuleConsts -> ModuleConsts
+addVar l name (MC poss tids ids mids cons) = 
+  MC (Set.insert l poss) 
     (Set.insert name tids) ids mids cons
 
 -- pre-condition: name is a data constructor
@@ -513,7 +514,7 @@ tDecl :: Environment -> Scope -> Tracing ->
          Decl SrcSpanInfo ->
          ([Decl SrcSpanInfo], ModuleConsts)
 tDecl env _ _ synDecl@(TypeDecl span declHead ty) =
-  (map tTypeSynonym (splitSynonym env declHead ty), emptyModuleConsts)
+  (map tTypeSynonym (splitSynonym env synDecl), emptyModuleConsts)
   where
   tTypeSynonym :: Decl SrcSpanInfo -> Decl SrcSpanInfo
   tTypeSynonym (TypeDecl span declHead ty) =
@@ -544,30 +545,28 @@ tDecl _ _ _ (GDataInsDecl l _ _ _ _ _) =
   notSupported l "GADT family instance declaration"
 tDecl env _ tracing  -- class without methods
   (ClassDecl l maybeContext declHead fundeps Nothing) =
-  onlyDecl (ClassDecl l (fmap tContext maybeContext) (declHead) 
+  onlyDecl (ClassDecl l (fmap tContext maybeContext) 
+     (mapDeclHead (updateId id) declHead) 
      (map tFunDep fundeps) Nothing)
 tDecl env _ tracing  -- class with methods
   (ClassDecl l maybeContext declHead fundeps (Just classDecls)) =
-  (ClassDecl l (fmap tContext maybeContext) (declHead) 
-    (map tFunDep fundeps) (Just classDecls') :
-   auxDecls
+  ([ClassDecl l (fmap tContext maybeContext) 
+    (mapDeclHead (updateId id) declHead) 
+    (map tFunDep fundeps) (Just classDecls')]
   ,classifyMethods declsConsts)
   where
-  (classDecls', auxDecls, declsConsts) = 
-    tClassDecls env tracing classDecls
+  (classDecls', declsConsts) = tClassDecls env tracing classDecls
 tDecl env _ tracing -- class instance without methods
   (InstDecl l maybeContext instHead Nothing) =
   onlyDecl (InstDecl l (fmap tContext maybeContext) (tInstHead instHead) 
     Nothing)
 tDecl env _ tracing -- class instance with methods
-  (InstDecl l maybeContext instHead (instDecls)) =
+  (InstDecl l maybeContext instHead (Just instDecls)) =
   ([InstDecl l (fmap tContext maybeContext) (tInstHead instHead) 
-     (Just instDecls')] :
-   auxDecls
+     (Just instDecls')]
   ,classifyMethods declsConsts)
   where
-  (instDecls', auxDecls, declsConsts) =
-    tInstDecls env tracing instDecls
+  (instDecls', declsConsts) = tInstDecls env tracing instDecls
 tDecl _ _ _ (DerivDecl l _ _) =
   notSupported l "standalone deriving declaration"
 tDecl _ _ _ (InfixDecl l assoc priority ops) =
@@ -588,17 +587,19 @@ tDecl env _ _ (TypeSig l names ty) =
   (TypeSig l (map nameTransLetVar names) (tFunType ty) :
    concatMap mkWorkerTypeSig nonConstNames ++
    if null constNames then []
-     else [TypeSig (map nameShare constNames) (tConstType ty)]
+     else [TypeSig l (map nameShare constNames) (tConstType ty)]
   ,emptyModuleConsts)
   where
   (constNames, nonConstNames) = Data.List.partition isNonMethodConstant names
-  isNonMethodConstant :: Name l -> Bool
+  isNonMethodConstant :: Name SrcSpanInfo -> Bool
   isNonMethodConstant name =
-    isLambdaBound env name || maybe False (==0) (arity env name)
+    isLambdaBound env qName || maybe False (==0) (arity env qName)
+    where
+    qName = UnQual l name
   mkWorkerTypeSig :: Name SrcSpanInfo -> [Decl SrcSpanInfo]
   mkWorkerTypeSig name =
-    case arity env name of
-      Just n | n > 0 -> [TypeSig l [nameWorker name] (tWorkerType n ty)]
+    case arity env (UnQual l name) of
+      Just n | n > 0 -> [TypeSig l [nameWorker name] (tWorkerType env n ty)]
       _ -> []
 tDecl env scope tracing (FunBind l matches) =
   tFunBind env scope tracing l matches  
@@ -607,7 +608,7 @@ tDecl env scope tracing (PatBind l pat maybeTy rhs maybeBinds) =
   tPatBind env scope tracing l pat maybeTy rhs maybeBinds
 tDecl env _ _ (ForImp l callConv maybeSafety maybeString name ty) =
   case maybeString >>= stripPrefix "NotHat." of
-    Just origName -> tForeignImp l (UnQual l origName) name ty
+    Just origName -> tForeignImp l (mkQName l origName) name ty
     Nothing -> 
       (ForImp l callConv maybeSafety maybeString (nameForeign name) ty :
          -- type is not renamed, original given type left unchanged  
@@ -668,13 +669,14 @@ tPatBind env scope tracing l pat maybeType rhs maybeBinds =
   --           p' -> (t,y1,..,yn)
   --           _  -> fail noPos parent
   (map (useDef tracing) patNames ++
-   map (projDef scope tracing patTuple (Var l (UnQual l resultTraceName))) patNames ++
+   map (projDef scope tracing patTuple 
+          (Var l (UnQual l resultTraceName)) firstName) patNames ++
    [PatBind l (PVar l patName) Nothing (UnGuardedRhs l (
      (Case l exp'
-       [Alt l pat'' (UnGuardedAlt l tuple) Nothing
-       ,Alt (PWildCard l) (UnGuardedAlt l (mkFailExp expParent)) Nothing])))
+       [Alt l pat'' (UnGuardedAlt l expTuple) Nothing
+       ,Alt l (PWildCard l) (UnGuardedAlt l (mkFailExp expParent)) Nothing])))
      Nothing]
-  ,foldr addVar (emptyModuleConsts `withLocal` altConsts) patNames)
+  ,foldr (addVar l) (emptyModuleConsts `withLocal` altConsts) patNames)
   where
   firstName = head patNames
   patNames = map (\(PVar _ name) -> name) patVars
@@ -690,7 +692,7 @@ tPatBind env scope tracing l pat maybeType rhs maybeBinds =
             PApp l r [v, _] ->
               PApp l r [v, PVar l resultTraceName]
   (Match _ _ [pat'] (UnGuardedRhs _ exp') maybeBinds', altConsts) =
-    tMatch env tracing False failContinuation 
+    tMatch env tracing False undefined failContinuation 
       (Match l firstName [pat] rhs maybeBinds)
   
 -- Build the first set of definitions for pattern bindings.
@@ -715,18 +717,18 @@ projDef scope tracing patTuple expVarResultTrace firstName name =
     (UnGuardedRhs l (appN 
       [mkExpConstDef tracing
       ,expParent
-      ,Var l (nameTraceInfoVar l scope name)
-      ,Lambda l (PWildCard l)
-         Case l (Var l (nameTraceShared firstName))
+      ,Var l (UnQual l (nameTraceInfoVar l scope name))
+      ,Lambda l [PWildCard l]
+         (Case l (Var l (UnQual l (nameTraceShared l firstName)))
            [Alt l patTuple (UnGuardedAlt l 
              (if isLocal scope && tracing == Trusted
                 then varLambdaName
                 else appN
-                       [Var l qNameProjection
+                       [Var l (qNameProjection l)
                        ,mkExpSR l tracing
-                       ,Var l resultTraceName
+                       ,Var l (UnQual l resultTraceName)
                        ,varLambdaName]))
-             Nothing]]))
+             Nothing])]))
     Nothing
   where
   l = ann name
@@ -734,7 +736,7 @@ projDef scope tracing patTuple expVarResultTrace firstName name =
   resultTraceName = nameTrace2 firstName
 
 -- Extract all variables from a pattern, left-to-right
-getPatVars :: Pat l -> [Pat l]
+getPatVars :: Pat SrcSpanInfo -> [Pat SrcSpanInfo]
 getPatVars p@(PVar _ _) = [p]
 getPatVars (PLit _ _) = []
 getPatVars (PNeg _ p) = getPatVars p
@@ -746,11 +748,11 @@ getPatVars (PList _ ps) = concatMap getPatVars ps
 getPatVars (PParen _ p) = getPatVars p
 getPatVars (PRec _ _ patFields) = concatMap getPatFieldVars patFields
   where
-  getPatFieldVars :: PatField l -> [Pat l]
+  getPatFieldVars :: PatField SrcSpanInfo -> [Pat SrcSpanInfo]
   getPatFieldVars (PFieldPat _ _ p) = getPatVars p
   getPatFieldVars (PFieldPun _ _) = []
   getPatFieldVars (PFieldWildcard _) = []
-getPatVars (PAsPat _ p) = getPatVars p
+getPatVars (PAsPat _ n p) = PVar (ann n) n : getPatVars p
 getPatVars (PWildCard _) = []
 getPatVars (PIrrPat _ p) = getPatVars p
 getPatVars (PatTypeSig _ p _) = getPatVars p
@@ -774,8 +776,9 @@ tCaf env scope tracing l name maybeType rhs maybeBinds =
       (UnGuardedRhs l (appN
         [mkExpConstDef tracing
         ,expParent
-        ,Var l (nameTraceInfoVar l scope name)
-        ,Lambda l [patParent] (smartExpLet maybeBinds' rhs')]))]
+        ,Var l (UnQual l (nameTraceInfoVar l scope name))
+        ,Lambda l [patParent] (smartExpLet maybeBinds' rhs')]))
+      Nothing]
   ,addVar l name emptyModuleConsts `withLocal` 
      (rhsConsts `merge` bindsConsts))
   where
@@ -796,11 +799,11 @@ tMaybeBinds env tracing (Just binds) =
 
 tBinds :: Environment -> Tracing -> Binds SrcSpanInfo ->
           (Binds SrcSpanInfo, ModuleConsts)
-tBinds env scope tracing (BDecls l decls) =
+tBinds env tracing (BDecls l decls) =
   (BDecls l decls', declsConsts)
   where
   (decls', declsConsts) = tDecls env Local tracing decls
-tBinds env scope tracing (IPBinds l _) =
+tBinds env tracing (IPBinds l _) =
   notSupported l "binding group for implicit parameters"
 
 
@@ -813,16 +816,17 @@ tFunBind env scope tracing l matches =
   (FunBind l [Match l (nameTransLetVar orgName) 
                [PVar l sr, patParent]
                (UnGuardedRhs l 
-                 (mkExpFun tracing (Var l (UnQual sr)) 
-                   (Var l (nameTraceInfoVar l scope orgName)) 
-                   (Var l wrappedId') funArity))
+                 (mkExpFun tracing (Var l (UnQual l sr)) 
+                   (Var l (UnQual l (nameTraceInfoVar l scope orgName)))
+                   (Var l (UnQual l wrappedId')) funArity))
                Nothing]
-  :if isLocal scope 
+  :(if isLocal scope 
      then (PatBind l (PVar l (nameTraceInfoVar l Global orgName)) Nothing 
-            (UnGuardedRhs l (Var l (nameTraceInfoVar l Local orgName))) 
+            (UnGuardedRhs l
+               (Var l (UnQual l (nameTraceInfoVar l Local orgName)))) 
             Nothing :)
-     else (\x->x)
-   (FunBind l matches' : newDecls')
+     else \x->x)
+    (FunBind l matches' : newDecls')
   -- The known-arity application optimisation needs a nameTraceInfoVar of
   -- the global kind (the name does not include the definition position)
   -- Hence for local definitions we need to define the nameTraceInfoVar
@@ -833,11 +837,12 @@ tFunBind env scope tracing l matches =
   funArity = getMatchArity (head matches)
   orgName = getMatchName (head matches)
   sr = nameSR orgName
-  wrappedId' = nameWorker id
+  wrappedId' = nameWorker orgName
   (matches', newDecls', funConsts) =
     tMatches env tracing l (nameFuns orgName)
-      (map (Var l) (nameArgs orgName)) (matchArity (head matches)) False 
-      (map (changeInfixMatch matches))
+      (map (PVar l) (nameArgs orgName)) wrappedId'
+      (matchArity (head matches)) False 
+      (map changeInfixMatch matches)
 
 
 -- Transformation of matches is complex because guarded equations may fail
@@ -846,7 +851,7 @@ tFunBind env scope tracing l matches =
 -- the next.
 tMatches :: Environment -> Tracing -> SrcSpanInfo -> 
             [Name SrcSpanInfo] -> -- names for definitions that clauses become
-            [Exp SrcSpanInfo] -> -- vars for naming arguments that are not vars
+            [Pat SrcSpanInfo] -> -- vars for naming arguments that are not vars
             Name SrcSpanInfo -> -- name of this definition
             Arity -> 
             Bool -> -- preceeding match will never fail
@@ -862,13 +867,13 @@ tMatches env tracing l ids pVars funName funArity False [] =
 tMatches env tracing l ids pVars funName funArity _
   (m@(Match _ _ pats _ _) : matches) | not (null matches) && matchCanFail m =
   ([Match l funName (pats'' ++ [patParent]) rhs' decls'
-   ,Match (vars ++ [patParent]) 
-      (UnGuardedRhs (continuationToExp failCont)) Nothing]
+   ,Match l funName (vars ++ [patParent]) 
+      (UnGuardedRhs l (continuationToExp failCont)) Nothing]
   ,FunBind l matches' : matchesDecls
   ,matchConsts `merge` matchesConsts)
   where
   contId = head ids
-  failCont = functionContinuation contId vars
+  failCont = functionContinuation (UnQual l contId) (map pVarToVar vars)
   (pats'', vars) = namePats pats' pVars
   (Match _ _ pats' rhs' decls', matchConsts) =
     tMatch env tracing True funName failCont m
@@ -913,11 +918,11 @@ namePat pat var@(PVar l name) = (PAsPat l name pat,var)
 -- Definition similar to tGuardedExps
 tMatch :: Environment ->
           Tracing ->
-          Bool -> -- whether this is reduct of the parent
-          Name l -> -- name for function this match partially defines
-          ContExp l -> -- continuation in case of match failure
-          Match l ->
-          (Match l, ModuleConsts)
+          Bool ->   -- whether this is reduct of the parent
+          Name SrcSpanInfo ->   -- name for function this match partially defines
+          ContExp SrcSpanInfo -> -- continuation in case of match failure
+          Match SrcSpanInfo ->
+          (Match SrcSpanInfo, ModuleConsts)
 tMatch env tracing cr funName contExp (Match l _ pats rhs maybeBinds) =
   if isNothing numericLitInfos
     then (Match l funName pats' (UnGuardedRhs l rhs') maybeBinds'
@@ -928,32 +933,34 @@ tMatch env tracing cr funName contExp (Match l _ pats rhs maybeBinds) =
                      ,expParent
                      ,cond'
                      ,Lambda l [patParent]
-                       (appN (Var l nameFun : argvars ++ [expParent]))
+                       (appN (varFun : argvars ++ [expParent]))
                      ,Lambda l [patParent]
                        (continuationToExp contExp)]
            Trusted -> [mkExpGuard Trusted
                       ,cond'
-                      ,appN (Var l nameFun : argvars ++ [expParent])
+                      ,appN (varFun : argvars ++ [expParent])
                       ,continuationToExp contExp])))
-           (Just (def:decl'))
+           (Just (BDecls l (def:decl')))
          ,l `addSpan` condConsts `merge` declConsts `merge` rhsConsts)
          -- condConsts contains locations of the Boolean guards
          -- declsConsts contains locations of the bound variables
   where
-  (pats', numericLitInfos) = tPats env pats
+  varFun = Var l (UnQual l nameFun)
+  (pats', numericLitInfos) = tPats pats
   (rhs', rhsConsts) = tRhs env tracing cr contExp rhs
   (maybeBinds', bindsConsts) = tMaybeBinds env tracing maybeBinds
   Just (cond, bindings, argvars, argpats) = numericLitInfos
   (cond', condConsts) = tExp env tracing False cond
   (decl', declConsts) = tDecls env Local tracing bindings
-  def = FunBind l [Match l nameFun (mpats'++patParent) mrhs' mmdecls'
+  def = FunBind l [Match l nameFun (mpats'++[patParent]) mrhs' mmdecls'
                   ,Match l nameFun 
                      (replicate funArity (PWildCard l) ++ [patParent])
                      (UnGuardedRhs l (continuationToExp contExp))
                      Nothing]
   funArity = length argpats
   (Match _ _ mpats' mrhs' mmdecls', matchConsts) =
-    tMatch tracing cr contExp (Match l nameFun argpats rhs maybeBinds)
+    tMatch env tracing cr funName contExp 
+      (Match l nameFun argpats rhs maybeBinds)
 
 -- Here failure means a failed test that can be observed in the trace,
 -- not simply non-matching of data constructors.
@@ -961,7 +968,7 @@ matchCanFail :: Match l -> Bool
 matchCanFail (Match _ _ pats rhs _) =
   any numericLitIn pats || case rhs of
     UnGuardedRhs _ _ -> False
-    GuardedRhs _ gdRhss -> gdRhssCanFail gdRhss
+    GuardedRhss _ gdRhss -> gdRhssCanFail gdRhss
 
 numericLitIn :: Pat l -> Bool
 numericLitIn (PLit _ (Int _ _ _)) = True
@@ -1014,9 +1021,9 @@ tGuardedRhss :: Environment ->
 tGuardedRhss _ _ _ failCont [] =
   (continuationToExp failCont, emptyModuleConsts)
 tGuardedRhss env Traced cr failCont 
-  (GuardedRhs _ (Qualifier l guard) exp : gdRhss) =
+  (GuardedRhs _ [Qualifier l guard] exp : gdRhss) =
   (appN
-    [mkExpGuard l Traced
+    [mkExpGuard Traced
     ,mkExpSR l Traced
     ,expParent
     ,guard'
@@ -1025,11 +1032,11 @@ tGuardedRhss env Traced cr failCont
   ,l `addSpan` guardConsts `merge` expConsts `merge` gdRhssConsts)
   where
   (guard', guardConsts) = tExp env Traced False guard
-  (exp', expConsts) = tExp Traced cr exp
+  (exp', expConsts) = tExp env Traced cr exp
   (gdRhss', gdRhssConsts) = 
     tGuardedRhss env Traced cr failCont gdRhss
 tGuardedRhss env Trusted cr failCont 
-  (GuardedRhs _ (Qualifier l guard) exp : gdRhss) =
+  (GuardedRhs _ [Qualifier l guard] exp : gdRhss) =
   (appN
     [mkExpGuard Trusted
     ,guard'
@@ -1038,9 +1045,9 @@ tGuardedRhss env Trusted cr failCont
   ,guardConsts `merge` expConsts `merge` gdRhssConsts)
   where
   (guard', guardConsts) = tExp env Trusted False guard
-  (exp', expConsts) = tExp Trusted cr exp
+  (exp', expConsts) = tExp env Trusted cr exp
   (gdRhss', gdRhssConsts) = tGuardedRhss env Trusted cr failCont gdRhss
-tGuardedRhss _ _ _ _ _ (GuardedRhs l _ _ : _) =
+tGuardedRhss _ _ _ _ (GuardedRhs l _ _ : _) =
   notSupported l "statements in pattern guards"
   
 
@@ -1051,7 +1058,7 @@ tForeignImp :: SrcSpanInfo -> QName SrcSpanInfo -> Name SrcSpanInfo ->
                ([Decl SrcSpanInfo], ModuleConsts)
 tForeignImp l foreignName name ty =
   if arity == 0 
-    then ([TypeSig l letVarName] (tFunType ty)
+    then ([TypeSig l [letVarName] (tFunType ty)
           ,FunBind l [Match l letVarName [PVar l sr, patParent]
             (UnGuardedRhs l (appN 
               [mkExpConstUse Trusted
@@ -1063,25 +1070,25 @@ tForeignImp l foreignName name ty =
             (UnGuardedRhs l (appN 
               [mkExpConstDef Trusted
               ,expParent
-              ,Var l (nameTraceInfoVar l Global name) 
+              ,Var l (UnQual l (nameTraceInfoVar l Global name))
               ,Lambda l [patParent]
                  (appN
                    [expFrom ty, expParent, Var l foreignName])]))
-            Nothing
+            Nothing]
          ,addVar l name emptyModuleConsts)
-    else ([TypeSig l letVarName] (tFunType ty)
+    else ([TypeSig l [letVarName] (tFunType ty)
           ,FunBind l [Match l letVarName [PVar l sr, patParent]
             (UnGuardedRhs l 
               (mkExpFun Trusted (Var l (UnQual l sr))
-                (Var l (nameTraceInfoVar l Global name))
+                (Var l (UnQual l (nameTraceInfoVar l Global name)))
                 (Var l (UnQual l workerName)) arity))
             Nothing]
           ,FunBind l [Match l workerName (map (PVar l) (args++[hidden]))
             (UnGuardedRhs l (appN
               [expFrom tyRes
-              ,Var l hidden
+              ,Var l (UnQual l hidden)
               ,appN (Var l foreignName : zipWith to tyArgs args)]))
-            Nothing]
+            Nothing]]
          ,addVar l name emptyModuleConsts)
   where
   sr = nameSR name
@@ -1090,8 +1097,8 @@ tForeignImp l foreignName name ty =
   shareName = nameShare name
   args = take arity (nameArgs name)
   hidden = nameTrace2 name
-  to :: Type SrcSpanInfo -> QName SrcSpanInfo -> Exp SrcSpanInfo
-  to ty arg = appN [expTo ty, Var l hidden, Var l arg]
+  to :: Type SrcSpanInfo -> Name SrcSpanInfo -> Exp SrcSpanInfo
+  to ty arg = appN [expTo ty, Var l (UnQual l hidden), Var l (UnQual l arg)]
     where
     l = ann ty
   arity = length tyArgs
@@ -1106,8 +1113,8 @@ tForeignImp l foreignName name ty =
 
 -- Process class instances:
 
-tInstHead :: InstHead l -> InstHead l
-tInstHead (IHead l qname tys) = IHead l (nameTransCls qname) (map (tType tys))
+tInstHead :: InstHead SrcSpanInfo -> InstHead SrcSpanInfo
+tInstHead (IHead l qname tys) = IHead l (nameTransCls qname) (map tType tys)
 tInstHead (IHInfix l tyL qname tyR) = 
   IHInfix l (tType tyL) (nameTransCls qname) (tType tyR)
 tInstHead (IHParen l instHead) = IHParen l (tInstHead instHead)
@@ -1197,12 +1204,12 @@ tFunDep (FunDep l names1 names2) = FunDep l names1 names2
 
 addToWhere :: Match l -> [Decl l] -> Match l
 addToWhere (Match l name pats rhs Nothing) decls =
-  Match l name pats rhs (Just BDecls l decls)
+  Match l name pats rhs (Just (BDecls l decls))
 addToWhere (Match l name pats rhs (Just (BDecls l' ds))) decls =
   Match l name pats rhs (Just (BDecls l' (ds ++ decls)))
 addToWhere (InfixMatch l pl name pr rhs Nothing) decls =
-  InfixMatch l pl name pr rhs (Just BDecls l decls)
-addToWhere (InfixMatch l pl name pr rhs (Just BDecls l' ds)) decls =
+  InfixMatch l pl name pr rhs (Just (BDecls l decls))
+addToWhere (InfixMatch l pl name pr rhs (Just (BDecls l' ds))) decls =
   InfixMatch l pl name pr rhs (Just (BDecls l' (ds ++ decls)))
 
   -- Split a synonym into a core synonym plus several helpers.
@@ -1236,31 +1243,36 @@ splitSynonym env typeDecl@(TypeDecl span declHead ty) =
   where
   mkTypeDecl :: Type SrcSpanInfo -> Int -> Decl SrcSpanInfo
   mkTypeDecl hrhs no =
-    TypeDecl span (mapDeclHead (nameTransTySynHelper no) declHead) hrhs
-  hrhss ty = case ty of
-    (TyParen l ty') -> hrhss ty'
+    TypeDecl span (mapDeclHead (flip nameTransTySynHelper no) declHead) hrhs
+  hrhss ty = if tys == [ty] then [] else tys
+    where
+    tys = go ty []
 
   -- It is vital that this `go' agrees with the `go' in `splitSynonym' in
   -- AuxFile. Sadly the module structure of Hat is such that the two
   -- functions cannot sit next to each other (or be combined) without
   -- introducing a separate module for them.
   go :: Type SrcSpanInfo -> [Type SrcSpanInfo] -> [Type SrcSpanInfo]
-  go (TyForall l _ _) tys = notSupported l "forall in type synonym"
-  go (TyFun l tyL tyR) [] = tyL : go tyR
+  go ty@(TyForall l _ _ _) [] = [ty]
+  go (TyFun l tyL tyR) [] = tyL : go tyR []
   go ty@(TyTuple _ _ _) [] = [ty]
   go ty@(TyList _ _) [] = [ty]
   go (TyApp l tyL tyR) tys = go tyL (tyR:tys)
   go (TyVar _ _) tys = []
-  go (TyCon l tyCon) tys = 
-    if isExpandableTypeSynonym env tyCon 
-      then expandTypeSynonym env tyCon tys go  -- continuation
-      else []
-  go (TyParen l ty) = map (TyParen l) (go ty)
+  go (TyCon l tyCon) tys 
+    | isFunTyCon tyCon = case tys of
+                           [] -> []
+                           [ty] -> [ty]
+                           [ty1,ty2] -> ty1 : (go ty2 [])
+    | isExpandableTypeSynonym env tyCon 
+    = go (expandTypeSynonym env tyCon tys) []  
+    | otherwise = []
+  go (TyParen l ty) tys = map (TyParen l) (go ty tys)  -- a bit dubious
   go (TyInfix l tyL tyCon tyR) tys =
     if isExpandableTypeSynonym env tyCon
-      then expandTypeSynonym env tyCon (tyL:tyR:tys) go
+      then go (expandTypeSynonym env tyCon (tyL:tyR:tys)) []
       else []
-  go (TyKind l ty kind) tys = notSupported l "kind annotation in type syonym"
+  go (TyKind l ty kind) tys = notSupported l "kind annotation in type synonym"
 
 mapDeclHead :: (Name l -> Name l) -> DeclHead l -> DeclHead l
 mapDeclHead f (DHead l name tyVarBinds) = DHead l (f name) tyVarBinds
@@ -1339,18 +1351,18 @@ mkFieldSelector fieldName =
                 (UnGuardedRhs l 
                    (mkExpFun Trusted (Var l (UnQual l (nameSR fieldName)))
                      (Var l (UnQual l (nameTraceInfoVar l Global fieldName)))
-                     (Var l (UnQual l wrappedName)) 1)
-                Nothing)]
+                     (Var l (UnQual l wrappedName)) 1))
+                Nothing]
    ,FunBind l [Match l wrappedName
                 [wrapPat (PVar l varName) (PWildCard l), patParent]
                 (UnGuardedRhs l (appN
-                   [Var l qNameProjection
-                   ,mkExpSR l False
+                   [Var l (qNameProjection l)
+                   ,mkExpSR l Trusted
                    ,expParent
                    ,App l (Var l (UnQual l (nameTransField fieldName))) 
                       (Var l (UnQual l varName))]))
                 Nothing]]
-  ,addVar fieldName emptyModuleConsts)
+  ,addVar l fieldName emptyModuleConsts)
   where
   l = ann fieldName
   wrappedName = nameWorker fieldName
@@ -1387,21 +1399,21 @@ wrapValMatch conDecl =
     [PVar l (nameSR (nameWrapValFun l))
     ,PAsPat l varName patConsApp
     ,patParent]
-    (UnGuardedRhs (wrapExp var consAppTrace))
+    (UnGuardedRhs l (wrapExp (Var l (UnQual l varName)) consAppTrace))
     Nothing
   where
   l = ann conDecl
   consAppTrace =
     if numOfArgs == 0
-      then appN (Var l qNameMkExpValueUse : expParent :
+      then appN (Var l (qNameMkExpValueUse l) : expParent :
                    map (Var l . UnQual l) [srName, funAtom])
-      else appN (Var l (qNameMkExpValueApp numOfArgs) : expParent :
+      else appN (Var l (qNameMkExpValueApp l numOfArgs) : expParent :
                    map (Var l . UnQual l) (srName : funAtom : traces))
   funAtom = nameTraceInfoCon consName
   patConsApp =
-    PApp l consName (map (wrapPat (PWildCard l) . PVar l) traces)
+    PApp l (UnQual l consName) (map (wrapPat (PWildCard l) . PVar l) traces)
   consName = getConstructorFromConDecl conDecl
-  traces = take numOfArgs (nameArgs (nameWrapValFun l)) :: Name SrcSpanInfo
+  traces = take numOfArgs (nameArgs (nameWrapValFun l)) :: [Name SrcSpanInfo]
   numOfArgs = getArityFromConDecl conDecl
   varName = nameTrace2 (nameWrapValFun l)
   srName = nameSR (nameWrapValFun l)
@@ -1413,7 +1425,7 @@ wrapValMatch conDecl =
 -- the result of this expression is the same as the result of the parent.
 tExp :: Environment -> Tracing -> Bool -> Exp SrcSpanInfo ->
         (Exp SrcSpanInfo, ModuleConsts)
-tExp env tracing cr exp = tExpA env tracing cr exp []
+tExp env tracing cr exp = tExpA env tracing cr exp [] []
 
 -- Order of both lists is innermost first.
 -- All input expressions still need to be transformed.
@@ -1423,7 +1435,7 @@ tExpA :: Environment -> Tracing -> Bool -> Exp SrcSpanInfo ->
          (Exp SrcSpanInfo, ModuleConsts)
 tExpA env tracing cr (Var l qName) ls es 
   | Just a <- arity env qName, a > 0, a <= length es, a <= 5, 
-    let lApp = ls!!a-1 =
+    let lApp = ls!!(a-1) =
   -- known arity optimisation that calls worker directly
   tExpF env tracing (drop a ls) (drop a es) $
     (if isTraced tracing || isTracedQName env qName
@@ -1473,8 +1485,8 @@ tExpA env tracing cr (Lambda l pats body) ls es =
                     ,Alt l (PWildCard l) (UnGuardedAlt l expFail) Nothing]
                  )
   (Match _ _ pats' (UnGuardedRhs _ body') _, bodyConsts) =
-    tMatch tracing True failContinuation 
-      (Match l undefined (UnGuardedRhs l body) Nothing)
+    tMatch env tracing True undefined failContinuation 
+      (Match l undefined pats (UnGuardedRhs l body) Nothing)
   nameVars = take funArity (namesFromSpan l)
   funArity = length pats
 tExpA env tracing cr (Let l binds body) ls es =
@@ -1518,7 +1530,7 @@ tExpA env tracing cr (Case l exp alts) ls es =
   (funName : argName : funsNames) = namesFromSpan l
   (exp', expConsts) = tExp env tracing False exp
   (matches', decls', funConsts) =
-    tMatches env tracing l funsNames [Var l (UnQual l argName)] 
+    tMatches env tracing l funsNames [PVar l argName] 
       funName 1 True (map alt2Match alts)
 tExpA env tracing cr (Do l stmts) ls es =
   tExpF env tracing ls es (tExpA env tracing cr (removeDo stmts) [] [])
@@ -1564,11 +1576,11 @@ tExpA env tracing cr (RecConstr l qName fieldUpdates) ls es =
       else appN (Con l (nameTransCon qName) : replicate consArity
                    (appN [expUndefined, expSR, expParent]))
   Just consArity = arity env qName
-  expSR = mkExpSR l False
+  expSR = mkExpSR l Trusted
   (fieldUpdates', fieldsConsts) = mapMerge2 (tField env tracing) fieldUpdates
 tExpA env Traced cr (RecUpdate l exp fieldUpdates) ls es =
   tExpF env Traced ls es $
-    (Let l (BDecls l (zipWith mkFieldVarDecl fieldVarQNames fieldExps')) 
+    (Let l (BDecls l (zipWith mkFieldVarDecl fieldVarNames fieldExps')) 
        (appN (mkExpUpdate Traced (length labels)
              :mkExpSR l Traced
              :expParent
@@ -1578,17 +1590,17 @@ tExpA env Traced cr (RecUpdate l exp fieldUpdates) ls es =
              :labels ++ fieldVars))
     ,l `addSpan` expConsts `merge` fieldsConsts)
   where
-  mkFieldVarDecl :: QName SrcSpanInfo -> Exp SrcSpanInfo -> Decl SrcSpanInfo
-  mkFieldVarDecl qName exp =
-    PatBind noSpan (PVar noSpan qName) Nothing (UnGuardedRhs noSpan exp) Nothing
+  mkFieldVarDecl :: Name SrcSpanInfo -> Exp SrcSpanInfo -> Decl SrcSpanInfo
+  mkFieldVarDecl name exp =
+    PatBind noSpan (PVar noSpan name) Nothing (UnGuardedRhs noSpan exp) Nothing
   (exp', expConsts) = tExp env Traced False exp
   (fieldUpdates', fieldsConsts) = mapMerge2 (tField env Traced) fieldUpdates
-  labels = map (Var l . nameTraceInfoVar l Global) labelQNames
+  labels = map (Var l . UnQual l . nameTraceInfoVar l Global) labelNames
   varFields' = zipWith (FieldUpdate l) (map fieldLabel fieldUpdates') fieldVars
   fieldExps' = map fieldExp fieldUpdates'
-  fieldVars = map (Var l) fieldVarQNames
-  fieldVarQNames = map nameShare labelQNames
-  labelQNames = map fieldLabel fieldUpdates
+  fieldVars = map (Var l . UnQual l) fieldVarNames
+  fieldVarNames = map nameShare labelNames
+  labelNames = map (qName2Name . fieldLabel) fieldUpdates
   nameVar = nameFromSpan l
   fieldLabel (FieldUpdate _ qNameLabel _) = qNameLabel
   fieldLabel (FieldPun l _) = notSupported l "record field pun"
@@ -2270,6 +2282,17 @@ nameForeign = prefixName 'f' '&'
 nameShare :: Id i => i -> i
 nameShare = prefixName 's' '|'
 
+-- Turn a QName into a Name, assuming it will be prefixed.
+-- Uses span to make qualified names unique even without qualification.
+qName2Name :: QName SrcSpanInfo -> Name SrcSpanInfo
+qName2Name (Qual l' _ name) = updateId update name
+  where
+  update :: Name l -> Name l
+  update (Ident l id) = Ident l (showsEncodeSpan l' id)
+  update (Symbol l id) = Symbol l (showsSymEncodeSpan l' id)
+qName2Name (UnQual l name) = name
+qName2Name (Special l _) = error "hat-trans: special name in binding position"
+
 -- variable for a trace including span
 nameTraceShared :: Id i => SrcSpanInfo -> i -> i
 nameTraceShared = prefixSpanName 'j' '$'
@@ -2902,6 +2925,21 @@ expParent :: Exp SrcSpanInfo
 expParent = Var noSpan (UnQual noSpan nameParent)
 
 -- Build parts of syntax tree:
+
+mkQName :: l -> String -> QName l
+mkQName l str = 
+  if null revQual 
+    then UnQual l (mkName l str) 
+    else Qual l (ModuleName l (reverse (tail revQual))) 
+           (mkName l (reverse revName))
+  where
+  (revName,revQual) = break (== '.') (reverse str)
+
+mkName :: l -> String -> Name l
+mkName l str =
+  if isAlpha (head str)
+    then Ident l str
+    else Symbol l str
 
 -- Build n-ary application
 -- pre-condition: list is non-empty
