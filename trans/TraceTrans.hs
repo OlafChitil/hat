@@ -272,25 +272,27 @@ tImportSpecList env (ImportSpecList l hiding importSpecs) =
       
 -- Nearly identical with tExportSpec except for the types.  
 tImportSpec :: Environment -> ImportSpec l -> [ImportSpec l]     
-tImportSpec env (IVar span qname) = 
-  map (IVar span) (tEntityVar env qname)
-tImportSpec env (IAbs span qname) =
-  IAbs span qname' : map (IVar span) qnames'
+tImportSpec env (IVar span name) = 
+  map (IVar span . qName2Name) (tEntityVar env (UnQual (ann name) name))
+tImportSpec env (IAbs span name) =
+  IAbs span (qName2Name qname') : map (IVar span . qName2Name) qnames'
   where
-  (qname', qnames') = tEntityAbs env qname
-tImportSpec env (IThingAll span qname) =
-  case clsTySynInfo env qname of
-    Cls _ -> [IThingAll span (nameTransCls qname)]
+  (qname', qnames') = tEntityAbs env (UnQual (ann name) name)
+tImportSpec env (IThingAll span name) =
+  case clsTySynInfo env (UnQual (ann name) name) of
+    Cls _ -> [IThingAll span (nameTransCls name)]
     Ty cons fields -> 
-      tExportSpec (IThingWith span qname 
-                    (map conName cons ++ map fieldName fields))
+      tImportSpec env (IThingWith span name 
+                         (map conName cons ++ map fieldName fields))
   where
-  conName str = ConName span (Symbol span str)
-  fieldName str = VarName span (Ident span str)
-tImportSpec env (IThingWith span qname cnames) =
-  IThingWith span qname' cnames' : map (IVar span) qnames'
+  conName str = ConName span (mkName span str)
+  fieldName str = VarName span (mkName span str)
+tImportSpec env (IThingWith span name cnames) =
+  IThingWith span (qName2Name qname') cnames' : 
+    map (IVar span) (qName2Name qnames')
   where
-  (qname', cnames', qnames') = tEntityThingWith env qname cnames
+  (qname', cnames', qnames') = 
+    tEntityThingWith env (UnQual (ann name) name) cnames
 
 -- ----------------------------------------------------------------------------
 -- Produce entities in either import or export list
@@ -310,8 +312,8 @@ tEntityAbs env qname =
   case clsTySynInfo env qname of
     Cls _ -> [nameTransCls qname]
     Ty _ _ -> [nameTransTy qname]
-    Syn helpNo -> nameTransSyn qname : 
-                    map (nameTransTySynHelper qname) [1..helpNo]
+    Syn helpNo _ -> nameTransSyn qname : 
+                      map (nameTransTySynHelper qname) [1..helpNo]
 
 -- a class with some methods or a datatype with some constructors/fields
 tEntityThingWith :: Environment -> QName l -> [CName l] -> 
@@ -319,15 +321,18 @@ tEntityThingWith :: Environment -> QName l -> [CName l] ->
 tEntityThingWith env qname cnames =
   case clsTySynInfo env qname of
     Cls _ -> (nameTransCls qname, 
-             map nameTransLetVar cnames ++ map nameShare cnames,
+             map nameTransLetVar cnames ++ 
+             map nameShare cnames,
              [])
     Ty _ _ -> (nameTransTy qname,
               map nameTransCon consNames ++ map nameTransField fieldNames,
-              map nameTransLetVar fieldNames ++
-              map nameWorker fieldNames ++
-              map nameTraceInfoGlobalVar fieldNames ++
-              map nameTraceInfoCon consNames)     
+              map nameTransLetVar qFieldNames ++
+              map nameWorker qFieldNames ++
+              map nameTraceInfoGlobalVar qFieldNames ++
+              map nameTraceInfoCon qConsNames)     
   where
+  qConsNames = map (cName2QName qname) consNames
+  qFieldNames = map (cName2QName qname) fieldNames
   (consNames, fieldNames) = partition isSymbol cnames
 
 -- ----------------------------------------------------------------------------
@@ -363,13 +368,13 @@ defNameCon env moduleTrace (conName, fieldNames) =
          moduleTrace :
          encodeSpan l ++
          litInt l (fixPriority env conName) :
-         litInt l (fromJust (arity env conName)) :
-         litString l ident) :
+         litInt l (fromJust (arity env (UnQual l conName))) :
+         litString l ident :
          if withFields
            then (:[]) . mkExpList .
                   map (Var l . UnQual l . nameTraceInfoVar l Global) $ 
                   fieldNames
-           else []
+           else [] )
        ))
     Nothing
   where
@@ -384,17 +389,17 @@ defNameVar env defScope visScope moduleTrace varName =
   PatBind l (PVar l (nameTraceInfoVar l visScope varName)) Nothing
     (UnGuardedRhs l
       (appN
-        (Var l (qNameMkAtomVariable l)) :
+        (Var l (qNameMkAtomVariable l) :
          moduleTrace :
          encodeSpan l ++
          [litInt l (fixPriority env varName),
            -- all identifiers in definition position are assumed to 
            -- be equipped with an arity; 
            -- only those defined by pattern bindings do not; they have arity 0.
-          litInt l (maybe 0 (arity env varName)),
+          litInt l (maybe 0 id (arity env (UnQual l varName))),
           litString l (getId varName),
           Con l (if isLocal defScope then qNamePreludeTrue l 
-                                     else qNamePreludeFalse l)])) 
+                                     else qNamePreludeFalse l)])))
     Nothing
   where
   l = ann varName
@@ -418,8 +423,8 @@ encodeSpan SrcSpanInfo{srcInfoSpan=
                     ,srcSpanStartColumn=beginCol
                     ,srcSpanEndLine=endRow
                     ,srcSpanEndColumn=endCol}} =
-  [litInt (10000*beginRow + beginCol)
-  ,litInt (10000*endRow + endCol)]
+  [litInt noSpan (10000*beginRow + beginCol)
+  ,litInt noSpan (10000*endRow + endCol)]
 -- ----------------------------------------------------------------------------
 -- Abstract data type for keeping track of constants introduced by the
 -- transformation.
@@ -456,7 +461,7 @@ addSpan ssi (MC poss tids ids mids cons) =
 addVar :: SrcSpanInfo ->  -- span of whole variable definition, not just variable
           Name SrcSpanInfo -> ModuleConsts -> ModuleConsts
 addVar l name (MC poss tids ids mids cons) = 
-  MC (Set.insert l poss) 
+  MC (Set.insert (srcInfoSpan l) poss) 
     (Set.insert name tids) ids mids cons
 
 -- pre-condition: name is a data constructor
@@ -468,7 +473,8 @@ addCon name fields (MC poss tids ids mids cons) =
 
 -- reclassify this-level variables as methods
 classifyMethods :: ModuleConsts -> ModuleConsts
-classifyMethods (MC poss tids ids [] cons) = MC poss [] ids tids cons
+classifyMethods (MC poss tids ids mids cons) 
+  | Set.null mids = MC poss Set.empty ids tids cons
 
 -- both from the same declaration level
 merge :: ModuleConsts -> ModuleConsts -> ModuleConsts
@@ -479,7 +485,8 @@ merge (MC poss1 tids1 ids1 mids1 cons1) (MC poss2 tids2 ids2 mids2 cons2) =
 -- Combine this declaration level with a local declaration level
 -- The second collection is the local one.
 withLocal :: ModuleConsts -> ModuleConsts -> ModuleConsts
-withLocal (MC poss1 tids1 ids1 mids1 cons1) (MC poss2 tids2 ids2 [] []) =
+withLocal (MC poss1 tids1 ids1 mids1 cons1) (MC poss2 tids2 ids2 mids2 []) |
+  Set.null mids2 =
   MC (poss1 `Set.union` poss2) tids1 
     (ids1 `Set.union` tids2 `Set.union` ids2) mids1 cons1
 withLocal _ _ = 
@@ -3023,6 +3030,15 @@ guardedAlt2GuardedRhs (GuardedAlt l stmts exp) = GuardedRhs l stmts exp
 qOp2Exp :: QOp l -> Exp l
 qOp2Exp (QVarOp l qName) = Var l qName
 qOp2Exp (QConOp l qName) = Con l qName
+
+-- The first name possibly provides a module qualifier
+cName2QName :: QName l -> CName l -> QName l
+cName2QName (UnQual _ _) (VarName l name) = UnQual l name
+cName2QName (UnQual _ _) (ConName l name) = UnQual l name
+cName2QName (Qual _ mod _) (VarName l name) = Qual l mod name
+cName2QName (Qual _ mod _) (ConName l name) = Qual l mod name
+cName2QName (Special _ _) (VarName l name) = UnQual l name
+cName2QName (Special _ _) (ConName l name) = UnQual l name
 
 -- bogus span, does not appear in the source
 noSpan :: SrcSpanInfo
