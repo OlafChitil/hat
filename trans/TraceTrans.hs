@@ -30,6 +30,8 @@ import Environment (Environment
                    ,arity,isLambdaBound,isTracedQName,mutateLetBound
                    ,fixPriority
                    ,clsTySynInfo,isExpandableTypeSynonym,typeSynonymBody)
+import Wired
+import SynHelp
 import Derive (derive)
 
 -- ----------------------------------------------------------------------------
@@ -47,7 +49,6 @@ isLocal :: Scope -> Bool
 isLocal Local = True
 isLocal Global = False
 
-type Arity = Int
 
 -- ----------------------------------------------------------------------------
 -- Transform a module
@@ -1766,7 +1767,7 @@ tLiteral env tracing lit@(Frac l rational _) =
   -- however, this way mkNTRational is not used at all
   mkExpApply tracing sr 
     [appN [expFromRational, sr, expParent]
-    ,appN [Var l qNameR
+    ,appN [Var l (qNameR l)
           ,appN [expConRational
                 ,mkExpConInteger sr litNum
                 ,mkExpConInteger sr litDenom] 
@@ -2063,11 +2064,11 @@ tPatFields patFields =
 
 -- apply data constructor R
 wrapPat :: Pat SrcSpanInfo -> Pat SrcSpanInfo -> Pat SrcSpanInfo
-wrapPat expVal expTrace = PApp noSpan qNameR [expVal, expTrace]
+wrapPat expVal expTrace = PApp noSpan (qNameR noSpan) [expVal, expTrace]
 
 -- apply data constructor R
 wrapExp :: Exp SrcSpanInfo -> Exp SrcSpanInfo -> Exp SrcSpanInfo
-wrapExp expVal expTrace = appN [Con noSpan qNameR, expVal, expTrace]
+wrapExp expVal expTrace = appN [Con noSpan (qNameR noSpan), expVal, expTrace]
 
 mkPatList :: l -> [Pat l] -> Pat l
 mkPatList l =
@@ -2180,7 +2181,7 @@ tType (TyKind l ty kind) = TyKind l (tType ty) kind
 
 -- ty ==> R ty
 wrapType :: Type SrcSpanInfo -> Type SrcSpanInfo
-wrapType ty = TyApp noSpan (TyCon noSpan qNameR) ty
+wrapType ty = TyApp noSpan (TyCon noSpan (qNameR noSpan)) ty
 
 -- Class contexts remain unchanged 
 -- (except possibly for identifier qualifications and type renaming)
@@ -2409,7 +2410,7 @@ class Id a where
   updateId :: (Name l -> Name l) -> a -> a
   -- whether a symbol (operator) or a normal identifier
   isSymbol :: a -> Bool
-  getId :: a -> String
+get  getId :: a -> String
 
 instance Id (QName l) where
   updateId f (Qual l moduleName name) = 
@@ -2591,280 +2592,6 @@ mkExpUWrapForward exp =
 expShortIdent :: String -> Exp SrcSpanInfo
 expShortIdent ident = Var noSpan (qNameShortIdent ident noSpan)
 
--- -----------------------------------------------------------------------------
-
-tracingModuleNameShort :: l -> ModuleName l
-tracingModuleNameShort l = ModuleName l "T"
-
-mkTypeToken :: SrcSpanInfo -> String -> QName SrcSpanInfo
-mkTypeToken l id = 
-  if id `elem` (map ("from"++) preIds ++ map ("to"++) preIds)
-    then Qual l (tracingModuleNameShort l) (Ident l id)
-    else UnQual l (Ident l id)
-  where
-  -- list should include all types allowed in foreign imports
-  preIds = ["Id", "IO", "Tuple0", "Tuple2", "Char", "Int", "Integer", 
-            "Float", "Double"]
-
--- names for trace constructors
-
-qNameMkRoot :: l -> QName l
-qNameMkRoot = qNameShortIdent "mkRoot"
-
-qNameR :: QName SrcSpanInfo
-qNameR = qNameShortIdent "R" noSpan
-
-qNameMkModule :: l -> QName l
-qNameMkModule = qNameShortIdent "mkModule"
-
-qNameMkAtomConstructor :: l -> Bool -> QName l
-qNameMkAtomConstructor l withFields =
-  qNameShortIdent  
-    (if withFields then "mkConstructorWFields" else "mkConstructor") l
-
-qNameMkAtomVariable :: l -> QName l
-qNameMkAtomVariable = qNameShortIdent "mkVariable"
-
-qNameMkSpan :: l -> QName l
-qNameMkSpan = qNameShortIdent "mkSrcPos"
-
-qNameMkNoSpan :: l -> QName l
-qNameMkNoSpan = qNameShortIdent "mkNoSrcPos"
-
-qNameMkExpValueApp :: l -> Arity -> QName l
-qNameMkExpValueApp = qNameShortArity "mkValueApp"
-
-qNameMkExpValueUse :: l -> QName l
-qNameMkExpValueUse = qNameShortIdent "mkValueUse"
-
-qNameMkAtomRational :: l -> QName l
-qNameMkAtomRational = qNameShortIdent "mkAtomRational"
-expMkAtomRational :: Exp SrcSpanInfo
-expMkAtomRational = Var noSpan (qNameMkAtomRational noSpan)
-
-qNameMkAtomLambda :: l -> QName l
-qNameMkAtomLambda = qNameShortIdent "mkLambda"
-expMkAtomLambda :: Exp SrcSpanInfo
-expMkAtomLambda = Var noSpan (qNameMkAtomLambda noSpan)
-
-qNameMkAtomDoLambda :: l -> QName l
-qNameMkAtomDoLambda = qNameShortIdent "mkDoLambda"
-
--- tokens for expression combinators
-
-qNameAp :: l -> Arity -> QName l
-qNameAp = qNameShortArity "ap"
-qNameUAp :: l -> Arity -> QName l
-qNameUAp = qNameShortArity "uap"
-
-qNameApp :: l -> Arity -> QName l
-qNameApp = qNameShortArity "app"
-qNameUApp :: l -> Arity -> QName l
-qNameUApp = qNameShortArity "uapp"
-
-qNameFun :: l -> Arity -> QName l
-qNameFun = qNameShortArity "fun"
-qNameUFun :: l -> Arity -> QName l
-qNameUFun = qNameShortArity "ufun"
-
-qNameCon :: l -> Arity -> QName l
-qNameCon = qNameShortArity "con"
-
-qNamePa :: l -> Arity -> QName l
-qNamePa = qNameShortArity "pa"
-
-qNameCn :: l -> Arity -> QName l
-qNameCn = qNameShortArity "cn"
-
-qNameConstUse :: QName SrcSpanInfo
-qNameConstUse = qNameShortIdent "constUse" noSpan
-qNameUConstUse :: QName SrcSpanInfo
-qNameUConstUse = qNameShortIdent "uconstUse" noSpan
-mkExpConstUse :: Tracing -> Exp SrcSpanInfo
-mkExpConstUse tracing =
-  Var noSpan (if isTraced tracing then qNameConstUse else qNameUConstUse)
-
-qNameConstDef :: QName SrcSpanInfo
-qNameConstDef = qNameShortIdent "constDef" noSpan
-qNameUConstDef :: QName SrcSpanInfo
-qNameUConstDef = qNameShortIdent "uconstDef" noSpan
-mkExpConstDef :: Tracing -> Exp SrcSpanInfo
-mkExpConstDef tracing =
-  Var noSpan (if isTraced tracing then qNameConstDef else qNameUConstDef)
-
-qNameGuard :: QName SrcSpanInfo
-qNameGuard = qNameShortIdent "cguard" noSpan
-qNameUGuard :: QName SrcSpanInfo
-qNameUGuard = qNameShortIdent "ucguard" noSpan
-mkExpGuard :: Tracing -> Exp SrcSpanInfo
-mkExpGuard tracing =
-  Var noSpan (if isTraced tracing then qNameGuard else qNameUGuard)
-
-qNameIf :: l -> QName l
-qNameIf = qNameShortIdent "cif"
-qNameUIf :: l -> QName l
-qNameUIf = qNameShortIdent "ucif"
-
-qNameCase :: l -> QName l
-qNameCase = qNameShortIdent "ccase"
-qNameUCase :: l -> QName l
-qNameUCase = qNameShortIdent "uccase"
-
-qNameUpdate :: l -> Arity -> QName l
-qNameUpdate = qNameShortArity "update"
-qNameUUpdate :: l -> QName l
-qNameUUpdate = qNameShortIdent "uupdate"
-
-mkExpUpdate :: Tracing -> Arity -> Exp SrcSpanInfo
-mkExpUpdate tracing arity =
-  Var noSpan 
-    (if isTraced tracing then qNameUpdate noSpan arity else qNameUUpdate noSpan)
-
-qNameProjection :: l -> QName l
-qNameProjection = qNameShortIdent "projection"
-expProjection :: Exp SrcSpanInfo
-expProjection = Var noSpan (qNameProjection noSpan)
-
-qNameConChar :: l -> QName l
-qNameConChar = qNameShortIdent "conChar"
-expConChar :: Exp SrcSpanInfo
-expConChar = Var noSpan (qNameConChar noSpan)
-
-qNameConInteger :: l -> QName l
-qNameConInteger = qNameShortIdent "conInteger"
-expConInteger :: Exp SrcSpanInfo
-expConInteger = Var noSpan (qNameConInteger noSpan)
-
-qNameFromLitString :: l -> QName l
-qNameFromLitString = qNameShortIdent "fromLitString"
-expFromLitString :: Exp SrcSpanInfo
-expFromLitString = Var noSpan (qNameFromLitString noSpan)
-
-qNameFromExpList :: l -> QName l
-qNameFromExpList = qNameShortIdent "fromExpList"
-expFromExpList :: Exp SrcSpanInfo
-expFromExpList = Var noSpan (qNameFromExpList noSpan)
-
-qNameWrapValClass :: l -> QName l
-qNameWrapValClass = qNameShortIdent "WrapVal"
-
-nameWrapValFun :: l -> Name l
-nameWrapValFun l = Ident l "wrapVal"
-
-expWrapValFun :: Exp SrcSpanInfo
-expWrapValFun = Var noSpan (UnQual noSpan (nameWrapValFun noSpan))
-
-qNameUWrapForward :: l -> QName l
-qNameUWrapForward = qNameShortIdent "uwrapForward"
-
--- names from the Prelude:
-
-expUndefined :: Exp SrcSpanInfo
-expUndefined = Var noSpan (qNameHatPreludeIdent "gundefined" noSpan)
-
--- for integer literals
-expFromInteger :: Exp SrcSpanInfo
-expFromInteger = Var noSpan (qNameHatPreludeIdent "gfromInteger" noSpan)
-
--- for rational literals:
-expConRational :: Exp SrcSpanInfo
-expConRational = Var noSpan (qNameHatPreludeSymbol ":%" noSpan)
-
-expFromRational :: Exp SrcSpanInfo
-expFromRational = Var noSpan (qNameHatPreludeIdent "gfromRational" noSpan)
-
--- function for pattern-match failure error message
-qNameFatal :: l -> QName l
-qNameFatal = qNameShortIdent "fatal"
-
-expTraceIO :: Exp SrcSpanInfo
-expTraceIO = Var noSpan (qNameShortIdent "traceIO" noSpan)
-
-qNameRefSrcSpan :: l -> QName l
-qNameRefSrcSpan = qNameShortIdent "RefSrcPos"
-
-qNameRefExp :: l -> QName l
-qNameRefExp = qNameShortIdent "RefExp"
-
-qNamePreludeTrue :: l -> QName l
-qNamePreludeTrue = qNamePreludeIdent "True"
-
-qNamePreludeFalse :: l -> QName l
-qNamePreludeFalse = qNamePreludeIdent "False"
-
--- Names from original (NotHat) prelude:
-
-qNamePreludeGtGt :: l -> QName l
-qNamePreludeGtGt = qNamePreludeSymbol ">>"
-
-qNamePreludeGtGtEq :: l -> QName l
-qNamePreludeGtGtEq = qNamePreludeSymbol ">>="
-
-qNamePreludeFail :: l -> QName l
-qNamePreludeFail = qNamePreludeIdent "fail"
-
-mkExpPreludeEnumFrom :: l -> Exp l
-mkExpPreludeEnumFrom l = Var l (qNamePreludeIdent "enumFrom" l)
-
-mkExpPreludeEnumFromTo :: l -> Exp l
-mkExpPreludeEnumFromTo l = Var l (qNamePreludeIdent "enumFromTo" l)
-
-mkExpPreludeEnumFromThen :: l -> Exp l
-mkExpPreludeEnumFromThen l = Var l (qNamePreludeIdent "enumFromThen" l)
-
-mkExpPreludeEnumFromThenTo :: l -> Exp l
-mkExpPreludeEnumFromThenTo l = Var l (qNamePreludeIdent "enumFromThenTo" l)
-
-qNamePreludeCons :: l -> QName l
-qNamePreludeCons l = Special l (Cons l)
-mkExpPreludeCons :: l -> Exp l
-mkExpPreludeCons l = Con l (qNamePreludeCons l)
-
-mkExpPreludeFilter :: l -> Exp l
-mkExpPreludeFilter l = Var l (qNamePreludeIdent "filter" l)
-
-mkExpPreludeFoldr :: l -> Exp l
-mkExpPreludeFoldr l = Var l (qNamePreludeIdent "foldr" l)
-
-mkExpPreludeEqualEqual :: l -> Exp l
-mkExpPreludeEqualEqual l = Var l (qNamePreludeSymbol "==" l)
-
-mkExpPreludeGreaterEqual :: l -> Exp l
-mkExpPreludeGreaterEqual l = Var l (qNamePreludeSymbol ">=" l)
-
-mkExpPreludeMinus :: l -> Exp l
-mkExpPreludeMinus l = Var l (qNamePreludeSymbol "-" l)
-
--- function main
-nameMain :: l -> Name l
-nameMain l = Ident l "main"
-
--- Building name qualifiers
-
-qNameHatPreludeIdent :: String -> l -> QName l
-qNameHatPreludeIdent ident l = 
-  Qual l (ModuleName l "Hat.Prelude") (Ident l ident)
-
-qNameHatPreludeSymbol :: String -> l -> QName l
-qNameHatPreludeSymbol ident l = 
-  Qual l (ModuleName l "Hat.Prelude") (Symbol l ident)
-
-qNamePreludeIdent :: String -> l -> QName l
-qNamePreludeIdent ident l = 
-  Qual l (ModuleName l "Prelude") (Ident l ident)
-
-qNamePreludeSymbol :: String -> l -> QName l
-qNamePreludeSymbol ident l = 
-  Qual l (ModuleName l "Prelude") (Symbol l ident)
-
-qNameHatIdent :: String -> l -> QName l
-qNameHatIdent ident l = Qual l (ModuleName l "Hat") (Ident l ident)
-
-qNameShortIdent :: String -> l -> QName l
-qNameShortIdent ident l = Qual l (ModuleName l "T") (Ident l ident)
-
-qNameShortArity :: String -> l -> Arity -> QName l
-qNameShortArity ident l a = qNameShortIdent (ident ++ show a) l
 
 
 -- ----------------------------------------------------------------------------
@@ -2907,12 +2634,6 @@ prefix False = "from"
 -- ----------------------------------------------------------------------------
 -- Useful stuff
 
--- Test for specific names:
-
-isFunTyCon :: QName l -> Bool
-isFunTyCon (Special _ (FunCon _)) = True
-isFunTyCon _ = False
-
 
 -- Frequently used in transformed code:
 
@@ -2940,114 +2661,12 @@ patParent = PVar noSpan nameParent
 expParent :: Exp SrcSpanInfo
 expParent = Var noSpan (UnQual noSpan nameParent)
 
--- Build parts of syntax tree:
-
-mkQName :: l -> String -> QName l
-mkQName l str = 
-  if null revQual 
-    then UnQual l (mkName l str) 
-    else Qual l (ModuleName l (reverse (tail revQual))) 
-           (mkName l (reverse revName))
-  where
-  (revName,revQual) = break (== '.') (reverse str)
-
-mkName :: l -> String -> Name l
-mkName l str =
-  if isAlpha (head str)
-    then Ident l str
-    else Symbol l str
-
 -- Build n-ary application
 -- pre-condition: list is non-empty
 appN :: [Exp SrcSpanInfo] -> Exp SrcSpanInfo
 appN [e] = e
 appN (e:es) = App noSpan e (appN es)
 
--- Build n-ary type application
--- pre-condiiton: list is non-empy
-tyAppN :: [Type l] -> Type l
-tyAppN [t] = t
-tyAppN (t:ts) = TyApp (ann t) t (tyAppN ts)
-
-litInt :: (Show i, Integral i) => l -> i -> Exp l
-litInt l i = Lit l (Int l (fromIntegral i) (show i))
-
-litString :: l -> String -> Exp l
-litString l str = Lit l (String l str str) 
-  
-matchArity :: Match l -> Arity 
-matchArity (Match _ _ pats _ _) = length pats
-matchArity (InfixMatch _ p _ pats _ _) = 1 + length pats
-
-changeInfixMatch :: Match l -> Match l
-changeInfixMatch m@(Match _ _ _ _ _) = m
-changeInfixMatch (InfixMatch l p n pats rhs maybeBinds) = 
-  Match l n (p:pats) rhs maybeBinds
-
--- General working on AST:
-
--- function type constructor
-infixr 6 `typeFun`
-typeFun :: Type l -> Type l -> Type l
-typeFun ty1 ty2 = TyFun (ann ty1) ty1 ty2
-
--- Compare two names ignoring location
-eqName :: Name l -> Name l -> Bool
-eqName (Ident _ n1) (Ident _ n2) = n1==n2
-eqName (Symbol _ n1) (Symbol _ n2) = n1==n2
-eqName _ _ = False 
-
-getFieldNamesFromQualConDecl :: QualConDecl l -> [Name l]
-getFieldNamesFromQualConDecl (QualConDecl _ _ _ conDecl) =
-  getFieldNamesFromConDecl conDecl
-
-getFieldNamesFromConDecl :: ConDecl l -> [Name l]
-getFieldNamesFromConDecl (ConDecl _ _ _) = []
-getFieldNamesFromConDecl (InfixConDecl _ _ _ _) = []
-getFieldNamesFromConDecl (RecDecl _ _ fieldDecls) = 
-  concatMap getFieldNameFromFieldDecl fieldDecls
-
-getFieldNameFromFieldDecl :: FieldDecl l -> [Name l]
-getFieldNameFromFieldDecl (FieldDecl _ names _) = names
-
-getConstructorFromConDecl :: ConDecl l -> Name l
-getConstructorFromConDecl (ConDecl _ c _) = c
-getConstructorFromConDecl (InfixConDecl _ _ c _) = c
-getConstructorFromConDecl (RecDecl _ c _) = c
-
-getArityFromConDecl :: ConDecl l -> Int
-getArityFromConDecl (ConDecl _ _ bTys) = length bTys
-getArityFromConDecl (InfixConDecl _ _ _ _) = 2
-getArityFromConDecl (RecDecl _ c fieldDecls) = 
-  sum (map getArityFromFieldDecl fieldDecls)
-
-getArityFromFieldDecl :: FieldDecl l -> Int
-getArityFromFieldDecl (FieldDecl _ names _) = length names
-
-alt2Match :: Alt l -> Match l
-alt2Match (Alt l pat guardedAlts maybeBinds) = 
-  Match l undefined [pat] (guardedAlts2Rhs guardedAlts) maybeBinds
-
-guardedAlts2Rhs :: GuardedAlts l -> Rhs l
-guardedAlts2Rhs (UnGuardedAlt l exp) = UnGuardedRhs l exp
-guardedAlts2Rhs (GuardedAlts l gdAlts) = 
-  GuardedRhss l (map guardedAlt2GuardedRhs gdAlts)
-
-guardedAlt2GuardedRhs :: GuardedAlt l -> GuardedRhs l
-guardedAlt2GuardedRhs (GuardedAlt l stmts exp) = GuardedRhs l stmts exp
-
-qOp2Exp :: QOp l -> Exp l
-qOp2Exp (QVarOp l qName) = Var l qName
-qOp2Exp (QConOp l qName) = Con l qName
-
--- The first name possibly provides a module qualifier
-cName2QName :: QName l -> CName l -> QName l
-cName2QName (UnQual _ _) (VarName l name) = UnQual l name
-cName2QName (UnQual _ _) (ConName l name) = UnQual l name
-cName2QName (Qual _ mod _) (VarName l name) = Qual l mod name
-cName2QName (Qual _ mod _) (ConName l name) = Qual l mod name
-cName2QName (Special _ _) (VarName l name) = UnQual l name
-cName2QName (Special _ _) (ConName l name) = UnQual l name
 
 -- bogus span, does not appear in the source
 noSpan :: SrcSpanInfo
@@ -3071,3 +2690,71 @@ isOtherwise :: QName l -> Bool
 isOtherwise (Qual _ (ModuleName _ "Prelude") (Ident _ "otherwise")) = True
 isOtherwise (UnQual _ (Ident _ "otherwise")) = True
 isOtherwise _ = False
+
+-- ----------------------------------------------------------------------------
+
+expMkAtomRational :: Exp SrcSpanInfo
+expMkAtomRational = Var noSpan (qNameMkAtomRational noSpan)
+
+expMkAtomLambda :: Exp SrcSpanInfo
+expMkAtomLambda = Var noSpan (qNameMkAtomLambda noSpan)
+
+mkExpConstUse :: Tracing -> Exp SrcSpanInfo
+mkExpConstUse tracing =
+  Var noSpan 
+    (if isTraced tracing then qNameConstUse noSpan else qNameUConstUse noSpan)
+
+mkExpConstDef :: Tracing -> Exp SrcSpanInfo
+mkExpConstDef tracing =
+  Var noSpan 
+    (if isTraced tracing then qNameConstDef noSpan else qNameUConstDe noSpanf)
+
+mkExpGuard :: Tracing -> Exp SrcSpanInfo
+mkExpGuard tracing =
+  Var noSpan 
+    (if isTraced tracing then qNameGuard noSpan else qNameUGuard noSpan)
+
+mkExpUpdate :: Tracing -> Arity -> Exp SrcSpanInfo
+mkExpUpdate tracing arity =
+  Var noSpan 
+    (if isTraced tracing then qNameUpdate noSpan arity else qNameUUpdate noSpan)
+
+expProjection :: Exp SrcSpanInfo
+expProjection = Var noSpan (qNameProjection noSpan)
+
+expConChar :: Exp SrcSpanInfo
+expConChar = Var noSpan (qNameConChar noSpan)
+
+expConInteger :: Exp SrcSpanInfo
+expConInteger = Var noSpan (qNameConInteger noSpan)
+
+expFromLitString :: Exp SrcSpanInfo
+expFromLitString = Var noSpan (qNameFromLitString noSpan)
+
+expFromExpList :: Exp SrcSpanInfo
+expFromExpList = Var noSpan (qNameFromExpList noSpan)
+
+expWrapValFun :: Exp SrcSpanInfo
+expWrapValFun = Var noSpan (UnQual noSpan (nameWrapValFun noSpan))
+
+-- names from the Prelude:
+
+expUndefined :: Exp SrcSpanInfo
+expUndefined = Var noSpan (qNameHatPreludeIdent "gundefined" noSpan)
+
+-- for integer literals
+expFromInteger :: Exp SrcSpanInfo
+expFromInteger = Var noSpan (qNameHatPreludeIdent "gfromInteger" noSpan)
+
+-- for rational literals:
+expConRational :: Exp SrcSpanInfo
+expConRational = Var noSpan (qNameHatPreludeSymbol ":%" noSpan)
+
+expFromRational :: Exp SrcSpanInfo
+expFromRational = Var noSpan (qNameHatPreludeIdent "gfromRational" noSpan)
+
+expTraceIO :: Exp SrcSpanInfo
+expTraceIO = Var noSpan (qNameShortIdent "traceIO" noSpan)
+
+
+
