@@ -18,7 +18,7 @@ module TraceTrans (traceTrans, Tracing(..)) where
 
 import Language.Haskell.Exts.Annotated
 import System.FilePath (takeBaseName)
-import Data.Maybe (fromMaybe,isNothing,isJust,fromJust)
+import Data.Maybe (fromMaybe,isNothing,isJust,fromJust,fromMaybe)
 import Data.List (stripPrefix,nubBy,partition)
 import Data.Char (digitToInt,isAlpha)
 import Data.Ratio (numerator,denominator)
@@ -39,7 +39,7 @@ data Tracing = Traced | Trusted deriving Eq
 
 isTraced :: Tracing -> Bool
 isTraced Traced = True
-isTraced Traced = False
+isTraced Trusted = False
 
 data Scope = Global | Local
 
@@ -62,28 +62,29 @@ traceTrans moduleFilename tracing env
   (Module span maybeModuleHead modulePragmas impDecls decls) =
   Module span (fmap (tModuleHead env declsExported) maybeModuleHead) 
     (map tModulePragma modulePragmas) 
-    (tImpDecls tracing impDecls)
+    (tImpDecls env impDecls)
     (declsExported ++
       [PatBind span patParent Nothing 
         (UnGuardedRhs span expRoot) Nothing] ++
-      [defNameMod span modId moduleFilename tracing] ++ 
+      [defNameMod modName moduleFilename tracing] ++ 
       map (defNameVar env Global Local modTrace) mvars ++ 
       map (defNameVar env Local Local modTrace) vars ++ 
       (if isTraced tracing then map (defNameSpan modTrace) poss else []))
   where
-  modId = maybe "Main" getModuleId maybeModuleHead
+  modName = maybe (ModuleName noSpan "Main") (\(ModuleHead _ n _ _) -> n) 
+              maybeModuleHead
   declsExported = decls' ++ conNameDefs ++ globalVarNameDefs ++
-                    if isMain modId 
+                    if isMain modName
                       then [defMain tracing (traceBaseFilename moduleFilename)] 
                       else []
-  conNameDefs = map (defNameCon modTrace) cons 
-  globalVarNameDefs = map (defNameVar Global Global modTrace) tvars 
-  modId' = nameTransModule modId
-  modTrace = Var span (nameTraceInfoModule modId)
+  conNameDefs = map (defNameCon env modTrace) cons 
+  globalVarNameDefs = map (defNameVar env Global Global modTrace) tvars 
+  modName' = nameTransModule modName
+  modTrace = Var span (UnQual span (nameTraceInfoModule modName))
   (poss,tvars,vars,mvars,cons) = getModuleConsts consts
-  (decls',consts) = tDecls Global tracing decls
-traceTrans _ _ (XmlPage span _ _ _ _ _ _) = notSupported span "XmlPage"
-traceTrans _ _ (XmlHybrid span _ _ _ _ _ _ _ _) = notSupported span "XmlHybrid"
+  (decls',consts) = tDecls env Global tracing decls
+traceTrans _ _ _ (XmlPage span _ _ _ _ _ _) = notSupported span "XmlPage"
+traceTrans _ _ _ (XmlHybrid span _ _ _ _ _ _ _ _) = notSupported span "XmlHybrid"
 
 -- For the complete filename of a module yields the base filename for the 
 -- trace file.
@@ -95,12 +96,14 @@ traceBaseFilename = takeBaseName
 getModuleId :: ModuleHead l -> String
 getModuleId (ModuleHead _ (ModuleName _ modId) _ _) = modId
 
-tModuleHead :: ModuleHead SrcSpanInfo -> ModuleHead SrcSpanInfo
+tModuleHead :: Environment -> 
+               [Decl SrcSpanInfo] ->  -- transformed declarations of this module
+               ModuleHead SrcSpanInfo -> ModuleHead SrcSpanInfo
 tModuleHead env decls
   (ModuleHead span moduleName maybeWarningText maybeExportSpecList) =
   ModuleHead span (nameTransModule moduleName) 
     (fmap tWarningText maybeWarningText)
-    (tMaybeExportSpecList (map (\(ModuleName _ modId) -> modId) moduleName)
+    (tMaybeExportSpecList ((\(ModuleName _ modId) -> modId) moduleName)
       env maybeExportSpecList decls)
 
 -- warnings stay unchanged
@@ -108,7 +111,7 @@ tWarningText :: WarningText l -> WarningText l
 tWarningText w = w
 
 -- not all module pragmas can be transformed
-tModulePragma :: ModulePragma l -> ModulePragma l
+tModulePragma :: ModulePragma SrcSpanInfo -> ModulePragma SrcSpanInfo
 tModulePragma (LanguagePragma l names) = LanguagePragma l names
 tModulePragma (OptionsPragma l maybeTool string) = 
   OptionsPragma l maybeTool string
@@ -127,14 +130,14 @@ tModulePragma (AnnModulePragma l _) =
 --  T.closeTrace
 defMain :: Tracing -> String -> Decl SrcSpanInfo
 defMain tracing artFileName =
-  PatBind noSpan (PVar noSpan (qNameMain noSpan)) Nothing
+  PatBind noSpan (PVar noSpan (nameMain noSpan)) Nothing
     (UnGuardedRhs noSpan (appN
        [expTraceIO
        ,litString noSpan artFileName
        ,appN [Var noSpan qNameGMain, mkExpSR noSpan Trusted, expRoot]]))
     Nothing
   where
-  qNameGMain = nameTransLetVar (qNameMain noSpan)
+  qNameGMain = nameTransLetVar (UnQual noSpan (nameMain noSpan))
   
 
 
@@ -160,15 +163,15 @@ tExportSpec :: Environment -> [Decl SrcSpanInfo] ->
 tExportSpec env _ _ (EVar span qname) = 
   map (EVar span) (tEntityVar env qname)
 tExportSpec env _ _ (EAbs span qname) =
-  EAbs span qname' : map (EVar span) qnames'
+  map (EAbs span) qnames'
   where
-  (qname', qnames') = tEntityAbs env qname
-tExportSpec env _ _ (EThingAll span qname) =
+  qnames' = tEntityAbs env qname
+tExportSpec env decls thisModule (EThingAll span qname) =
   case clsTySynInfo env qname of
     Cls _ -> [EThingAll span (nameTransCls qname)]
     Ty cons fields -> 
-      tExportSpec (EThingWith span qname 
-                    (map conName cons ++ map fieldName fields))
+      tExportSpec env decls thisModule 
+        (EThingWith span qname (map conName cons ++ map fieldName fields))
   where
   conName str = ConName span (Symbol span str)
   fieldName str = VarName span (Ident span str)
@@ -185,18 +188,20 @@ tExportSpec env decls thisModuleId
 -- Produce export entities from the declarations generated by the transformation
 -- These are all entities defined in this module and meant for export.
 makeExport :: Decl SrcSpanInfo -> [ExportSpec SrcSpanInfo]
-makeExport (TypeDecl l declHead _) = [EAbs l (getDeclHeadName declHead)]
-makeExport (TypeFamDecl l declHead _) = [EAbs l (getDeclHeadName declHead)]
+makeExport (TypeDecl l declHead _) = 
+  [EAbs l (UnQual l (getDeclHeadName declHead))]
+makeExport (TypeFamDecl l declHead _) = 
+  [EAbs l (UnQual l (getDeclHeadName declHead))]
 makeExport (DataDecl l _ _ declHead _ _) =
-  [EThingAll l (getDeclHeadName declHead)]
+  [EThingAll l (UnQual l (getDeclHeadName declHead))]
 makeExport (GDataDecl l _ _ declHead _ _ _) =
-  [EThingAll l (getDeclHeadName declHead)]
+  [EThingAll l (UnQual l (getDeclHeadName declHead))]
 makeExport (ClassDecl l _ declHead _ _) =
-  [EThingAll l (getDeclHeadName declHead)]
-makeExport (FunBind l match) =
+  [EThingAll l (UnQual l (getDeclHeadName declHead))]
+makeExport (FunBind l matches) =
   if exportedTransName name then [EVar l (UnQual l name)] else []
   where
-  name = getMatchName match
+  name = getMatchName (head matches)
 makeExport (PatBind l (PVar l' name) _ _ _) =
   if exportedTransName name then [EVar l (UnQual l name)] else []
 makeExport _ = []
@@ -223,7 +228,7 @@ getDeclHeadName (DHParen _ declHead) = getDeclHeadName declHead
 -- ----------------------------------------------------------------------------
 -- Produce imports
 
-tImpDecls :: Environment -> [ImportDecl l] -> [ImportDecl l]
+tImpDecls :: Environment -> [ImportDecl SrcSpanInfo] -> [ImportDecl SrcSpanInfo]
 tImpDecls env impDecls = 
   ImportDecl {importAnn = noSpan,
               importModule = ModuleName noSpan "Prelude",
@@ -254,9 +259,9 @@ tImpDecls env impDecls =
   -- All types and combinators for tracing, inserted by the transformation
   : map (tImportDecl env) impDecls
 
-tImportDecl :: Environment -> ImportDecl l -> ImportDecl l
+tImportDecl :: Environment -> ImportDecl SrcSpanInfo -> ImportDecl SrcSpanInfo
 tImportDecl env importDecl = 
-  if isJust (importSrc importDecl) 
+  if importSrc importDecl 
     then notSupported (importAnn importDecl) "{-# SOURCE #-}"
   else if isJust (importPkg importDecl)
     then notSupported (importAnn importDecl) "explicit package name"
@@ -266,18 +271,21 @@ tImportDecl env importDecl =
                importSpecs = fmap (tImportSpecList env) (importSpecs importDecl)
               }
 
-tImportSpecList :: Environment -> ImportSpecList l -> ImportSpecList l
+tImportSpecList :: Environment -> ImportSpecList SrcSpanInfo -> 
+                   ImportSpecList SrcSpanInfo
 tImportSpecList env (ImportSpecList l hiding importSpecs) =
   ImportSpecList l hiding (concatMap (tImportSpec env) importSpecs)
       
 -- Nearly identical with tExportSpec except for the types.  
-tImportSpec :: Environment -> ImportSpec l -> [ImportSpec l]     
+tImportSpec :: Environment -> ImportSpec SrcSpanInfo -> [ImportSpec SrcSpanInfo] 
 tImportSpec env (IVar span name) = 
-  map (IVar span . qName2Name) (tEntityVar env (UnQual (ann name) name))
-tImportSpec env (IAbs span name) =
-  IAbs span (qName2Name qname') : map (IVar span . qName2Name) qnames'
+  map (IVar span . qName2Name) qnames'
   where
-  (qname', qnames') = tEntityAbs env (UnQual (ann name) name)
+  qnames' = tEntityVar env (UnQual (ann name) name)
+tImportSpec env (IAbs span name) =
+  map (IAbs span . qName2Name) qnames'
+  where
+  qnames' = tEntityAbs env (UnQual (ann name) name)
 tImportSpec env (IThingAll span name) =
   case clsTySynInfo env (UnQual (ann name) name) of
     Cls _ -> [IThingAll span (nameTransCls name)]
@@ -289,7 +297,7 @@ tImportSpec env (IThingAll span name) =
   fieldName str = VarName span (mkName span str)
 tImportSpec env (IThingWith span name cnames) =
   IThingWith span (qName2Name qname') cnames' : 
-    map (IVar span) (qName2Name qnames')
+    map (IVar span . qName2Name) qnames'
   where
   (qname', cnames', qnames') = 
     tEntityThingWith env (UnQual (ann name) name) cnames
@@ -345,15 +353,16 @@ tEntityThingWith env qname cnames =
 -- position in the name, because the same variable name may be used several 
 -- times.
 
-defNameMod :: ModuleName SrcSpanInfo -> String -> Bool -> Decl SrcSpanInfo
-defNameMod modName@(ModuleName l modId) filename traced =
+defNameMod :: ModuleName SrcSpanInfo -> String -> Tracing -> Decl SrcSpanInfo
+defNameMod modName@(ModuleName l modId) filename tracing =
   PatBind l (PVar l (nameTraceInfoModule modName)) Nothing
     (UnGuardedRhs l
       (appN
         [Var l (qNameMkModule l)
         ,litString l modId
         ,litString l filename
-        ,Con l (if traced then qNamePreludeTrue l else qNamePreludeFalse l)]))
+        ,Con l (if isTraced tracing then qNamePreludeTrue l 
+                                    else qNamePreludeFalse l)]))
     Nothing
 
 defNameCon :: Environment -> 
@@ -396,7 +405,7 @@ defNameVar env defScope visScope moduleTrace varName =
            -- all identifiers in definition position are assumed to 
            -- be equipped with an arity; 
            -- only those defined by pattern bindings do not; they have arity 0.
-          litInt l (maybe 0 id (arity env (UnQual l varName))),
+          litInt l (fromMaybe 0 (arity env (UnQual l varName))),
           litString l (getId varName),
           Con l (if isLocal defScope then qNamePreludeTrue l 
                                      else qNamePreludeFalse l)])))
@@ -404,17 +413,17 @@ defNameVar env defScope visScope moduleTrace varName =
   where
   l = ann varName
 
-defNameSpan :: Exp SrcSpanInfo -> SrcSpanInfo -> Decl SrcSpanInfo
+defNameSpan :: Exp SrcSpanInfo -> SrcSpan -> Decl SrcSpanInfo
 defNameSpan moduleTrace span =
-  PatBind l (PVar l (nameTraceInfoSpan span)) Nothing
+  PatBind l (PVar l (nameTraceInfoSpan l)) Nothing
     (UnGuardedRhs l
       (appN
         (Var l (qNameMkSpan l) :
          moduleTrace :
-         encodeSpan span)))
+         encodeSpan l)))
     Nothing
   where
-  l = span
+  l = noInfoSpan span
 
 -- Encode a span in the trace file
 encodeSpan :: SrcSpanInfo -> [Exp SrcSpanInfo]
@@ -2827,8 +2836,8 @@ mkExpPreludeMinus :: l -> Exp l
 mkExpPreludeMinus l = Var l (qNamePreludeSymbol "-" l)
 
 -- function main
-qNameMain :: l -> QName l
-qNameMain l = UnQual l (Ident l "main")
+nameMain :: l -> Name l
+nameMain l = Ident l "main"
 
 -- Building name qualifiers
 
@@ -3047,8 +3056,8 @@ noSpan = noInfoSpan (SrcSpan "" 0 0 0 0)
 -- Test for specific names
 
 -- Is this the module name "Main"?
-isMain :: String -> Bool
-isMain = (== "Main")
+isMain :: ModuleName l -> Bool
+isMain (ModuleName l name) = name == "Main"
 
 -- This test is an unsafe hack.
 -- Even with qualification "Prelude" this may be a different "True"
