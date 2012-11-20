@@ -4,9 +4,9 @@
 module Derive (derive) where
 
 import Language.Haskell.Exts.Annotated 
-import Wired (qNamePreludeIdent
+import Wired (qNamePreludeIdent,qNamePreludeSymbol
              ,mkExpPreludeEqualEqual,mkExpPreludeAndAnd,mkExpTrue,mkExpFalse)
-import SynHelp (Id(getId),appN,tyAppN,litInt,conDeclName,conDeclArity
+import SynHelp (Id(getId),appN,tyAppN,litInt,litString,conDeclName,conDeclArity
                ,instHeadQName,declHeadName,declHeadTyVarBinds,tyVarBind2Type
                ,combineMaybeContexts)
 
@@ -175,9 +175,48 @@ deriveBounded l maybeContext instTy conDecls =
                     (Var l (qNamePreludeIdent "maxBound" l)))))
               Nothing)]))
 
+-- ----------------------------------------------------------------------------
 
-
-
+deriveEnum :: l -> Maybe (Context l) -> (Type l) -> [ConDecl l] -> Decl l
+deriveEnum  l maybeContext instTy conDecls =
+  -- assert: all (== 0) (map constrArity constrs) 
+  InstDecl l maybeContext (IHead l (qNamePreludeIdent "Enum" l) [instTy])
+    (Just 
+      [InsDecl l (FunBind l (zipWith matchFromEnum conDecls [0..]))
+      ,InsDecl l (FunBind l (zipWith matchToEnum conDecls [0..] ++ [failure]))
+      ,InsDecl l (FunBind l 
+        [Match l (Ident l "enumFrom") [PVar l name1]
+          (UnGuardedRhs l
+            (App l (Var l (qNamePreludeIdent "enumFromTo" l))
+                   (Con l (UnQual l (conDeclName (last conDecls))))))
+          Nothing])
+      ,InsDecl l (FunBind l
+        [Match l (Ident l "enumFromThen") [PVar l name1,PVar l name2]
+          (UnGuardedRhs l
+            (App l (Var l (qNamePreludeIdent "enumFromThenTo" l))
+                   (If l (appN
+                           [Var l (qNamePreludeSymbol ">=" l)
+                           ,App l (Var l (qNamePreludeIdent "fromEnum" l))
+                                  (Var l (UnQual l name1))
+                           ,App l (Var l (qNamePreludeIdent "fromEnum" l))
+                                  (Var l (UnQual l name2))])
+                         (Con l (UnQual l (conDeclName (last conDecls))))
+                         (Con l (UnQual l (conDeclName (head conDecls)))))))
+          Nothing])])  
+  where
+  name1:name2:_ = newNames l
+  matchFromEnum conDecl num =
+    Match l (Ident l "fromEnum") [PApp l (UnQual l (conDeclName conDecl)) []]
+      (UnGuardedRhs l (litInt l num)) Nothing
+  matchToEnum conDecl num =
+    Match l (Ident l "toEnum") [PLit l (Int l num (show num))]
+      (UnGuardedRhs l (Con l (UnQual l (conDeclName conDecl)))) Nothing
+  failure = 
+    Match l (Ident l "toEnum") [PWildCard l]
+      (UnGuardedRhs l 
+        (App l (Var l (qNamePreludeIdent "error" l))
+               (litString l "toEnum: argument out of bounds")))
+      Nothing
 
 -- ----------------------------------------------------------------------------
 
