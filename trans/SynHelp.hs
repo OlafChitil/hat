@@ -69,7 +69,7 @@ fieldDeclNames (FieldDecl _ names _) = names
 
 -- Build n-ary application
 -- pre-condition: list is non-empty
-appN :: [Exp SrcSpanInfo] -> Exp SrcSpanInfo
+appN :: [Exp l] -> Exp l
 appN [e] = e
 appN (e:es) = App (ann e) e (appN es)
 

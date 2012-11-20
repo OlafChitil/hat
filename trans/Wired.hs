@@ -33,19 +33,6 @@ qNameShortArity :: String -> l -> Arity -> QName l
 qNameShortArity ident l a = qNameShortIdent (ident ++ show a) l
 
 
--- Hardwired names.
-
-qNamePreludeEq :: l -> QName l
-qNamePreludeEq = qNamePreludeIdent "Eq"
-
-qNamePreludeOrd :: l -> QName l
-qNamePreludeOrd = qNamePreludeIdent "Ord"
-
-qNamePreludeEQ :: l -> QName l
-qNamePreludeEQ = qNamePreludeIdent "EQ"
-
-qNamePreludeCompare :: l -> QName l
-qNamePreludeCompare = qNamePreludeIdent "compare"
 
 -- Syntax using identifiers in the standard Prelude.
 

@@ -4,10 +4,10 @@
 module Derive (derive) where
 
 import Language.Haskell.Exts.Annotated 
-import Wired (qNamePreludeEq,qNamePreludeOrd,qNamePreludeCompare,qNamePreludeEQ
+import Wired (qNamePreludeIdent
              ,mkExpPreludeEqualEqual,mkExpPreludeAndAnd,mkExpTrue,mkExpFalse)
-import SynHelp (Id(getId),tyAppN,litInt,conDeclName,conDeclArity,instHeadQName
-               ,declHeadName,declHeadTyVarBinds,tyVarBind2Type
+import SynHelp (Id(getId),appN,tyAppN,litInt,conDeclName,conDeclArity
+               ,instHeadQName,declHeadName,declHeadTyVarBinds,tyVarBind2Type
                ,combineMaybeContexts)
 
 -- ----------------------------------------------------------------------------
@@ -58,7 +58,7 @@ deriveClass l maybeContext instTy tyVars conDecls className
 
 deriveEq :: l -> Maybe (Context l) -> (Type l) -> [ConDecl l] -> Decl l
 deriveEq l maybeContext instTy conDecls =
-  InstDecl l maybeContext (IHead l (qNamePreludeEq l) [instTy]) 
+  InstDecl l maybeContext (IHead l (qNamePreludeIdent "Eq" l) [instTy]) 
     (Just [InsDecl l (FunBind l (
       map matchEqConstr conDecls ++
       [Match l (Symbol l "==") [PWildCard l, PWildCard l] 
@@ -90,13 +90,13 @@ deriveEq l maybeContext instTy conDecls =
 
 deriveOrd :: l -> Maybe (Context l) -> (Type l) -> [ConDecl l] -> Decl l
 deriveOrd l maybeContext instTy conDecls =
-  InstDecl l maybeContext (IHead l (qNamePreludeOrd l) [instTy])
+  InstDecl l maybeContext (IHead l (qNamePreludeIdent "Ord" l) [instTy])
     (Just [InsDecl l (FunBind l (
       concatMap matchCompareEqConstr conDecls ++
       [Match l nameCompare [PVar l nameL, PVar l nameR]
         (UnGuardedRhs l
           (App l 
-             (App l (Var l (qNamePreludeCompare l))
+             (App l (Var l (qNamePreludeIdent "compare" l))
                 (App l (Var l (UnQual l nameLocalFromEnum))
                    (Var l (UnQual l nameL))))
              (App l (Var l (UnQual l nameLocalFromEnum))
@@ -126,11 +126,11 @@ deriveOrd l maybeContext instTy conDecls =
   -- mkExpCase :: Exp l -> Exp l -> Exp l
   mkExpCase e1 e2 =
     Case l e1 
-      [Alt l (PApp l (qNamePreludeEQ l) []) (UnGuardedAlt l e2) Nothing
+      [Alt l (PApp l (qNamePreludeIdent "EQ" l) []) (UnGuardedAlt l e2) Nothing
       ,Alt l (PVar l nameL) (UnGuardedAlt l (Var l (UnQual l nameL))) Nothing]
   -- mkExpCompare :: Exp l -> Exp l -> Exp l
   mkExpCompare e1 e2 =
-    App l (App l (Var l (qNamePreludeCompare l)) e1) e2
+    App l (App l (Var l (qNamePreludeIdent "compare" l)) e1) e2
   -- matchLocalFromEnum :: ConDecl l -> Int -> Match l
   matchLocalFromEnum conDecl num =
     Match l nameLocalFromEnum [PApp l (UnQual l conName) args] 
@@ -138,6 +138,46 @@ deriveOrd l maybeContext instTy conDecls =
     where
     conName = conDeclName conDecl
     args = replicate (conDeclArity conDecl) (PWildCard l)
+
+-- ----------------------------------------------------------------------------
+
+deriveBounded :: l -> Maybe (Context l) -> (Type l) -> [ConDecl l] -> Decl l
+deriveBounded l maybeContext instTy conDecls =
+  InstDecl l maybeContext (IHead l (qNamePreludeIdent "Bounded" l) [instTy])
+    (if all (== 0) (map conDeclArity conDecls)
+      then -- all constructors have no arguments (enumeration)
+        (Just 
+          [InsDecl l (PatBind l 
+            (PVar l (Ident l "minBound")) Nothing
+            (UnGuardedRhs l (Con l (UnQual l (conDeclName (head conDecls)))))
+            Nothing)
+          ,InsDecl l (PatBind l 
+            (PVar l (Ident l "maxBound")) Nothing
+            (UnGuardedRhs l (Con l (UnQual l (conDeclName (last conDecls)))))
+            Nothing)])
+      else -- exactly one constructor
+        let [conDecl] = conDecls in
+          (Just
+            [InsDecl l (PatBind l 
+              (PVar l (Ident l "minBound")) Nothing
+              (UnGuardedRhs l 
+                (appN 
+                  (Con l (UnQual l (conDeclName conDecl))
+                  :replicate (conDeclArity conDecl) 
+                    (Var l (qNamePreludeIdent "minBound" l)))))
+              Nothing)
+            ,InsDecl l (PatBind l 
+              (PVar l (Ident l "maxBound")) Nothing
+              (UnGuardedRhs l 
+                (appN
+                  (Con l (UnQual l (conDeclName conDecl))
+                  :replicate (conDeclArity conDecl)
+                    (Var l (qNamePreludeIdent "maxBound" l)))))
+              Nothing)]))
+
+
+
+
 
 -- ----------------------------------------------------------------------------
 
