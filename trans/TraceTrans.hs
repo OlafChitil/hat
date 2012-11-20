@@ -18,7 +18,7 @@ module TraceTrans (traceTrans, Tracing(..)) where
 
 import Language.Haskell.Exts.Annotated
 import System.FilePath (takeBaseName)
-import Data.Maybe (fromMaybe,isNothing,isJust,fromJust,fromMaybe)
+import Data.Maybe (fromMaybe,isNothing,isJust,fromJust)
 import Data.List (stripPrefix,nubBy,partition)
 import Data.Char (digitToInt,isAlpha)
 import Data.Ratio (numerator,denominator)
@@ -306,7 +306,7 @@ tImportSpec env (IThingWith span name cnames) =
 -- ----------------------------------------------------------------------------
 -- Produce entities in either import or export list
 
-tEntityVar :: Environment -> QName l -> [QName l]
+tEntityVar :: SrcInfo l => Environment -> QName l -> [QName l]
 tEntityVar env qname = 
   nameTransLetVar qname : 
   case arity env qname of
@@ -316,7 +316,7 @@ tEntityVar env qname =
     _              -> []
 
 -- a class or datatype ex-/imported abstractly, or a type synonym
-tEntityAbs :: Environment -> QName l -> [QName l]
+tEntityAbs :: SrcInfo l => Environment -> QName l -> [QName l]
 tEntityAbs env qname =
   case clsTySynInfo env qname of
     Cls _ -> [nameTransCls qname]
@@ -325,7 +325,7 @@ tEntityAbs env qname =
                       map (nameTransTySynHelper qname) [1..helpNo]
 
 -- a class with some methods or a datatype with some constructors/fields
-tEntityThingWith :: Environment -> QName l -> [CName l] -> 
+tEntityThingWith :: SrcInfo l => Environment -> QName l -> [CName l] -> 
                     (QName l, [CName l], [QName l])
 tEntityThingWith env qname cnames =
   case clsTySynInfo env qname of
@@ -2203,10 +2203,10 @@ tAsst (EqualP l tyL tyR) = EqualP l (tType tyL) (tType tyR)
 -- ----------------------------------------------------------------------------
 -- Error for non-supported language features
 
-notSupported :: SrcSpanInfo -> String -> a
-notSupported span construct = error $
+notSupported :: SrcInfo l => l -> String -> a
+notSupported l construct = error $
   "hat-trans: unsupported language construct \"" ++ construct ++ "\" at " ++ 
-    show span
+    fileName l ++ ":" ++ show (startLine l) ++ ":" ++ show (startColumn l)
 
 
 -- ----------------------------------------------------------------------------
@@ -2226,14 +2226,14 @@ notSupported span construct = error $
 nameTraceInfoModule :: ModuleName l -> Name l
 nameTraceInfoModule (ModuleName l ident) = Ident l ('t' : ident)
 
-nameTraceInfoVar :: Id i => SrcSpanInfo -> Scope -> i -> i
+nameTraceInfoVar :: UpdId i => SrcSpanInfo -> Scope -> i -> i
 nameTraceInfoVar span Global = prefixName 'a' '+'
 nameTraceInfoVar span Local = prefixSpanName 'a' '+' span
 
-nameTraceInfoGlobalVar :: Id i => i -> i
+nameTraceInfoGlobalVar :: UpdId i => i -> i
 nameTraceInfoGlobalVar = prefixName 'a' '+'
 
-nameTraceInfoCon :: Id i => i -> i
+nameTraceInfoCon :: UpdId i => i -> i
 nameTraceInfoCon = prefixName 'a' '+'
 
 nameTraceInfoSpan :: SrcSpanInfo -> Name SrcSpanInfo
@@ -2241,28 +2241,23 @@ nameTraceInfoSpan span = Ident span ('p' : showsEncodeSpan span "")
 
 -- names referring to transformed program fragments:
 
-nameTransModule :: ModuleName l -> ModuleName l
-nameTransModule (ModuleName l name) = ModuleName l 
-  (fromMaybe (if name == "Main" then name else "Hat." ++ name) 
-    (stripPrefix "NotHat." name)) 
-
 -- The unqualfied names in the namespace of classes, types and type synonyms 
 -- are left unchanged, but the module changes.
 -- Names of some built-in type constructors (e.g ->, [], (,)) are changed!
 -- Similarly type variable names are left unchanged.
 
-nameTransCls :: Id i => i -> i
+nameTransCls :: UpdId i => i -> i
 nameTransCls = updateId id 
 
-nameTransTy :: Id i => i -> i
+nameTransTy :: UpdId i => i -> i
 nameTransTy = updateId id 
 
-nameTransSyn :: Id i => i -> i
+nameTransSyn :: UpdId i => i -> i
 nameTransSyn = updateId id 
 
 -- Names of helper synonyms are a bit of a hack; a name conflict is possible.
 -- We just do not want to prefix all names in the namespace.
-nameTransTySynHelper :: Id i => i -> Int -> i
+nameTransTySynHelper :: UpdId i => i -> Int -> i
 nameTransTySynHelper syn no = updateId update syn
   where 
   update (Ident l name) = Ident l (name ++ "___" ++ show no)
@@ -2272,31 +2267,31 @@ nameTransTySynHelper syn no = updateId update syn
 nameTransTyVar :: Name l -> Name l
 nameTransTyVar = id  -- unchanged
 
-nameTransCon :: Id i => i -> i
+nameTransCon :: UpdId i => i -> i
 nameTransCon = updateId id  -- unchanged
 
-nameTransField :: Id i => i -> i
+nameTransField :: UpdId i => i -> i
 nameTransField = prefixName 'b' '^'
 
-nameTransLetVar :: Id i => i -> i
+nameTransLetVar :: UpdId i => i -> i
 nameTransLetVar = prefixName 'g' '!'
 
-nameTransLambdaVar :: Id i => i -> i
+nameTransLambdaVar :: UpdId i => i -> i
 nameTransLambdaVar = prefixName 'f' '&'
 
 -- internal, local names
 
 -- refering to partially transformed expression
-nameWorker :: Id i => i -> i
+nameWorker :: UpdId i => i -> i
 nameWorker = prefixName 'h' '*'
 
 -- refering to original (unwrapped) foreign import
-nameForeign :: Id i => i -> i
+nameForeign :: UpdId i => i -> i
 nameForeign = prefixName 'f' '&'
 
 -- names for new variables in transformed expressions:
 -- variable for sharing in transformation of pattern binding
-nameShare :: Id i => i -> i
+nameShare :: UpdId i => i -> i
 nameShare = prefixName 's' '|'
 
 -- Turn a QName into a Name, assuming it will be prefixed.
@@ -2311,7 +2306,7 @@ qName2Name (UnQual l name) = name
 qName2Name (Special l _) = error "hat-trans: special name in binding position"
 
 -- variable for a trace including span
-nameTraceShared :: Id i => SrcSpanInfo -> i -> i
+nameTraceShared :: UpdId i => SrcSpanInfo -> i -> i
 nameTraceShared = prefixSpanName 'j' '$'
 
 -- variable for parent
@@ -2319,15 +2314,15 @@ nameParent :: Name SrcSpanInfo
 nameParent = Ident noSpan "p"
 
 -- variable for a trace
-nameTrace :: Id i => i -> i
+nameTrace :: UpdId i => i -> i
 nameTrace = prefixName 'j' '$'
 
 -- second variable for a trace
-nameTrace2 :: Id i => i -> i
+nameTrace2 :: UpdId i => i -> i
 nameTrace2 = prefixName 'k' '@'
 
 -- name for a local variable for a source reference
-nameSR :: Id i => i -> i
+nameSR :: UpdId i => i -> i
 nameSR = prefixName 'p' '%'
 
 -- intermediate function
@@ -2335,11 +2330,11 @@ nameFun :: Name SrcSpanInfo
 nameFun = Ident noSpan "h"
 
 -- infinite list of var ids made from one id (for function clauses)
-nameFuns :: Id i => i -> [i]
+nameFuns :: UpdId i => i -> [i]
 nameFuns = prefixNames 'y' '>'
 
 -- infinite list of var ids made from one id (for naming arguments)
-nameArgs :: Id i => i -> [i]
+nameArgs :: UpdId i => i -> [i]
 nameArgs = prefixNames 'z' '^'
 
 -- a single id made from a span (different from below)
@@ -2375,25 +2370,25 @@ showsSymEncodeSpan span =
   endColumn = srcSpanEndColumn srcSpan
   srcSpan = srcInfoSpan span
 
-prefixName :: Id i => Char -> Char -> i -> i
+prefixName :: UpdId i => Char -> Char -> i -> i
 prefixName c d = updateId update
   where
   update (Ident l name) = Ident l (c:name)
   update (Symbol l name) = Ident l (d:name)
 
 -- really used with that general type?
-prefixModName :: Id i => Char -> i -> i
+prefixModName :: UpdId i => Char -> i -> i
 prefixModName c = updateId update
   where
   update (Ident l name) = Ident l (c: map (\c->if c=='.' then '_' else c) name)
 
-prefixSpanName :: Id i => Char -> Char -> SrcSpanInfo -> i -> i
+prefixSpanName :: UpdId i => Char -> Char -> SrcSpanInfo -> i -> i
 prefixSpanName c d span = updateId update
   where
   update (Ident l name) = Ident l (c : showsEncodeSpan span name)
   update (Symbol l name) = Symbol l (d : showsSymEncodeSpan span name)
 
-prefixNames :: Id i => Char -> Char -> i -> [i]
+prefixNames :: UpdId i => Char -> Char -> i -> [i]
 prefixNames c d name = map (($ name) . updateId . update) [1..]
   where
   update no (Ident l name) = Ident l (c : show no ++ name)
@@ -2402,69 +2397,6 @@ prefixNames c d name = map (($ name) . updateId . update) [1..]
 numToSym :: String -> String
 numToSym = map (("!#$%&*+^@>" !!) . digitToInt)
 
--- Actual identifier modification
-
-class Id a where
-  -- apply function to unqualified name part 
-  -- and prefix module name (if qualified)
-  updateId :: (Name l -> Name l) -> a -> a
-  -- whether a symbol (operator) or a normal identifier
-  isSymbol :: a -> Bool
-get  getId :: a -> String
-
-instance Id (QName l) where
-  updateId f (Qual l moduleName name) = 
-    Qual l (nameTransModule moduleName) (updateId f name)
-  updateId f (UnQual l name) = UnQual l (updateId f name)
-  updateId f (Special l specialCon) =
-    case specialCon of
-      UnitCon l' -> newName "Tuple0"
-      ListCon l' -> newName "List"
-      FunCon l' -> newName "Fun"
-      TupleCon l' Boxed arity -> newName ("Tuple" ++ show arity)
-      TupleCon l' Unboxed _ -> notSupported noSpan "unboxed tuple"
-      Cons l' -> newName "List"
-      UnboxedSingleCon l' -> 
-        notSupported noSpan "unboxed singleton tuple constructor"
-    where
-    newName id = Qual l (tracingModuleNameShort l) (Ident l id) 
-  isSymbol (Qual _ _ name) = isSymbol name
-  isSymbol (UnQual _ name) = isSymbol name
-  isSymbol (Special _ _) = True
-  getId (Qual _ _ name) = getId name
-  getId (UnQual _ name) = getId name
-
-instance Id (Name l) where
-  updateId f (Ident l ident) = Ident l (getId (f (Ident undefined ident)))
-  updateId f (Symbol l ident) = Symbol l (getId (f (Symbol undefined ident)))
-  isSymbol (Ident _ _) = False
-  isSymbol (Symbol _ _) = True
-  getId (Ident _ ident) = ident
-  getId (Symbol _ ident) = ident
-
-instance Id (QOp l) where
-  updateId f (QVarOp l qname) = QVarOp l (updateId f qname)
-  updateId f (QConOp l qname) = QConOp l (updateId f qname)
-  isSymbol (QVarOp _ _) = False
-  isSymbol (QConOp _ _) = True
-  getId (QVarOp _ qname) = getId qname
-  getId (QConOp _ qname) = getId qname
-
-instance Id (Op l) where
-  updateId f (VarOp l name) = VarOp l (updateId f name)
-  updateId f (ConOp l name) = ConOp l (updateId f name)
-  isSymbol (VarOp _ _) = False
-  isSymbol (ConOp _ _) = True
-  getId (VarOp _ name) = getId name
-  getId (ConOp _ name) = getId name
-
-instance Id (CName l) where
-  updateId f (VarName l name) = VarName l (updateId f name)
-  updateId f (ConName l name) = ConName l (updateId f name)
-  isSymbol (VarName _ _) = False
-  isSymbol (ConName _ _) = True
-  getId (VarName _ name) = getId name
-  getId (ConName _ name) = getId name
 
 -- ----------------------
 -- Hardwired identifiers
@@ -2661,12 +2593,6 @@ patParent = PVar noSpan nameParent
 expParent :: Exp SrcSpanInfo
 expParent = Var noSpan (UnQual noSpan nameParent)
 
--- Build n-ary application
--- pre-condition: list is non-empty
-appN :: [Exp SrcSpanInfo] -> Exp SrcSpanInfo
-appN [e] = e
-appN (e:es) = App noSpan e (appN es)
-
 
 -- bogus span, does not appear in the source
 noSpan :: SrcSpanInfo
@@ -2707,7 +2633,7 @@ mkExpConstUse tracing =
 mkExpConstDef :: Tracing -> Exp SrcSpanInfo
 mkExpConstDef tracing =
   Var noSpan 
-    (if isTraced tracing then qNameConstDef noSpan else qNameUConstDe noSpanf)
+    (if isTraced tracing then qNameConstDef noSpan else qNameUConstDef noSpan)
 
 mkExpGuard :: Tracing -> Exp SrcSpanInfo
 mkExpGuard tracing =
@@ -2756,5 +2682,44 @@ expFromRational = Var noSpan (qNameHatPreludeIdent "gfromRational" noSpan)
 expTraceIO :: Exp SrcSpanInfo
 expTraceIO = Var noSpan (qNameShortIdent "traceIO" noSpan)
 
+-- ----------------------------------------------------------------------------
 
 
+class Id a => UpdId a where
+  -- apply function to unqualified name part 
+  -- and prefix module name (if qualified)
+  updateId :: (Name l -> Name l) -> a -> a
+
+instance SrcInfo l => UpdId (QName l) where
+  updateId f (Qual l moduleName name) = 
+    Qual l (nameTransModule moduleName) (updateId f name)
+  updateId f (UnQual l name) = UnQual l (updateId f name)
+  updateId f (Special l specialCon) =
+    case specialCon of
+      UnitCon l' -> newName "Tuple0"
+      ListCon l' -> newName "List"
+      FunCon l' -> newName "Fun"
+      TupleCon l' Boxed arity -> newName ("Tuple" ++ show arity)
+      TupleCon l' Unboxed _ -> 
+        notSupported l' "Unboxed tuple."
+      Cons l' -> newName "List"
+      UnboxedSingleCon l' -> 
+        notSupported l' "Unboxed singleton tuple constructor."
+    where
+    newName id = Qual l (tracingModuleNameShort l) (Ident l id) 
+
+instance UpdId (Name l) where
+  updateId f (Ident l ident) = Ident l (getId (f (Ident undefined ident)))
+  updateId f (Symbol l ident) = Symbol l (getId (f (Symbol undefined ident)))
+
+instance SrcInfo l => UpdId (QOp l) where
+  updateId f (QVarOp l qname) = QVarOp l (updateId f qname)
+  updateId f (QConOp l qname) = QConOp l (updateId f qname)
+
+instance UpdId (Op l) where
+  updateId f (VarOp l name) = VarOp l (updateId f name)
+  updateId f (ConOp l name) = ConOp l (updateId f name)
+
+instance UpdId (CName l) where
+  updateId f (VarName l name) = VarName l (updateId f name)
+  updateId f (ConName l name) = ConName l (updateId f name)

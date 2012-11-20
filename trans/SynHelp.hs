@@ -1,9 +1,54 @@
+-- Useful functions on annotated Haskell syntax
+-- All functions are polymorphic in the annotation type.
+-- (The may loose annotations or add them rather arbitrarily.)
+
 module SynHelp where
 
 import Language.Haskell.Exts.Annotated 
 import Data.Char (isAlpha)
+import Data.List (stripPrefix)
+import Data.Maybe (fromMaybe)
 
 type Arity = Int
+
+
+-- Common features of all identifiers (names)
+
+class Id a where
+  -- whether a symbol (operator) or a normal identifier
+  isSymbol :: a -> Bool
+  getId :: a -> String
+
+instance Id (QName l) where
+  isSymbol (Qual _ _ name) = isSymbol name
+  isSymbol (UnQual _ name) = isSymbol name
+  isSymbol (Special _ _) = True
+  getId (Qual _ _ name) = getId name
+  getId (UnQual _ name) = getId name
+
+instance Id (Name l) where
+  isSymbol (Ident _ _) = False
+  isSymbol (Symbol _ _) = True
+  getId (Ident _ ident) = ident
+  getId (Symbol _ ident) = ident
+
+instance Id (QOp l) where
+  isSymbol (QVarOp _ _) = False
+  isSymbol (QConOp _ _) = True
+  getId (QVarOp _ qname) = getId qname
+  getId (QConOp _ qname) = getId qname
+
+instance Id (Op l) where
+  isSymbol (VarOp _ _) = False
+  isSymbol (ConOp _ _) = True
+  getId (VarOp _ name) = getId name
+  getId (ConOp _ name) = getId name
+
+instance Id (CName l) where
+  isSymbol (VarName _ _) = False
+  isSymbol (ConName _ _) = True
+  getId (VarName _ name) = getId name
+  getId (ConName _ name) = getId name
 
 -- General functions on syntax tree:
 
@@ -21,6 +66,12 @@ conDeclArity (RecDecl _ _ fieldDecls) =
 fieldDeclNames :: FieldDecl l -> [Name l]
 fieldDeclNames (FieldDecl _ names _) = names
 
+
+-- Build n-ary application
+-- pre-condition: list is non-empty
+appN :: [Exp SrcSpanInfo] -> Exp SrcSpanInfo
+appN [e] = e
+appN (e:es) = App (ann e) e (appN es)
 
 -- Build n-ary type application
 -- pre-condiiton: list is non-empy
@@ -137,7 +188,7 @@ combineMaybeContexts :: Maybe (Context l) -> Maybe (Context l) ->
 combineMaybeContexts Nothing mCtx = mCtx
 combineMaybeContexts mCtx Nothing = mCtx
 combineMaybeContexts (Just ctx1) (Just ctx2) = 
-  if null assts then Nothing else CxTuple (ann ctx1) assts
+  if null assts then Nothing else Just (CxTuple (ann ctx1) assts)
   where
   assts = contextAssertions ctx1 ++ contextAssertions ctx2
 
@@ -152,3 +203,17 @@ instHeadQName (IHead _ qname _) = qname
 instHeadQName (IHInfix _ _ qname _) = qname
 instHeadQName (IHParen _ ih) = instHeadQName ih
 
+
+declHeadName :: DeclHead l -> Name l
+declHeadName (DHead _ name _) = name
+declHeadName (DHInfix _ _ name _ ) = name
+declHeadName (DHParen _ dh) = declHeadName dh
+
+declHeadTyVarBinds :: DeclHead l -> [TyVarBind l]
+declHeadTyVarBinds (DHead _ _ tvbs) = tvbs
+declHeadTyVarBinds (DHInfix _ tvbL _ tvbR) = [tvbL,tvbR]
+declHeadTyVarBinds (DHParen _ dh) = declHeadTyVarBinds dh
+
+tyVarBind2Type :: TyVarBind l -> Type l
+tyVarBind2Type (KindedVar l name kind) = TyKind l (TyVar l name) kind
+tyVarBind2Type (UnkindedVar l name) = TyVar l name

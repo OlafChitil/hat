@@ -2,6 +2,8 @@ module Wired where
 
 import Language.Haskell.Exts.Annotated 
 import SynHelp
+import Data.Maybe (fromMaybe)
+import Data.List (stripPrefix)
 
 -- Building name qualifiers
 
@@ -39,6 +41,9 @@ qNamePreludeEq = qNamePreludeIdent "Eq"
 qNamePreludeOrd :: l -> QName l
 qNamePreludeOrd = qNamePreludeIdent "Ord"
 
+qNamePreludeEQ :: l -> QName l
+qNamePreludeEQ = qNamePreludeIdent "EQ"
+
 qNamePreludeCompare :: l -> QName l
 qNamePreludeCompare = qNamePreludeIdent "compare"
 
@@ -55,6 +60,11 @@ mkExpFalse l = Var l (qNamePreludeFalse l)
 
 
 -- -----------------------------------------------------------------------------
+
+nameTransModule :: ModuleName l -> ModuleName l
+nameTransModule (ModuleName l name) = ModuleName l 
+  (fromMaybe (if name == "Main" then name else "Hat." ++ name) 
+    (stripPrefix "NotHat." name)) 
 
 tracingModuleNameShort :: l -> ModuleName l
 tracingModuleNameShort l = ModuleName l "T"
