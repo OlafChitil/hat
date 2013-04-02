@@ -6,19 +6,21 @@ module Derive (derive) where
 import Language.Haskell.Exts.Annotated 
 import Wired (qNamePreludeIdent,qNamePreludeSymbol
              ,mkExpPreludeEqualEqual,mkExpPreludeAndAnd,mkExpTrue,mkExpFalse)
-import SynHelp (Id(getId),appN,tyAppN,litInt,litString,conDeclName,conDeclArity
+import SynHelp (Id(getId),appN,tyAppN,litInt,litString,litChar,conDeclName,conDeclArity
+               ,mkQName, fieldDeclNames
                ,instHeadQName,declHeadName,declHeadTyVarBinds,tyVarBind2Type
                ,combineMaybeContexts)
+import Environment (Environment, hasPriority)
 
 -- ----------------------------------------------------------------------------
 
 -- Derive instances for all given classes for a data/newtype
-derive :: Decl l -> [Decl l]
-derive (DataDecl l dataOrNew maybeContext declHead qualConDecls maybeDeriving) =
+derive :: Environment -> Decl l -> [Decl l]
+derive env (DataDecl l dataOrNew maybeContext declHead qualConDecls maybeDeriving) =
   case maybeDeriving of
     Nothing -> []
     Just (Deriving _ instHeads) -> 
-      map (deriveClass l maybeContext instTy tyVars conDecls . instHeadQName) 
+      map (deriveClass env l maybeContext instTy tyVars conDecls . instHeadQName) 
         instHeads
       where
       tyVars = map tyVarBind2Type (declHeadTyVarBinds declHead)
@@ -34,16 +36,22 @@ getConDecl (QualConDecl _ _ _ _) =
 
 
 -- Produce a class instance.
-deriveClass :: l -> 
+deriveClass :: 
+  Environment -> l ->
   Maybe (Context l) -> -- context of the data type (should be empty)
   (Type l) ->          -- type constructor with variable args to be made instance
   [Type l] ->          -- type variables args of above
   [ConDecl l] ->       -- constructor of data type
   QName l ->           -- names of class to derive
   Decl l
-deriveClass l maybeContext instTy tyVars conDecls className 
+deriveClass env l maybeContext instTy tyVars conDecls className 
   | getId className == "Eq" = deriveEq l maybeContext' instTy conDecls 
   | getId className == "Ord" = deriveEq l maybeContext' instTy conDecls
+  | getId className == "Bounded" = deriveBounded l maybeContext' instTy conDecls
+  | getId className == "Enum" = deriveEnum l maybeContext' instTy conDecls
+  | getId className == "Read" = deriveRead env l maybeContext' instTy conDecls
+  | getId className == "Show" = deriveShow env l maybeContext' instTy conDecls
+  | getId className == "Ix" = deriveIx l maybeContext' instTy conDecls
   | otherwise = error "Derive.deriveClass: unknown class"
   where
   -- this is a HACK that covers only the common cases
@@ -217,6 +225,175 @@ deriveEnum  l maybeContext instTy conDecls =
         (App l (Var l (qNamePreludeIdent "error" l))
                (litString l "toEnum: argument out of bounds")))
       Nothing
+
+-- ----------------------------------------------------------------------------
+
+deriveRead :: Environment -> l -> Maybe (Context l) -> (Type l) -> [ConDecl l] -> Decl l
+deriveRead  env l maybeContext instTy conDecls =
+  InstDecl l maybeContext (IHead l (qNamePreludeIdent "Read" l) [instTy]) 
+    (Just [InsDecl l (FunBind l (
+      [Match l (Ident l "readsPrec") [PVar l name1]
+        (UnGuardedRhs l (foldr1 alt . map expReadsPrec $ conDecls)) Nothing]))])
+  where
+  name1:_ = newNames l
+  e1 `alt` e2 =  appN [Var l (mkQName l "PreludeBasic.alt"), e1, e2]
+  expReadsPrec conDecl =
+    if arity == 0
+      then readParen (mkExpFalse l) (yield conExp `thenLex` getId conName)
+      else
+        case conDecl of
+          ConDecl _ _ _ ->
+            readParen precGreaterPriority
+              (foldl thenAp (yield conExp `thenLex` getId conName) (replicate arity readsArg))
+          InfixConDecl _ _ _ _ -> 
+            readParen precGreaterPriority
+              (yield conExp `thenAp` readsArg `thenLex` getId conName `thenAp` readsArg)
+          RecDecl _ _ fieldDecls ->
+            let fieldNames = concatMap fieldDeclNames fieldDecls
+            in (foldl thenCommaField (yield conExp `thenLex` getId conName `thenLex` "{" `thenField` head fieldNames)
+                 (tail fieldNames))
+                 `thenLex` "}"
+    where
+    infixl 6 `thenAp`, `thenLex`, `thenField`
+    conName = conDeclName conDecl
+    arity = conDeclArity conDecl
+    conExp = Con l (UnQual l conName)
+    priority = Environment.hasPriority env conName
+    priorityPlus1 = priority + 1
+    readParen eb e = appN [Var l (qNamePreludeIdent l "readParen"), eb, e]
+    yield e = appN [Var l (mkQName l "PreludeBasic.yield"), e]
+    e1 `thenLex` s = appN [Var l (mkQName l "PreludeBasic.thenLex"), e1, litString l s]
+    e1 `thenAp` e2 = appN [Var l (mkQName l "PreludeBasic.thenAp"), e1, e2]
+    precGreaterPriority = appN [qNamePreludeSymbol l ">", Var l name1, litInt l priority]
+    readsArg = appN [qNamePreludeIdent l "readsPrec", litInt l priorityPlus1]
+    readsArg0 = appN [qNamePreludeIdent l "readsPrec", litInt l 0]
+    p `thenField` fieldName = p `thenLex` getId fieldName `thenLex` "=" `thenAp` readsArg0
+    p `thenCommaField` fieldName = p `thenLex` "," `thenField` fieldName
+
+-- ----------------------------------------------------------------------------
+
+deriveShow :: Environment -> l -> Maybe (Context l) -> (Type l) -> [ConDecl l] -> Decl l
+deriveShow  env l maybeContext instTy conDecls =
+  InstDecl l maybeContext (IHead l (qNamePreludeIdent "Show" l) [instTy]) 
+    (Just [InsDecl l (FunBind l (map matchShowsPrec conDecls))])
+  where
+  name1:names = newNames l
+  matchShowsPrec conDecl =
+    Match l (Ident l "showsPrec") 
+      [PVar l name1, PApp l (UnQual l (conDeclName conDecl)) (map (PVar l) . take arity $ names)] 
+      (UnGuardedRhs l body) Nothing
+    where
+    conName = conDeclName conDecl
+    arity = conDeclArity conDecl
+    args = map (Var l . UnQual l) . take arity $ names
+    priority = Environment.hasPriority env conName
+    priorityPlus1 = priority + 1
+    body = if arity == 0 
+             then showStringExp (getId conName)
+             else
+               case conDecl of
+                 ConDecl _ _ _ -> 
+                   appN [Var l (qNamePreludeIdent "showParen" l)
+                        ,appN [Var l (qNamePreludeSymbol ">" l), Var l name1, litInt l priority]
+                        ,showStringExp (getId conName ++ " ") `compose`
+                          foldr1 composeSpace (map (showPrec priorityPlus1) args)]
+                 InfixConDecl _ _ _ _ ->
+                   appN [Var l (qNamePreludeIdent "showParen" l)
+                        ,appN [Var l (qNamePreludeSymbol ">" l), Var l name1, litInt l priority]
+                        ,showPrec priorityPlus1 (Var l (names!!0)) `compose`
+                          showStringExp (' ' : getId conName ++ " ") `compose`
+                          showPrec priorityPlus1 (Var l (names!!1))]
+                 RecDecl _ _ fieldDecls ->
+                   let fieldNames = concatMap fieldDeclNames fieldDecls
+                   in showStringExp (getId conName ++ "{") `compose`
+                        foldr1 composeComma (zipWith showField fieldNames args) `compose` showCharExp '}'
+    showStringExp s = appN [Var l (qNamePreludeIdent "showString" l), litString l s]
+    showCharExp c = appN [Var l (qNamePreludeIdent "showChar" l), litChar l c]
+    e1 `compose` e2 = appN [Var l (qNamePreludeSymbol "." l), e1, e2]
+    e1 `composeSpace` e2 = e1 `compose` showCharExp ' ' `compose` e2
+    e1 `composeComma` e2 = e1 `compose` showCharExp ',' `compose` e2
+    showField fieldName e =
+      showStringExp (getId  fieldName) `compose` showCharExp '=' `compose` showPrec 0 e
+    showPrec d e = appN [Var l (qNamePreludeIdent "showsPrec" l), litInt d]
+
+
+-- ----------------------------------------------------------------------------
+
+deriveIx :: l -> Maybe (Context l) -> (Type l) -> [ConDecl l] -> Decl l
+deriveIx  l maybeContext instTy conDecls =
+  InstDecl l maybeContext (IHead l (qNamePreludeIdent "Ix" l) [instTy]) 
+    (Just (map (InsDecl l) (if all (==0) (map conDeclArity conDecls) then ixEnumeration else ixSingleConstructor)))
+  where
+  ixEnumeration =
+    [FunBind l [Match l (Ident l "range") [PTuple l [PVar l lName, PVar l uName]] (UnGuardedRhs l 
+      (appN [Var l (qNamePreludeIdent "map" l)
+            ,toEnumVar
+            ,appN [Var l (qNamePreludeIdent "enumFromTo" l)
+                  ,appN [fromEnumVar, Var l lName]
+                  ,appN [fromEnumVar, Var l uName]]]))
+      (Just (BDecls l (declsToEnum ++ declsFromEnum)))]
+    ,FunBind l [Match l (Ident l "index") [PTuple l [PVar l lName, PVar l uName], PVar l iName] (UnGuardedRhs l
+      (InfixApp l (appN [fromEnumVar, Var l iName]) (QVarOp l (qNamePreludeSymbol "-" l)) 
+        (appN [fromEnumVar, Var l uName])))
+      (Just (BDecls l declsFromEnum))]
+    ,FunBind l [Match l (Ident l "inRange") [PTuple l [PVar l lName, PVar l uName], PVar l iName] (UnGuardedRhs l
+      (appN [Var l (qNamePreludeIdent "inRange" l)
+            ,Tuple l [appN [fromEnumVar, Var l lName], appN [fromEnumVar, Var l uName]]
+            ,appN [fromEnumVar, Var l iName]]))
+      (Just (BDecls l declsFromEnum))]]
+    where
+    lName:uName:iName:_ = newNames l
+    fromEnumVar = Var l (UnQual l (Ident l "fromEnum"))
+    toEnumVar = Var l (UnQual l (Ident l "toEnum"))
+    -- declsFromEnum :: [Decl l]
+    declsFromEnum = 
+      [TypeSig l [(Ident "fromEnum")] (TyFun l instTy (TyCon l (qNamePreludeIdent "Int" l)))
+      ,FunBind l (map matchFromEnum conDecls [0..])]
+    declsToEnum =
+      [TypeSig l [(Ident "toEnum")] (TyFun l (TyCon l (qNamePreludeIdent "Int" l)) instTy)
+      ,FunBind l (map matchToEnum conDecls [0..])]
+    matchFromEnum conDecl num =
+      Match l (Ident l "fromEnum") [PApp l (UnQual l (conDeclName conDecl)) []] (UnGuardedRhs l (litInt num)) Nothing
+    matchToEnum conDecl num =
+      Match l (Ident l "toEnum") [PLit l (Int l num (show num))] 
+        (UnGuardedRhs l (Con l (UnQual l (conDeclName conDecl)))) Nothing
+  ixSingleConstructor =
+    [FunBind l [Match l  (Ident l "range") [pTupleConLU] (UnGuardedRhs l 
+      (foldr ($) (appN [Var l (qNamePreludeIdent "return" l), conIVars]) (zipWith3 rangeComb lvars uvars iNames)))
+      Nothing]
+    ,FunBind l [Match l (Ident l "index") [pTupleConLU, pConI] (UnGuardedRhs l
+      (foldl (flip ($)) (indexExp (head lvars) (head uvars) (head ivars)) 
+        (tail (zipWith3 indexComb lvars uvars ivars))))
+      Nothing]
+    ,FunBind l [Match l (Ident l "inRange") [pTupleConLU, pConI] (UnGuardedRhs l
+      (foldr1 andExp (zipWith3 inRangeExp lvars uvars ivars)))
+      Nothing]]
+    where
+    [conDecl] = conDecls
+    conName = conDeclName conDecl
+    arity = conDeclArity conDecl
+    (lNames, names1) = splitAt arity (newNames l)
+    (uNames, names2) = splitAt arity names1
+    iNames = take arity names2
+    lvars = map (Var l) lNames
+    uvars = map (Var l) uNames
+    ivars = map (Var l) iNames
+    conIVars = appN (Con l (UnQual l conName) : ivars)
+    pTupleConLU = PTuple l [PVar l (PApp l conName lNames), PVar l (PApp l conName uNames)]
+    pConI = PApp l conName iNames
+    -- rangeComb :: Exp l -> Exp l -> Name l -> Exp l -> Exp l
+    rangeComb le ue ie cont = 
+      InfixApp l (appN [Var l (qNamePreludeIdent "range" l), Tuple l [le, ue]]) (QVarOp l (qNamePreludeSymbol ">>=" l))
+        (Lambda l [PVar l ie] cont)
+    indexExp le ue ie = appN [Var l (qNamePreludeIdent "index" l), Tuple l [le, ue], ie]
+    -- indexComb :: Exp l -> Exp l -> Exp l -> Exp l -> Exp l
+    indexComb le ue ie ee =
+      InfixApp l (indexExp le ue ie) (QVarOp l (qNamePreludeSymbol "+" l)) 
+        (InfixApp l (appN [Var l (qNamePreludeIdent "rangeSize" l), Tuple l [le, ue]]) 
+          (QVarOp l (qNamePreludeSymbol "*" l)) ee)
+    inRangeExp le ue ie = appN [Var l (qNamePreludeIdent "inRange" l), Tuple l [le, ue], ie]
+    -- andExp :: Exp l -> Exp l -> Exp l
+    andExp e1 e2 = InfixApp l e1 (QVarOp l (qNamePreludeSymbol "&&" l)) e2
 
 -- ----------------------------------------------------------------------------
 

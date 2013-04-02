@@ -4,7 +4,7 @@
 module Environment
   (Environment
   ,TySynBody(TApp,TFun,THelper,TVar),TyCls(Ty,Cls,Syn)
-  ,arity,isLambdaBound,isTracedQName,mutateLetBound,fixPriority
+  ,arity,isLambdaBound,isTracedQName,mutateLetBound,fixPriority, hasPriority
   ,clsTySynInfo,isExpandableTypeSynonym,typeSynonymBody
   ) where
 
@@ -53,6 +53,9 @@ mutateLetBound = undefined
 
 fixPriority :: Environment -> Name l -> Int
 fixPriority = undefined
+
+hasPriority :: Environment -> Name l -> Int
+hasPriority = undefined
 
 clsTySynInfo :: Environment -> QName l -> TyCls
 clsTySynInfo = undefined

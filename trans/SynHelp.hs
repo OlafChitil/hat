@@ -84,6 +84,9 @@ litInt l i = Lit l (Int l (fromIntegral i) (show i))
 
 litString :: l -> String -> Exp l
 litString l str = Lit l (String l str str) 
+
+litChar :: l -> Char -> Exp l
+litChar l c = Lit l (Char l c (show c))
   
 matchArity :: Match l -> Arity 
 matchArity (Match _ _ pats _ _) = length pats
@@ -115,10 +118,10 @@ getFieldNamesFromConDecl :: ConDecl l -> [Name l]
 getFieldNamesFromConDecl (ConDecl _ _ _) = []
 getFieldNamesFromConDecl (InfixConDecl _ _ _ _) = []
 getFieldNamesFromConDecl (RecDecl _ _ fieldDecls) = 
-  concatMap getFieldNameFromFieldDecl fieldDecls
+  concatMap getFieldNamesFromFieldDecl fieldDecls
 
-getFieldNameFromFieldDecl :: FieldDecl l -> [Name l]
-getFieldNameFromFieldDecl (FieldDecl _ names _) = names
+getFieldNamesFromFieldDecl :: FieldDecl l -> [Name l]
+getFieldNamesFromFieldDecl (FieldDecl _ names _) = names
 
 getConstructorFromConDecl :: ConDecl l -> Name l
 getConstructorFromConDecl (ConDecl _ c _) = c
