@@ -260,13 +260,13 @@ deriveRead  env l maybeContext instTy conDecls =
     conExp = Con l (UnQual l conName)
     priority = Environment.hasPriority env conName
     priorityPlus1 = priority + 1
-    readParen eb e = appN [Var l (qNamePreludeIdent l "readParen"), eb, e]
+    readParen eb e = appN [Var l (qNamePreludeIdent "readParen" l), eb, e]
     yield e = appN [Var l (mkQName l "PreludeBasic.yield"), e]
     e1 `thenLex` s = appN [Var l (mkQName l "PreludeBasic.thenLex"), e1, litString l s]
     e1 `thenAp` e2 = appN [Var l (mkQName l "PreludeBasic.thenAp"), e1, e2]
-    precGreaterPriority = appN [qNamePreludeSymbol l ">", Var l name1, litInt l priority]
-    readsArg = appN [qNamePreludeIdent l "readsPrec", litInt l priorityPlus1]
-    readsArg0 = appN [qNamePreludeIdent l "readsPrec", litInt l 0]
+    precGreaterPriority = InfixApp l (Var l (UnQual l name1)) (QVarOp l (qNamePreludeSymbol ">" l)) (litInt l priority)
+    readsArg = appN [Var l (qNamePreludeIdent "readsPrec" l), litInt l priorityPlus1]
+    readsArg0 = appN [Var l (qNamePreludeIdent "readsPrec" l), litInt l 0]
     p `thenField` fieldName = p `thenLex` getId fieldName `thenLex` "=" `thenAp` readsArg0
     p `thenCommaField` fieldName = p `thenLex` "," `thenField` fieldName
 
@@ -294,15 +294,15 @@ deriveShow  env l maybeContext instTy conDecls =
                case conDecl of
                  ConDecl _ _ _ -> 
                    appN [Var l (qNamePreludeIdent "showParen" l)
-                        ,appN [Var l (qNamePreludeSymbol ">" l), Var l name1, litInt l priority]
+                        ,appN [Var l (qNamePreludeSymbol ">" l), Var l (UnQual l name1), litInt l priority]
                         ,showStringExp (getId conName ++ " ") `compose`
                           foldr1 composeSpace (map (showPrec priorityPlus1) args)]
                  InfixConDecl _ _ _ _ ->
                    appN [Var l (qNamePreludeIdent "showParen" l)
-                        ,appN [Var l (qNamePreludeSymbol ">" l), Var l name1, litInt l priority]
-                        ,showPrec priorityPlus1 (Var l (names!!0)) `compose`
+                        ,appN [Var l (qNamePreludeSymbol ">" l), Var l (UnQual l name1), litInt l priority]
+                        ,showPrec priorityPlus1 (Var l (UnQual l (names!!0))) `compose`
                           showStringExp (' ' : getId conName ++ " ") `compose`
-                          showPrec priorityPlus1 (Var l (names!!1))]
+                          showPrec priorityPlus1 (Var l (UnQual l (names!!1)))]
                  RecDecl _ _ fieldDecls ->
                    let fieldNames = concatMap fieldDeclNames fieldDecls
                    in showStringExp (getId conName ++ "{") `compose`
@@ -314,7 +314,7 @@ deriveShow  env l maybeContext instTy conDecls =
     e1 `composeComma` e2 = e1 `compose` showCharExp ',' `compose` e2
     showField fieldName e =
       showStringExp (getId  fieldName) `compose` showCharExp '=' `compose` showPrec 0 e
-    showPrec d e = appN [Var l (qNamePreludeIdent "showsPrec" l), litInt d]
+    showPrec d e = appN [Var l (qNamePreludeIdent "showsPrec" l), litInt l d]
 
 
 -- ----------------------------------------------------------------------------
@@ -329,17 +329,17 @@ deriveIx  l maybeContext instTy conDecls =
       (appN [Var l (qNamePreludeIdent "map" l)
             ,toEnumVar
             ,appN [Var l (qNamePreludeIdent "enumFromTo" l)
-                  ,appN [fromEnumVar, Var l lName]
-                  ,appN [fromEnumVar, Var l uName]]]))
+                  ,appN [fromEnumVar, Var l (UnQual l lName)]
+                  ,appN [fromEnumVar, Var l (UnQual l uName)]]]))
       (Just (BDecls l (declsToEnum ++ declsFromEnum)))]
     ,FunBind l [Match l (Ident l "index") [PTuple l [PVar l lName, PVar l uName], PVar l iName] (UnGuardedRhs l
-      (InfixApp l (appN [fromEnumVar, Var l iName]) (QVarOp l (qNamePreludeSymbol "-" l)) 
-        (appN [fromEnumVar, Var l uName])))
+      (InfixApp l (appN [fromEnumVar, Var l (UnQual l iName)]) (QVarOp l (qNamePreludeSymbol "-" l)) 
+        (appN [fromEnumVar, Var l (UnQual l uName)])))
       (Just (BDecls l declsFromEnum))]
     ,FunBind l [Match l (Ident l "inRange") [PTuple l [PVar l lName, PVar l uName], PVar l iName] (UnGuardedRhs l
       (appN [Var l (qNamePreludeIdent "inRange" l)
-            ,Tuple l [appN [fromEnumVar, Var l lName], appN [fromEnumVar, Var l uName]]
-            ,appN [fromEnumVar, Var l iName]]))
+            ,Tuple l [appN [fromEnumVar, Var l (UnQual l lName)], appN [fromEnumVar, Var l (UnQual l uName)]]
+            ,appN [fromEnumVar, Var l (UnQual l iName)]]))
       (Just (BDecls l declsFromEnum))]]
     where
     lName:uName:iName:_ = newNames l
@@ -347,13 +347,13 @@ deriveIx  l maybeContext instTy conDecls =
     toEnumVar = Var l (UnQual l (Ident l "toEnum"))
     -- declsFromEnum :: [Decl l]
     declsFromEnum = 
-      [TypeSig l [(Ident "fromEnum")] (TyFun l instTy (TyCon l (qNamePreludeIdent "Int" l)))
-      ,FunBind l (map matchFromEnum conDecls [0..])]
+      [TypeSig l [(Ident l "fromEnum")] (TyFun l instTy (TyCon l (qNamePreludeIdent "Int" l)))
+      ,FunBind l (zipWith matchFromEnum conDecls [0..])]
     declsToEnum =
-      [TypeSig l [(Ident "toEnum")] (TyFun l (TyCon l (qNamePreludeIdent "Int" l)) instTy)
-      ,FunBind l (map matchToEnum conDecls [0..])]
+      [TypeSig l [(Ident l "toEnum")] (TyFun l (TyCon l (qNamePreludeIdent "Int" l)) instTy)
+      ,FunBind l (zipWith matchToEnum conDecls [0..])]
     matchFromEnum conDecl num =
-      Match l (Ident l "fromEnum") [PApp l (UnQual l (conDeclName conDecl)) []] (UnGuardedRhs l (litInt num)) Nothing
+      Match l (Ident l "fromEnum") [PApp l (UnQual l (conDeclName conDecl)) []] (UnGuardedRhs l (litInt l num)) Nothing
     matchToEnum conDecl num =
       Match l (Ident l "toEnum") [PLit l (Int l num (show num))] 
         (UnGuardedRhs l (Con l (UnQual l (conDeclName conDecl)))) Nothing
@@ -375,12 +375,13 @@ deriveIx  l maybeContext instTy conDecls =
     (lNames, names1) = splitAt arity (newNames l)
     (uNames, names2) = splitAt arity names1
     iNames = take arity names2
-    lvars = map (Var l) lNames
-    uvars = map (Var l) uNames
-    ivars = map (Var l) iNames
+    lvars = map (Var l . UnQual l) lNames
+    uvars = map (Var l . UnQual l) uNames
+    ivars = map (Var l . UnQual l) iNames
     conIVars = appN (Con l (UnQual l conName) : ivars)
-    pTupleConLU = PTuple l [PVar l (PApp l conName lNames), PVar l (PApp l conName uNames)]
-    pConI = PApp l conName iNames
+    pTupleConLU = PTuple l [PApp l (UnQual l conName) (map (PVar l) lNames)
+                           ,PApp l (UnQual l conName) (map (PVar l) uNames)]
+    pConI = PApp l (UnQual l conName) (map (PVar l) iNames)
     -- rangeComb :: Exp l -> Exp l -> Name l -> Exp l -> Exp l
     rangeComb le ue ie cont = 
       InfixApp l (appN [Var l (qNamePreludeIdent "range" l), Tuple l [le, ue]]) (QVarOp l (qNamePreludeSymbol ">>=" l))
