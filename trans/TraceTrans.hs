@@ -547,7 +547,7 @@ tDecl env Global tracing d@(DataDecl span dataOrNew maybeContext declHead
   ,foldr addConInfo (fieldSelectorConsts `merge` deriveConsts) qualConDecls)
   where
   (deriveDecls, deriveConsts) = 
-    tDecls env Global Trusted (derive d)
+    tDecls env Global Trusted (derive env d)
   instDecl = wrapValInstDecl env tracing maybeContext declHead qualConDecls
   (fieldSelectorDecls, fieldSelectorConsts) = mkFieldSelectors qualConDecls
 tDecl _ _ _ (GDataDecl l _ _ _ _ _ _) =
