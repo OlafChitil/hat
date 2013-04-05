@@ -17,7 +17,7 @@ of the result tuples are the synthetic attributes.
 module TraceTrans (traceTrans, Tracing(..)) where
 
 import Language.Haskell.Exts.Annotated
-import System.FilePath (takeBaseName)
+import System.FilePath (FilePath,takeBaseName)
 import Data.Maybe (fromMaybe,isNothing,isJust,fromJust)
 import Data.List (stripPrefix,nubBy,partition)
 import Data.Char (digitToInt,isAlpha)

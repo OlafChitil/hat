@@ -1,6 +1,6 @@
 -- Useful functions on annotated Haskell syntax
 -- All functions are polymorphic in the annotation type.
--- (The may loose annotations or add them rather arbitrarily.)
+-- (They may loose annotations or add them rather arbitrarily.)
 
 module SynHelp where
 
@@ -49,6 +49,10 @@ instance Id (CName l) where
   isSymbol (ConName _ _) = True
   getId (VarName _ name) = getId name
   getId (ConName _ name) = getId name
+
+instance Id (ModuleName l) where
+  isSymbol _ = False
+  getId (ModuleName _ ident) = ident
 
 -- General functions on syntax tree:
 

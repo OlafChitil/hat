@@ -8,7 +8,6 @@ module Flags
   (Flags,processArgs
   ,sSourceFile
   ,sParse
-  ,sTraceFns
   ,sPrelude
   ,sPreludes
   ,sIncludes
@@ -18,7 +17,6 @@ module Flags
   ,sShowWidth
   ,sHatAuxFile
   ,sHatTransFile
-  ,sHatFileBase
   ,sSrcDir
   ) where
 
@@ -30,7 +28,6 @@ data Flags = FF
   {sSourceFile :: String
   ,sHatAuxFile   :: String
   ,sHatTransFile :: String
-  ,sHatFileBase  :: String
   ,sIncludes   :: [String]
   ,sPreludes   :: [String]
   ,sSrcDir     :: String
@@ -44,8 +41,7 @@ data Flags = FF
 
 --v debugging flags - show program / import tables (after each compiler phase)
   ,sParse      :: Bool	-- ast		after parsing
-  ,sTraceFns   :: Bool	-- ast		after tracing transform (fns)
-  ,sIBound     :: Bool	-- aux tree     after ast annotation
+  ,sIBound     :: Bool	-- environment
 
 --v pretty-printing flags
   ,sShowWidth  :: Int   -- width for showing intermediate program
@@ -77,13 +73,10 @@ options =
   ,Option [] ["parse"]
      (NoArg (\flags -> flags{sParse = True}))
      "Show syntax tree after parsing."
-  ,Option [] ["tracefns"]
-     (NoArg (\flags -> flags{sTraceFns = True}))
-     "Show syntax tree after the transformation."
-  ,Option [] ["ibound"]
+  ,Option [] ["env"]
      (NoArg (\flags -> flags{sIBound = True}))
      "Show environment that is written to .aux file."
-  ,Option [] ["showwidth"]
+  ,Option [] ["width"]
      (ReqArg (\w flags -> flags{sShowWidth = if all isDigit w then read w else 80}) "NAT")
      "Width for showing intermediate programs (syntax trees)."
   ]
@@ -110,7 +103,6 @@ defaultFlags sourcefile = flags
     {sSourceFile = sourcefile	-- original name 
     ,sHatAuxFile = rootdir </> replaceExtension filename "aux"
     ,sHatTransFile = rootdir </> "Hat" </> replaceExtension filename "hs"
-    ,sHatFileBase  = sourcefile  -- source as pointed to from trace file
     ,sIncludes = [rootdir]
     ,sPreludes = []
     ,sSrcDir   = rootdir </> "Hat"  -- directory for transformed sources
@@ -118,7 +110,6 @@ defaultFlags sourcefile = flags
     ,sDbgTrusted = False
     ,sWrap       = False
     ,sParse  = False
-    ,sTraceFns = False
     ,sIBound = False
     ,sShowWidth = 80 
     }
