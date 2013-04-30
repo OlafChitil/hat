@@ -2,18 +2,20 @@
 -- Holds information about all identifiers (names) in scope.
 
 module Environment
-  (Environment
+  (Environment,Identifier,AuxiliaryInfo
   ,TySynBody(TApp,TFun,THelper,TVar),TyCls(Ty,Cls,Syn)
   ,arity,isLambdaBound,isTracedQName,mutateLetBound,fixPriority, hasPriority
   ,clsTySynInfo,isExpandableTypeSynonym,typeSynonymBody
   ) where
 
-import Language.Haskell.Exts.Annotated (QName, Name)
+import Language.Haskell.Exts.Annotated (QName(Qual,UnQual,Special), Name)
+import SynHelp (Id(getId))
 import Data.Map as Map
+import Data.Maybe (fromMaybe)
 
 type EnvInfo = (Identifier,AuxiliaryInfo)
 type QualId = (String,String)  -- unqualified name followed by module name
-newtype Environment = Env (Map QualId EnvInfo) (Map String EnvInfo)
+data Environment = Env (Map QualId EnvInfo) (Map String EnvInfo)
   deriving Show
 
 -- Identifier is used to distinguish varids from conids, and relate
@@ -45,7 +47,20 @@ data TySynBody =
   TApp TySynBody TySynBody | TFun | THelper | TVar Int {- arg no. -}
   deriving (Show,Read)
 
-lookupEnv :: Environment -> QName l -> (Identifier,AuxiliaryInfo)
+-- Lazily produce content of hx file for all exported entities.
+listExports :: Environment -> [ExportSpec l] -> (String -> String)
+listExports (Env qualMap _) exports =
+  showLines . map snd . filter (isExported exports) . Map.toAscList $ qualMap
+
+isExported :: [ExportSpec l] -> (QualId, EnvInfo) -> Bool
+isExported exports ((_,mod),(Var name,_)) =
+  not . null $ [ | EVar _ qName <- exports, isId qName == name] ++ [
+isExported exports ((_,mod),(Con _ tyName conName,_)) =
+isExported exports ((_,mod),(Field tyName fieldName,_)) =
+isExported exports ((_,mod),(Method clsName methodName,_)) =
+isExported exports ((_,mod),(TypeClass name,_)) =
+
+lookupEnv :: Environment -> QName l -> Maybe (Identifier,AuxiliaryInfo)
 lookupEnv (Env qualMap _) (Qual _ mod name) = Map.lookup (getId name,getId mod) qualMap
 lookupEnv (Env _ map) (UnQual _ name) = Map.lookup (getId name) map
 lookupEnv _ (Special _ _) = error "Environment.lookupEnv: called with special qName."
@@ -79,7 +94,7 @@ isExpandableTypeSynonym env qName = case lookupEnv env qName of
 -- assumes name is for a local value variable
 mutateLetBound :: Environment -> Name l -> Environment
 mutateLetBound (Env qualMap map) name = 
-  Env qualMap (adjust (\(i,a@Value{}) -> (i,a{letBound=True,args=0})) name map)
+  Env qualMap (adjust (\(i,a@Value{}) -> (i,a{letBound=True,args=0})) (getId name) map)
 
 -- Obtain combined fixity and priority of local name.
 fixPriority :: Environment -> Name l -> Int
