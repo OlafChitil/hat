@@ -157,6 +157,14 @@ qOp2Exp :: QOp l -> Exp l
 qOp2Exp (QVarOp l qName) = Var l qName
 qOp2Exp (QConOp l qName) = Con l qName
 
+getQualified :: QName l -> Name l
+getQualified (UnQual _ name) = name
+getQualified (Qual _ _ name) = name
+getQualified (Special _ _) = error "SynHelp.getQualified: special QName."
+
+qual :: ModuleName l -> Name l -> QName l
+qual modName name = Qual (ann name) modName name
+
 -- The first name possibly provides a module qualifier
 cName2QName :: QName l -> CName l -> QName l
 cName2QName (UnQual _ _) (VarName l name) = UnQual l name

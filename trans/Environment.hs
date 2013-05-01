@@ -8,15 +8,16 @@ module Environment
   ,clsTySynInfo,isExpandableTypeSynonym,typeSynonymBody
   ) where
 
-import Language.Haskell.Exts.Annotated (QName(Qual,UnQual,Special), Name)
+import Language.Haskell.Exts.Annotated
 import SynHelp (Id(getId))
-import Data.Map as Map
+import qualified Data.Set as Set
+import Relation
 import Data.Maybe (fromMaybe)
 
 type EnvInfo = (Identifier,AuxiliaryInfo)
 type QualId = (String,String)  -- unqualified name followed by module name
-data Environment = Env (Map QualId EnvInfo) (Map String EnvInfo)
-  deriving Show
+-- data Environment = Env (Map QualId EnvInfo) (Map String EnvInfo)
+--   deriving Show
 
 -- Identifier is used to distinguish varids from conids, and relate
 -- conids back to the type they belong to.  It also relates methods
@@ -37,28 +38,93 @@ data AuxiliaryInfo =
 	   , letBound :: Bool 
            , traced   :: Bool}
        | TyCls TyCls -- needed for im/export of (..)
-       deriving (Show,Read)
-data Fixity = L | R | Pre String | Def | None deriving (Eq,Show,Read)
+       deriving (Eq,Ord,Show,Read)
+data Fixity = L | R | Pre String | Def | None deriving (Eq,Ord,Show,Read)
 data TyCls = Ty [String]{- data constructors -} [String]{- field labels -}
            | Cls [String]{- methods -}
            | Syn Int {- no. helper type syns -} TySynBody
-  deriving (Show,Read)
+  deriving (Eq,Ord,Show,Read)
 data TySynBody = 
   TApp TySynBody TySynBody | TFun | THelper | TVar Int {- arg no. -}
-  deriving (Show,Read)
+  deriving (Eq,Ord,Show,Read)
 
--- Lazily produce content of hx file for all exported entities.
-listExports :: Environment -> [ExportSpec l] -> (String -> String)
-listExports (Env qualMap _) exports =
-  showLines . map snd . filter (isExported exports) . Map.toAscList $ qualMap
+type Entity = (Identifier, AuxiliaryInfo)
+type Environment = Relation (QName ()) Entity
 
-isExported :: [ExportSpec l] -> (QualId, EnvInfo) -> Bool
-isExported exports ((_,mod),(Var name,_)) =
-  not . null $ [ | EVar _ qName <- exports, isId qName == name] ++ [
-isExported exports ((_,mod),(Con _ tyName conName,_)) =
-isExported exports ((_,mod),(Field tyName fieldName,_)) =
-isExported exports ((_,mod),(Method clsName methodName,_)) =
-isExported exports ((_,mod),(TypeClass name,_)) =
+
+-- Get the environment for all top-level definitions of a module.
+-- Only produce unqualified QNames.
+moduleDefines :: Module l -> Environment
+moduleDefines = undefined
+
+-- Determine the exports of a module
+exports :: Module l -> Environment -> Rel (Name ()) Entity
+exports mod@(Module l maybeModuleHead _ _ _) env =
+  case maybeModuleHead of
+    Nothing -> exportList [EVar l (UnQual l "main")]
+    Just (ModuleHead _ _ _ Nothing) -> getQualified `mapDom` moduleDefines mod
+    Just (ModuleHead _ _ _ (Just (ExportSpecList _ list))) -> exportList list
+  where
+  exportList list = getQualified `mapDom` unionRelations exports
+    where
+    exports = filterExportSpec env `map` list 
+
+-- Determine exports for one export specification of the export list
+filterExportSpec :: Environment -> ExportSpec l -> Environment
+filterExportSpec env (EModuleContents _ moduleName) =
+  (qual moduleNameT `mapDom` unqs) `intersectRelation` qs
+  where
+  moduleNameT = amap (const ()) moduleName
+  (qs,unqs) = partitionDom isQual env
+filterExportSpec env eSpec =
+  unionRelations [mSpec, mSub]
+  where
+  mSpec = restrictRng notIsCon (restrictDom (== qName) env)
+  allSubs = owns `Set.map` rng mSpec
+  subs = restrictRng (`Set.member` allSubs) rel
+  (qName,mSub) = case eSpec of
+    EVar _ qName -> (qName, emptyRelation)
+    EAbs _ qName -> (qName, emptyRelation)
+    EThingsAll _ qName -> (qName, subs)
+    EThingsWith _ qName cNames -> 
+      (qName, restrictDom ((`elem` map toId cNames) . toId) subs)
+
+-- Filter with one import declaration from the export environment of the imported module
+imports :: Rel (Name ()) Entity -> ImportDecl l -> Environment
+imports exports importDecl = 
+  if importQualified importDecl then qs else unionRelations [unqs, qs]
+  where
+  qs = mkQual (importQual importDecl) `mapDom` incoming
+  unqs = mkUnqual `mapDom` incoming
+  listed = unionRelations (map (filterImportSpec isHiding exports) impSpecs)
+  incoming = if isHiding then exports `minusRelation` listed else listed
+  (isHiding,impSpecs) = case importSpecs importDecl of
+    Nothing -> (True, []) 
+    Just (ImportSpecList _ h impSpecs) -> (h,impSpecs)
+  
+-- Qualifier for any qualfied imports of the given import declaration.
+-- If exists, the 'as' module name; otherwise the name of the imported module itself.
+importQual :: ImportDecl l -> ModuleName l
+importQual imDecl = maybe (importModule imDecl) (importAs imDecl)
+
+-- Filter given environment with one import specification from an import list
+filterImportSpec :: Bool -> Rel (Name ()) Entity -> ImportSpec l -> Rel (Name ()) Entity
+filterImportSpec isHiding rel iSpec =
+  unionRels [fSpec,fSub]
+  where
+  fSpec = restrictRng consider (restrictDom (== name) rel)
+  allSubs = owns `Set.map` rng fSpec
+  subs = restrictRng (`Set.member` allSubs) rel
+  (name,fSub,noSubSpec) = case iSpec of
+    IVar _ name -> (name, emptyRelation, True)
+    IAbs _ name -> (name, emptyRelation, True)
+    IThingsAll _ name -> (name, subs, False)
+    IThingsWith _ name cNames -> 
+      (name, restrictDom ((`elem` map toId cNames) . toId) subs, False)
+  consider = if isHiding && noSubSpec then const True else notIsCon
+   
+-- -------------------------------------------------------------------------------------
+-- Looking up, inserting and mutating individual environment entries.
 
 lookupEnv :: Environment -> QName l -> Maybe (Identifier,AuxiliaryInfo)
 lookupEnv (Env qualMap _) (Qual _ mod name) = Map.lookup (getId name,getId mod) qualMap
