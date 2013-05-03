@@ -11,7 +11,8 @@
 module Relation
   (Relation
   ,listToRelation,relationToList,emptyRelation,restrictDom,restrictRng
-  ,dom,rng,mapDom,mapRng,intersectRelation,unionRelations,paritionDom,applyRelation
+  ,dom,rng,mapDom,mapRng,intersectRelation,unionRelations,minusRelation
+  ,partitionDom,applyRelation
   ) where
 
 import qualified Data.Map as Map
@@ -57,8 +58,14 @@ intersectRelation = Map.intersectionWith (Set.intersection)
 unionRelations :: (Ord a, Ord b) => [Relation a b] -> Relation a b
 unionRelations rs = Map.unionsWith (Set.union) rs
 
-paritionDom :: Ord a => (a -> Bool) -> Relation a b -> (Relation a b, Relation a b)
-paritionDom p = Map.partitionWithKey (\a bs -> p a)
+minusRelation :: (Ord a, Ord b) => Relation a b -> Relation a b -> Relation a b
+minusRelation r1 r2 = Map.differenceWith subtract r1 r2
+  where
+  subtract s1 s2 = let s = Set.difference s1 s2 
+                   in if Set.null s then Nothing else Just s
+
+partitionDom :: Ord a => (a -> Bool) -> Relation a b -> (Relation a b, Relation a b)
+partitionDom p = Map.partitionWithKey (\a bs -> p a)
 
 applyRelation :: (Ord a, Ord b) => Relation a b -> a -> Set.Set b
 applyRelation r a = r Map.! a

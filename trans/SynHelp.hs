@@ -162,8 +162,16 @@ getQualified (UnQual _ name) = name
 getQualified (Qual _ _ name) = name
 getQualified (Special _ _) = error "SynHelp.getQualified: special QName."
 
-qual :: ModuleName l -> Name l -> QName l
-qual modName name = Qual (ann name) modName name
+mkQual :: ModuleName l -> Name l -> QName l
+mkQual modName name = Qual (ann name) modName name
+
+qual :: ModuleName l -> QName l -> QName l
+qual modName qName = mkQual modName (getQualified qName)
+
+isQual :: QName l -> Bool
+isQual (Qual _ _ _) = True
+isQual (UnQual _ _) = False
+isQual (Special _ _) = False
 
 -- The first name possibly provides a module qualifier
 cName2QName :: QName l -> CName l -> QName l
@@ -232,3 +240,10 @@ declHeadTyVarBinds (DHParen _ dh) = declHeadTyVarBinds dh
 tyVarBind2Type :: TyVarBind l -> Type l
 tyVarBind2Type (KindedVar l name kind) = TyKind l (TyVar l name) kind
 tyVarBind2Type (UnkindedVar l name) = TyVar l name
+
+-- pre-condition: no type synonym appearing in type
+decomposeFunType :: Type l -> ([Type l], Type l)
+decomposeFunType (TyFun _ tyL tyR) = (tyL:tyArgs, tyRes)
+  where
+  (tyArgs, tyRes) = decomposeFunType tyR
+decomposeFunType ty = ([], ty)
