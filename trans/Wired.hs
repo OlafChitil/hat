@@ -1,9 +1,10 @@
 module Wired where
 
 import Language.Haskell.Exts.Annotated 
-import SynHelp
 import Data.Maybe (fromMaybe)
 import Data.List (stripPrefix)
+
+type Arity = Int
 
 -- Building name qualifiers
 

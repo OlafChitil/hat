@@ -5,11 +5,10 @@
 module SynHelp where
 
 import Language.Haskell.Exts.Annotated 
+import Wired (nameTransModule,tracingModuleNameShort,Arity(..))
 import Data.Char (isAlpha)
 import Data.List (stripPrefix)
 import Data.Maybe (fromMaybe)
-
-type Arity = Int
 
 
 -- Common features of all identifiers (names)
@@ -113,6 +112,9 @@ eqName :: Name l -> Name l -> Bool
 eqName (Ident _ n1) (Ident _ n2) = n1==n2
 eqName (Symbol _ n1) (Symbol _ n2) = n1==n2
 eqName _ _ = False 
+
+getConDeclFromQualConDecl :: QualConDecl l -> ConDecl l
+getConDeclFromQualConDecl (QualConDecl _ _ _ conDecl) = conDecl
 
 getFieldNamesFromQualConDecl :: QualConDecl l -> [Name l]
 getFieldNamesFromQualConDecl (QualConDecl _ _ _ conDecl) =
@@ -226,7 +228,6 @@ instHeadQName (IHead _ qname _) = qname
 instHeadQName (IHInfix _ _ qname _) = qname
 instHeadQName (IHParen _ ih) = instHeadQName ih
 
-
 declHeadName :: DeclHead l -> Name l
 declHeadName (DHead _ name _) = name
 declHeadName (DHInfix _ _ name _ ) = name
@@ -241,9 +242,64 @@ tyVarBind2Type :: TyVarBind l -> Type l
 tyVarBind2Type (KindedVar l name kind) = TyKind l (TyVar l name) kind
 tyVarBind2Type (UnkindedVar l name) = TyVar l name
 
+tyVarBind2Name :: TyVarBind l -> Name l
+tyVarBind2Name (KindedVar l name kind) = name
+tyVarBind2Name (UnkindedVar l name) = name
+
 -- pre-condition: no type synonym appearing in type
 decomposeFunType :: Type l -> ([Type l], Type l)
 decomposeFunType (TyFun _ tyL tyR) = (tyL:tyArgs, tyRes)
   where
   (tyArgs, tyRes) = decomposeFunType tyR
 decomposeFunType ty = ([], ty)
+
+-- ----------------------------------------------------------------------------
+-- Updating a name
+
+class Id a => UpdId a where
+  -- apply function to unqualified name part 
+  -- and prefix module name (if qualified)
+  updateId :: (Name l -> Name l) -> a -> a
+
+instance SrcInfo l => UpdId (QName l) where
+  updateId f (Qual l moduleName name) = 
+    Qual l (nameTransModule moduleName) (updateId f name)
+  updateId f (UnQual l name) = UnQual l (updateId f name)
+  updateId f (Special l specialCon) =
+    case specialCon of
+      UnitCon l' -> newName "Tuple0"
+      ListCon l' -> newName "List"
+      FunCon l' -> newName "Fun"
+      TupleCon l' Boxed arity -> newName ("Tuple" ++ show arity)
+      TupleCon l' Unboxed _ -> 
+        notSupported l' "Unboxed tuple."
+      Cons l' -> newName "List"
+      UnboxedSingleCon l' -> 
+        notSupported l' "Unboxed singleton tuple constructor."
+    where
+    newName id = Qual l (tracingModuleNameShort l) (Ident l id) 
+
+instance UpdId (Name l) where
+  updateId f (Ident l ident) = Ident l (getId (f (Ident undefined ident)))
+  updateId f (Symbol l ident) = Symbol l (getId (f (Symbol undefined ident)))
+
+instance SrcInfo l => UpdId (QOp l) where
+  updateId f (QVarOp l qname) = QVarOp l (updateId f qname)
+  updateId f (QConOp l qname) = QConOp l (updateId f qname)
+
+instance UpdId (Op l) where
+  updateId f (VarOp l name) = VarOp l (updateId f name)
+  updateId f (ConOp l name) = ConOp l (updateId f name)
+
+instance UpdId (CName l) where
+  updateId f (VarName l name) = VarName l (updateId f name)
+  updateId f (ConName l name) = ConName l (updateId f name)
+
+-- ----------------------------------------------------------------------------
+-- Error for non-supported language features
+
+notSupported :: SrcInfo l => l -> String -> a
+notSupported l construct = error $
+  "hat-trans: unsupported language construct \"" ++ construct ++ "\" at " ++ 
+    fileName l ++ ":" ++ show (startLine l) ++ ":" ++ show (startColumn l)
+

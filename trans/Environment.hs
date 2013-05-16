@@ -6,14 +6,20 @@ module Environment
   ,TySynBody(TApp,TFun,THelper,TVar),TyCls(Ty,Cls,Syn)
   ,arity,isLambdaBound,isTracedQName,mutateLetBound,fixPriority, hasPriority
   ,clsTySynInfo,isExpandableTypeSynonym,typeSynonymBody
+  ,nameTransTySynHelper,expandTypeSynonym
   ) where
 
-import Language.Haskell.Exts.Annotated
-import SynHelp (Id(getId),getQualified,mkQual,qual,isQual)
+import Language.Haskell.Exts.Annotated hiding (Var,Con)
+import SynHelp (Id(getId),getQualified,mkQual,qual,isQual,notSupported
+               ,tyVarBind2Name,declHeadTyVarBinds,declHeadName,getArityFromConDecl
+               ,getConDeclFromQualConDecl,getConstructorFromConDecl,eqName
+               ,getFieldNamesFromConDecl,decomposeFunType,isFunTyCon,tyAppN
+               ,UpdId(updateId))
 import qualified Data.Set as Set
-import qualified Data.Map as Map (adjust)
+import qualified Data.Map as Map (singleton,adjust)
 import Relation
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe,fromJust)
+import Data.List (nubBy,elemIndex)
 
 type EnvInfo = (Identifier,AuxiliaryInfo)
 type QualId = (String,String)  -- unqualified name followed by module name
@@ -29,6 +35,10 @@ data Identifier = Var String | Con TypeSort String{-type-} String{-con-}
                 | TypeClass String
 	deriving (Show,Read,Eq,Ord)
 data TypeSort = Data | Newtype deriving (Show,Read,Eq,Ord)
+
+toTypeSort :: DataOrNew l -> TypeSort
+toTypeSort (DataType _) = Data
+toTypeSort (NewType _) = Newtype
 
 -- AuxiliaryInfo is the extra information we need to know about identifiers.
 data AuxiliaryInfo = 
@@ -51,6 +61,12 @@ data TySynBody =
 
 type Entity = (Identifier, AuxiliaryInfo)
 type Environment = Relation (QName ()) Entity
+
+singleton :: Name l -> Entity -> Environment
+singleton name entity = Map.singleton (UnQual () (dropAnn name)) (Set.singleton entity)
+
+fromList :: [(Name l,Entity)] -> Environment
+fromList = listToRelation . map (\(n,e) -> (UnQual () (dropAnn n),e))
 
 notIsCon :: Entity -> Bool
 notIsCon (Environment.Con _ _ _,_) = False
@@ -96,69 +112,158 @@ dropAnn = fmap (const ())
 
 -- Get the environment for all top-level definitions of a module.
 -- Only produce unqualified QNames.
-moduleDefines :: Module l -> Environment
-moduleDefines (Module _ _ _ _ decls) =
-  unionRelations (map declEnv decls)
-  -- NEED to merge infix knowledge
+-- Take complete environment of module for lookups (cycle)
+moduleDefines :: (SrcInfo l, Eq l) => Environment -> Module l -> Environment
+moduleDefines fullEnv (Module _ _ _ _ decls) = declsEnv fullEnv decls
 
-declEnv :: Decl l -> Environment
-declEnv (TypeDecl _ declHead _) = declHeadEnv declHead
-declEnv (TypeFamDecl l declHead _) = 
+declsEnv :: (SrcInfo l, Eq l) => Environment -> [Decl l] -> Environment
+declsEnv fullEnv decls = unionRelationsWith mergeEntities (map (declEnv fullEnv) decls)
+  where
+  mergeEntities :: Entity -> Entity -> Entity
+  mergeEntities (Var name, value1) (Var _, value2) = 
+    (Var name, value1 `mergeValues` value2) 
+  mergeEntities (Var name, value1) (Con tySort ty _, value2) =
+    (Con tySort ty name, value1 `mergeValues` value2)
+  mergeEntities (Var name, value1) (Field ty _, value2) =
+    (Field ty name, value1 `mergeValues` value2)
+  mergeEntities (Var name, value1) (Method cls _, value2) =
+    (Method cls name, value1 `mergeValues` value2)
+  mergeEntities entity1 entity2@(Var _, _) = mergeEntities entity2 entity1
+  mergeEntities _ _ = mergeError
+  mergeValues :: AuxiliaryInfo -> AuxiliaryInfo -> AuxiliaryInfo
+  mergeValues (TyCls _) _ = mergeError
+  mergeValues _ (TyCls _) = mergeError
+  mergeValues val1 val2 =
+    Value {args = args val1 `mergeArgs` args val2
+          ,fixity = fixity val1 `mergeFixities` fixity val2
+          ,priority = priority val1 `mergePriorities` priority val2
+          ,letBound = letBound val1 && letBound val2
+          ,traced = traced val1 && traced val2}
+  mergeArgs :: Int -> Int -> Int
+  mergeArgs a1 a2 | a1 < 0 = a2
+                  | a2 < 0 = a1
+                  | otherwise = error "Environment.moduleDefines: conflicting arities."
+  mergeFixities :: Environment.Fixity -> Environment.Fixity -> Environment.Fixity
+  mergeFixities Def f = f
+  mergeFixities f Def = f
+  mergeFixities _ _ = error "Environment.moduleDefines: conflicting fixities."
+  mergePriorities :: Int -> Int -> Int
+  mergePriorities p1 p2 | p1 == 9 = p2
+                        | p2 == 9 = p1
+                        | otherwise = 
+                            error "Environment.moduleDefines: conflicting priorities."
+  mergeError = 
+    error "Environment.moduleDefines: same name for type/class and other entity."
+
+declEnv :: (SrcInfo l, Eq l) => Environment -> Decl l -> Environment
+declEnv fullEnv (TypeDecl _ declHead ty) =
+  singleton tyName 
+    (TypeClass (getId tyName)
+    ,TyCls (splitSynonym fullEnv (map tyVarBind2Name (declHeadTyVarBinds declHead)) ty))
+  where
+  tyName = declHeadName declHead
+declEnv _ (TypeFamDecl l declHead _) = 
   notSupported l "type family declaration"
-declEnv (DataDecl _ _ _ declHead qualConDecls _) = 
-  unionRelations (declHeadEnv declHead : map qualConDeclEnv qualConDecls)
-declEnv (GDataDecl l _ _ declHead _ gadtDecls _) =
+declEnv _ (DataDecl _ ts _ declHead qualConDecls _) = 
+  fromList ((name, (TypeClass (getId name)
+                  ,TyCls (Ty (map getId consNames) (map getId fieldNames)))) :
+           [(consName
+            , (Environment.Con (toTypeSort ts) (getId name) (getId consName)
+              ,Value {args = getArityFromConDecl conDecl 
+                     ,fixity = Def, priority = 9
+                     ,letBound = True, traced = True}))
+             | conDecl <- conDecls, let consName = getConstructorFromConDecl conDecl])
+  where
+  name = declHeadName declHead
+  conDecls = map getConDeclFromQualConDecl qualConDecls
+  consNames = map getConstructorFromConDecl conDecls
+  fieldNames = nubBy eqName (concatMap getFieldNamesFromConDecl conDecls)
+declEnv _ (GDataDecl l _ _ declHead _ gadtDecls _) =
   notSupported l "gadt declaration"
-declEnv (DataFamDecl l declHead _) = 
+declEnv _ (DataFamDecl l declHead _ _) = 
   notSupported l "data family declaration"
-declEnv (TypeInsDecl _ _ _) = emptyRelation
-declEnv (DataInsDecl l _ _ _ _) = 
+declEnv _ (TypeInsDecl _ _ _) = emptyRelation
+declEnv _ (DataInsDecl l _ _ _ _) = 
   notSupported l "data family instance declaration"
-declEnv (GDataInsDecl l _ _ _ _) =
+declEnv _ (GDataInsDecl l _ _ _ _ _) =
   notSupported l "gadt family instance declaration"
-declEnv (ClassDecl _ _ declHead _ maybeClassDecls) = ???
-declEnv (InstDecl _ _ _ _) = emptyRelation
-declEnv (DerivDecl _ _ _) = emptyRelation
-declEnv (InfixDecl _ assoc maybePri ops) =
-declEnv (DefaultDecl _ _) = emptyRelation
-declEnv (SpliceDecl l _) = 
+declEnv _ (ClassDecl _ _ declHead _ Nothing) = emptyRelation
+declEnv finalEnv (ClassDecl _ _ declHead _ (Just classDecls)) =
+  varToMethod `mapRng` (declsEnv finalEnv decls)
+  where
+  classId = getId (declHeadName declHead)
+  varToMethod  :: Entity -> Entity
+  varToMethod (Var id, value) = (Method classId id, value{args = -1})
+  decls = map getDecl classDecls
+  getDecl :: SrcInfo l => ClassDecl l -> Decl l
+  getDecl (ClsDecl _ decl) = decl
+  getDecl (ClsDataFam l _ _ _) = notSupported l "associated data type declaration"
+  getDecl (ClsTyFam l _ _) = notSupported l "associated type synonym declaration"
+  getDecl (ClsTyDef l _ _) = notSupported l 
+                                 "default choice for an associated type synonym"
+declEnv _ (InstDecl _ _ _ _) = emptyRelation
+declEnv _ (DerivDecl _ _ _) = emptyRelation
+declEnv _ (InfixDecl _ assoc maybePri ops) =
+  fromList (map opToQNameEntity ops)
+  -- Environment only has valid entity information for fixity and priority,
+  -- otherwise default values.
+  where
+  opToQNameEntity :: Op l -> (Name l, Entity)
+  opToQNameEntity (VarOp _ name) =
+    (name
+    ,(Var (getId name)
+     ,Value {args = -1,fixity = fixityVal, priority = priorityVal
+            ,letBound = True, traced = True}))
+  opToQNameEntity (ConOp l name) = opToQNameEntity (VarOp l name)
+    -- Use Var here as well, as other arguments for Con are unknown here.
+  fixityVal = case assoc of
+                AssocNone _ -> None
+                AssocLeft _ -> L
+                AssocRight _ -> R
+  priorityVal = fromMaybe 9 maybePri
+declEnv _ (DefaultDecl _ _) = emptyRelation
+declEnv _ (SpliceDecl l _) = 
   notSupported l "splice declaration"
-declEnv (TypeSig _ names _) =
-  -- needed if for methods in classes
-declEnv (FunBind _ matches) = matchEnv (head matches)
-declEnv (PatBind _ pat _ _ _) = patEnv pat
-declEnv (ForImp l _ _ _ name ty) =
+declEnv _ (TypeSig _ names _) =
+  fromList [(name
+           ,(Var (getId name), Value{args = -1, fixity = Def, priority = 9
+                                    ,letBound = True, traced = True}))
+           | name <- names]
+  -- needed for methods in classes
+declEnv _ (FunBind _ matches) = matchEnv (head matches)
+declEnv _ (PatBind _ pat _ _ _) = patEnv pat
+declEnv _ (ForImp l _ _ _ name ty) =
   -- only for NoHat. import
-  Map.singleton (dropAnn (UnQual l name))
+  singleton name
     (Var (getId name), Value{args = length tyArgs, fixity = Def, priority = 9
                             ,letBound = True, traced = True})
   where
   (tyArgs,_) = decomposeFunType ty
-declEnv (ForExp _ _ _ _ _) = emptyRelation
-declEnv (RulePragmaDecl _ _) = emptyRelation
-declEnv (DeprPragmaDecl _ _) = emptyRelation
-declEnv (WarnPragmaDecl _ _) = emptyRelation
-declEnv (InlineSig _ _ _ _) = emptyRelation
-declEnv (InlineConlikeSig _ _ _) = emptyRelation
-declEnv (SpecSig _ _ _) = emptyRelation
-declEnv (SpecInlineSig _ _ _ _ _) = emptyRelation
-declEnv (InstSig _ _ _) = emptyRelation
-declEnv (AnnPragma _ _) = emptyRelation
+declEnv _ (ForExp _ _ _ _ _) = emptyRelation
+declEnv _ (RulePragmaDecl _ _) = emptyRelation
+declEnv _ (DeprPragmaDecl _ _) = emptyRelation
+declEnv _ (WarnPragmaDecl _ _) = emptyRelation
+declEnv _ (InlineSig _ _ _ _) = emptyRelation
+declEnv _ (InlineConlikeSig _ _ _) = emptyRelation
+declEnv _ (SpecSig _ _ _) = emptyRelation
+declEnv _ (SpecInlineSig _ _ _ _ _) = emptyRelation
+declEnv _ (InstSig _ _ _) = emptyRelation
+declEnv _ (AnnPragma _ _) = emptyRelation
 
 
 matchEnv :: Match l -> Environment
 matchEnv (Match l name pats _ _) = 
-  Map.singleton (dropAnn (UnQual l name))
-    (Var (getId name), Value{args = length pats, fixity = Def, priority = 9
-                            ,letBound = True, traced = True})
+  singleton name
+    (Var (getId name),Value{args = length pats, fixity = Def, priority = 9
+                           ,letBound = True, traced = True})
 matchEnv (InfixMatch l pat name pats rhs maybeBinds) =
   matchEnv (Match l name (pat:pats) rhs maybeBinds)
 
-patEnv :: Pat l -> Environment
+patEnv :: SrcInfo l => Pat l -> Environment
 patEnv (PVar l name) = 
-  Map.singleton (dropAnn (UnQual l name))
+  singleton name
     (Var (getId name), Value{args = 0, fixity = Def, priority = 9
-                            ,letBound = True, traced = True})
+                     ,letBound = True, traced = True})
 patEnv (PLit _ _) = emptyRelation
 patEnv (PNeg _ pat) = patEnv pat
 patEnv (PNPlusK l name _) = patEnv (PVar l name)
@@ -167,7 +272,7 @@ patEnv (PApp _ _ pats) = unionRelations . map patEnv $ pats
 patEnv (PTuple _ pats) = unionRelations . map patEnv $ pats
 patEnv (PList _ pats) = unionRelations . map patEnv $ pats
 patEnv (PParen _ pat) = patEnv pat
-patEnv (PRec _ _ patFields) = unionRelation . map patField $ patFields
+patEnv (PRec _ _ patFields) = unionRelations . map patField $ patFields
 patEnv (PAsPat _ _ pat) = patEnv pat
 patEnv (PWildCard _) = emptyRelation
 patEnv (PIrrPat _ pat) = patEnv pat
@@ -183,9 +288,9 @@ patEnv (PExplTypeArg l _ _) = notSupported l "explicit generics style type argum
 patEnv (PQuasiQuote l _ _) = notSupported l "quasi quote pattern"
 patEnv (PBangPat _ pat) = patEnv pat
 
-patField :: PatField l -> Environment
+patField :: SrcInfo l => PatField l -> Environment
 patField (PFieldPat _ _ pat) = patEnv pat
-patField (PFieldPun _ _) = emptyRelation
+patField (PFieldPun l _) = notSupported l "field pun"
 patField (PFieldWildcard _) = emptyRelation
 
 -- -----------------------------------------------------------------------------------
@@ -195,11 +300,11 @@ patField (PFieldWildcard _) = emptyRelation
 type HxEnvironment = Relation (Name ()) Entity
 
 -- Determine the exports of a module
-exports :: Module l -> Environment -> HxEnvironment
+exports :: (SrcInfo l, Eq l) => Module l -> Environment -> HxEnvironment
 exports mod@(Module l maybeModuleHead _ _ _) env =
   case maybeModuleHead of
     Nothing -> exportList [EVar l (UnQual l (Ident l "main"))]
-    Just (ModuleHead _ _ _ Nothing) -> getQualified `mapDom` moduleDefines mod
+    Just (ModuleHead _ _ _ Nothing) -> getQualified `mapDom` moduleDefines env mod
     Just (ModuleHead _ _ _ (Just (ExportSpecList _ list))) -> exportList list
   where
   exportList list = getQualified `mapDom` unionRelations exports
@@ -262,6 +367,73 @@ filterImportSpec isHiding exports iSpec =
       (name, restrictDom ((`elem` map getId cNames) . getId) subs, False)
   consider = if isHiding && noSubSpec then const True else notIsCon
    
+-- -------------------------------------------------------------------------------------
+-- Handling type synonym
+
+-- determines the outer functional or applicative part of a type synonym body
+-- this part can then be expanded when transforming types for workers
+-- the *final* environment is needed, because in the body of a type synonym
+-- a type synonym may appear; because type synonyms shall not be recursive,
+-- a blackhole cannot occur for type correct programs.
+splitSynonym :: (SrcInfo l,Eq l) => Environment -> [Name l] -> Type l -> TyCls
+splitSynonym env tyVars rhs =
+  case go rhs [] of
+    Syn 1 THelper -> Syn 0 THelper  -- nothing to split off (bogus THelper)
+    syn -> syn
+  where
+  -- it is vital that this 'go' agrees with the 'go' in 'splitSynonym' in TraceTrans.
+  go ty@(TyForall _ _ _ _) [] = Syn 1 THelper
+  go (TyFun _ tyL tyR) [] = let Syn h tyR' = go tyR []
+                            in Syn (h+1) (TApp (TApp TFun THelper) tyR')
+  go (TyTuple _ _ _) [] = Syn 1 THelper
+  go (TyList _ _) [] = Syn 1 THelper
+  go (TyApp _ tyL tyR) tys = go tyL (tyR:tys)
+  go (TyVar _ tyVar) tys = Syn 1 (TVar (fromJust (elemIndex tyVar tyVars)))
+  go (TyCon _ tyCon) tys
+    | isFunTyCon tyCon = case tys of
+                           [] -> Syn 1 THelper
+                           [ty] -> Syn 1 (TApp TFun THelper)
+                           [ty1,ty2] -> let Syn h tyR' = go ty2 []
+                                        in Syn (h+1) (TApp (TApp TFun THelper) tyR')
+    | isExpandableTypeSynonym env tyCon
+    = go (expandTypeSynonym env tyCon tys) []
+    | otherwise = Syn 1 THelper
+  go (TyParen _ ty) tys = go ty tys
+  go (TyInfix _ tyL tyCon tyR) tys =
+    if isExpandableTypeSynonym env tyCon
+      then go (expandTypeSynonym env tyCon (tyL:tyR:tys)) []
+      else Syn 1 THelper
+  go (TyKind l ty kind) _ = notSupported l "kind annotation in type synonym"
+
+-- Expand only to expose function type constructors.
+-- Uses the helper type synonyms introduced by the transformation.
+expandTypeSynonym :: SrcInfo l => Environment -> QName l -> [Type l] -> Type l
+expandTypeSynonym env tySyn tys =
+  case typeSynonymBody env tySyn of
+    Nothing -> error ("TraceTrans.expandTypeSynonym: " ++ show (getId tySyn) ++
+                      " is not a type synonym.")
+    Just body -> fst (go body 1)
+  where
+  l = ann tySyn
+  -- go :: TySynBody -> Int -> (Type l, Int)
+  go THelper n = (tyAppN (TyCon l (nameTransTySynHelper tySyn n) : tys), n+1)
+  go (TVar v) n = (tys!!v, n)
+  go TFun n = (TyCon l (Special l (FunCon l)), n)
+  go (TApp tyL tyR) n = (TyApp l tyL' tyR', n2)
+    where
+    (tyL', n1) = go tyL n
+    (tyR', n2) = go tyR n1
+
+-- Names of helper synonyms are a bit of a hack; a name conflict is possible.
+-- We just do not want to prefix all names in the namespace.
+nameTransTySynHelper :: UpdId i => i -> Int -> i
+nameTransTySynHelper syn no = updateId update syn
+  where 
+  update (Ident l name) = Ident l (name ++ "___" ++ show no)
+  update (Symbol _ _) = 
+    error "TraceTrans, nameTransTySynHelper: synom name is a symbol"
+
+
 -- -------------------------------------------------------------------------------------
 -- Looking up, inserting and mutating individual environment entries.
 

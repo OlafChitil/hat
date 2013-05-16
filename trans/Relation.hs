@@ -11,8 +11,8 @@
 module Relation
   (Relation
   ,listToRelation,relationToList,emptyRelation,restrictDom,restrictRng
-  ,dom,rng,mapDom,mapRng,intersectRelation,unionRelations,minusRelation
-  ,partitionDom,applyRelation
+  ,dom,rng,mapDom,mapRng,intersectRelation,unionRelations,unionRelationsWith
+  ,minusRelation,partitionDom,applyRelation
   ) where
 
 import qualified Data.Map as Map
@@ -57,6 +57,16 @@ intersectRelation = Map.intersectionWith (Set.intersection)
 
 unionRelations :: (Ord a, Ord b) => [Relation a b] -> Relation a b
 unionRelations rs = Map.unionsWith (Set.union) rs
+
+-- Assumes that if one relation contains (a,b1) and another (a,b2),
+-- these relations contain no other pairs for a.
+-- Uses given merge function so that result has (a,b1 `merge` b2)
+unionRelationsWith :: (Ord a, Ord b) => (b -> b -> b) -> [Relation a b] -> Relation a b
+unionRelationsWith merge rs = Map.unionsWith setMerge rs
+  where
+  setMerge b1s b2s = Set.singleton (listMerge (Set.elems b1s) (Set.elems b2s))
+  listMerge [b1] [b2] = b1 `merge` b2
+  listMerge _ _ = error "Relation.unionRelationsWith: sets have more than one element."
 
 minusRelation :: (Ord a, Ord b) => Relation a b -> Relation a b -> Relation a b
 minusRelation r1 r2 = Map.differenceWith subtract r1 r2

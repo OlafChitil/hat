@@ -29,7 +29,8 @@ import Environment (Environment
                    ,TySynBody(TApp,TFun,THelper,TVar),TyCls(Ty,Cls,Syn)
                    ,arity,isLambdaBound,isTracedQName,mutateLetBound
                    ,fixPriority
-                   ,clsTySynInfo,isExpandableTypeSynonym,typeSynonymBody)
+                   ,clsTySynInfo,isExpandableTypeSynonym,typeSynonymBody
+                   ,nameTransTySynHelper,expandTypeSynonym)
 import Wired
 import SynHelp
 import Derive (derive)
@@ -1120,12 +1121,6 @@ tForeignImp l foreignName name ty =
     l = ann ty
   arity = length tyArgs
   (tyArgs, tyRes) = decomposeFunType ty
-  -- pre-condition: no type synonym appearing in type
-  decomposeFunType :: Type l -> ([Type l], Type l)
-  decomposeFunType (TyFun _ tyL tyR) = (tyL:tyArgs, tyRes)
-    where
-    (tyArgs, tyRes) = decomposeFunType tyR
-  decomposeFunType ty = ([], ty)
 
 
 -- Process class instances:
@@ -2139,25 +2134,6 @@ tWorkerSynExpand env a (TyParen l ty) tys =
 tWorkerSynExpand _ _ _ _ = 
   error "TraceTrans.tWorkerSynExpand: type must be a function but is not"
 
--- Expand only to expose function type constructors.
--- Uses the helper type synonyms introduced by the transformation.
-expandTypeSynonym :: Environment -> QName SrcSpanInfo -> [Type SrcSpanInfo] -> 
-                     Type SrcSpanInfo
-expandTypeSynonym env tySyn tys =
-  case typeSynonymBody env tySyn of
-    Nothing -> error ("TraceTrans.expandTypeSynonym: " ++ show tySyn ++
-                      " is not a type synonym.")
-    Just body -> fst (go body 1)
-  where
-  l = ann tySyn
-  go :: TySynBody -> Int -> (Type SrcSpanInfo, Int)
-  go THelper n = (tyAppN (TyCon l (nameTransTySynHelper tySyn n) : tys), n+1)
-  go (TVar v) n = (tys!!v, n)
-  go TFun n = (TyCon l (Special l (FunCon l)), n)
-  go (TApp tyL tyR) n = (TyApp l tyL' tyR', n2)
-    where
-    (tyL', n1) = go tyL n
-    (tyR', n2) = go tyR n1
 
 -- Just rewrite built-in type constructors, especially function type.
 -- (Otherwise type names stay unchanged, they will refer to different modules.)
@@ -2199,14 +2175,6 @@ tAsst (InfixA l tyL qNameClass tyR) =
 tAsst (IParam l _ _) = notSupported l "implicit parameter assertion"
 tAsst (EqualP l tyL tyR) = EqualP l (tType tyL) (tType tyR)
 
-
--- ----------------------------------------------------------------------------
--- Error for non-supported language features
-
-notSupported :: SrcInfo l => l -> String -> a
-notSupported l construct = error $
-  "hat-trans: unsupported language construct \"" ++ construct ++ "\" at " ++ 
-    fileName l ++ ":" ++ show (startLine l) ++ ":" ++ show (startColumn l)
 
 
 -- ----------------------------------------------------------------------------
@@ -2254,15 +2222,6 @@ nameTransTy = updateId id
 
 nameTransSyn :: UpdId i => i -> i
 nameTransSyn = updateId id 
-
--- Names of helper synonyms are a bit of a hack; a name conflict is possible.
--- We just do not want to prefix all names in the namespace.
-nameTransTySynHelper :: UpdId i => i -> Int -> i
-nameTransTySynHelper syn no = updateId update syn
-  where 
-  update (Ident l name) = Ident l (name ++ "___" ++ show no)
-  update (Symbol _ _) = 
-    error "TraceTrans, nameTransTySynHelper: synom name is a symbol"
 
 nameTransTyVar :: Name l -> Name l
 nameTransTyVar = id  -- unchanged
@@ -2682,44 +2641,3 @@ expFromRational = Var noSpan (qNameHatPreludeIdent "gfromRational" noSpan)
 expTraceIO :: Exp SrcSpanInfo
 expTraceIO = Var noSpan (qNameShortIdent "traceIO" noSpan)
 
--- ----------------------------------------------------------------------------
-
-
-class Id a => UpdId a where
-  -- apply function to unqualified name part 
-  -- and prefix module name (if qualified)
-  updateId :: (Name l -> Name l) -> a -> a
-
-instance SrcInfo l => UpdId (QName l) where
-  updateId f (Qual l moduleName name) = 
-    Qual l (nameTransModule moduleName) (updateId f name)
-  updateId f (UnQual l name) = UnQual l (updateId f name)
-  updateId f (Special l specialCon) =
-    case specialCon of
-      UnitCon l' -> newName "Tuple0"
-      ListCon l' -> newName "List"
-      FunCon l' -> newName "Fun"
-      TupleCon l' Boxed arity -> newName ("Tuple" ++ show arity)
-      TupleCon l' Unboxed _ -> 
-        notSupported l' "Unboxed tuple."
-      Cons l' -> newName "List"
-      UnboxedSingleCon l' -> 
-        notSupported l' "Unboxed singleton tuple constructor."
-    where
-    newName id = Qual l (tracingModuleNameShort l) (Ident l id) 
-
-instance UpdId (Name l) where
-  updateId f (Ident l ident) = Ident l (getId (f (Ident undefined ident)))
-  updateId f (Symbol l ident) = Symbol l (getId (f (Symbol undefined ident)))
-
-instance SrcInfo l => UpdId (QOp l) where
-  updateId f (QVarOp l qname) = QVarOp l (updateId f qname)
-  updateId f (QConOp l qname) = QConOp l (updateId f qname)
-
-instance UpdId (Op l) where
-  updateId f (VarOp l name) = VarOp l (updateId f name)
-  updateId f (ConOp l name) = ConOp l (updateId f name)
-
-instance UpdId (CName l) where
-  updateId f (VarName l name) = VarName l (updateId f name)
-  updateId f (ConName l name) = ConName l (updateId f name)
