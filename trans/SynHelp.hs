@@ -113,6 +113,10 @@ eqName (Ident _ n1) (Ident _ n2) = n1==n2
 eqName (Symbol _ n1) (Symbol _ n2) = n1==n2
 eqName _ _ = False 
 
+getModuleNameFromModule :: Module l -> ModuleName l
+getModuleNameFromModule (Module l Nothing _ _ _) = ModuleName l "Main"
+getModuleNameFromModule (Module l (Just (ModuleHead _ modName _ _)) _ _ _) = modName
+
 getConDeclFromQualConDecl :: QualConDecl l -> ConDecl l
 getConDeclFromQualConDecl (QualConDecl _ _ _ conDecl) = conDecl
 
@@ -294,6 +298,11 @@ instance UpdId (Op l) where
 instance UpdId (CName l) where
   updateId f (VarName l name) = VarName l (updateId f name)
   updateId f (ConName l name) = ConName l (updateId f name)
+
+-- ----------------------------------------------------------------------------
+
+dropAnn :: Annotated ast => ast l -> ast ()
+dropAnn = fmap (const ())
 
 -- ----------------------------------------------------------------------------
 -- Error for non-supported language features

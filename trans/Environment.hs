@@ -2,29 +2,32 @@
 -- Holds information about all identifiers (names) in scope.
 
 module Environment
-  (Environment,Identifier,AuxiliaryInfo
+  (Environment,Identifier,AuxiliaryInfo,Entity
   ,TySynBody(TApp,TFun,THelper,TVar),TyCls(Ty,Cls,Syn)
+  ,globalEnv,prettyEnv
   ,arity,isLambdaBound,isTracedQName,mutateLetBound,fixPriority, hasPriority
   ,clsTySynInfo,isExpandableTypeSynonym,typeSynonymBody
   ,nameTransTySynHelper,expandTypeSynonym
+  ,imports,exports,hxEnvironmentToList,listToHxEnvironment
   ) where
 
 import Language.Haskell.Exts.Annotated hiding (Var,Con)
 import SynHelp (Id(getId),getQualified,mkQual,qual,isQual,notSupported
                ,tyVarBind2Name,declHeadTyVarBinds,declHeadName,getArityFromConDecl
-               ,getConDeclFromQualConDecl,getConstructorFromConDecl,eqName
-               ,getFieldNamesFromConDecl,decomposeFunType,isFunTyCon,tyAppN
-               ,UpdId(updateId))
+               ,getConDeclFromQualConDecl,getConstructorFromConDecl,eqName,mkName
+               ,getFieldNamesFromConDecl,decomposeFunType,isFunTyCon,tyAppN,getModuleNameFromModule
+               ,UpdId(updateId),dropAnn)
 import qualified Data.Set as Set
 import qualified Data.Map as Map (singleton,adjust)
 import Relation
 import Data.Maybe (fromMaybe,fromJust)
-import Data.List (nubBy,elemIndex)
+import Data.List (nubBy)
 
-type EnvInfo = (Identifier,AuxiliaryInfo)
-type QualId = (String,String)  -- unqualified name followed by module name
--- data Environment = Env (Map QualId EnvInfo) (Map String EnvInfo)
---   deriving Show
+
+-- The following types for representing Entities are unnecessarily complicated and bizarr.
+-- However, their Show instances are used in the hx-files, and hence any type changes
+-- would mean changing the hx-file format and thus rebooting Hat from scratch.
+-- Only do that when it becomes really necessary.
 
 -- Identifier is used to distinguish varids from conids, and relate
 -- conids back to the type they belong to.  It also relates methods
@@ -39,6 +42,13 @@ data TypeSort = Data | Newtype deriving (Show,Read,Eq,Ord)
 toTypeSort :: DataOrNew l -> TypeSort
 toTypeSort (DataType _) = Data
 toTypeSort (NewType _) = Newtype
+
+identifierToName :: Identifier -> Name ()
+identifierToName (Var id) = mkName () id
+identifierToName (Con _ _ id) = mkName () id
+identifierToName (Field _ id) = mkName () id
+identifierToName (Method _ id) = mkName () id
+identifierToName (TypeClass id) = mkName () id
 
 -- AuxiliaryInfo is the extra information we need to know about identifiers.
 data AuxiliaryInfo = 
@@ -72,11 +82,9 @@ notIsCon :: Entity -> Bool
 notIsCon (Environment.Con _ _ _,_) = False
 notIsCon _ = True
 
--- Is a value, excluding data constructor.
+-- Is a value entity, that is, variable, data constructor, method or field.
 isValue :: Entity -> Bool
-isValue (Environment.Var _, _) = True
-isValue (Field _ _, _) = True
-isValue (Method _ _, _) = True
+isValue (_,Value{}) = True
 isValue _ = False
 
 -- Is a type, including type synoym.
@@ -104,21 +112,38 @@ isClassId :: String -> Entity -> Bool
 isClassId id (TypeClass tyCls, TyCls (Cls _)) = id == tyCls
 isClassId _ _ = False
 
-dropAnn :: Annotated ast => ast l -> ast ()
-dropAnn = fmap (const ())
-
 -- -----------------------------------------------------------------------------------
 -- Obtain an environment from parts of a syntax tree.
+
+-- Create global environment of this module, given whether it is tracing (or trusted) and
+-- the complete import environment.
+globalEnv :: SrcInfo l => Bool -> Module l -> Environment -> Environment
+globalEnv tracing mod importEnv = env
+  where
+  env = unionRelations [importEnv,unqualDefEnv,qualDefEnv]
+  unqualDefEnv = moduleDefines tracing env mod -- tying knot of environments here
+  qualDefEnv = qual (dropAnn (getModuleNameFromModule mod)) `mapDom` unqualDefEnv
 
 -- Get the environment for all top-level definitions of a module.
 -- Only produce unqualified QNames.
 -- Take complete environment of module for lookups (cycle)
-moduleDefines :: (SrcInfo l, Eq l) => Environment -> Module l -> Environment
-moduleDefines fullEnv (Module _ _ _ _ decls) = declsEnv fullEnv decls
+moduleDefines :: SrcInfo l => Bool -> Environment -> Module l -> Environment
+moduleDefines tracing fullEnv (Module _ _ _ _ decls) = declsEnv tracing fullEnv decls
 
-declsEnv :: (SrcInfo l, Eq l) => Environment -> [Decl l] -> Environment
-declsEnv fullEnv decls = unionRelationsWith mergeEntities (map (declEnv fullEnv) decls)
+-- Note that a fixity or type signature definition also yield an entity in the environment.
+-- Such an entity needs to be merged with its main entity.
+declsEnv :: SrcInfo l => Bool -> Environment -> [Decl l] -> Environment
+declsEnv tracing fullEnv decls = unionRelationsWith mergeSets (map (declEnv tracing fullEnv) decls)
   where
+  mergeSets :: Set.Set Entity -> Set.Set Entity -> Set.Set Entity
+  mergeSets s1 s2 = Set.unions [vs,e1s,e2s]
+    where
+    (v1s,e1s) = Set.partition isValue s1
+    (v2s,e2s) = Set.partition isValue s2
+    vs = if Set.null v1s then v2s
+         else if Set.null v2s then v1s
+         else if Set.size v1s > 1 || Set.size v2s > 1 then error "Environment.declsEnv: conflicting value names."
+         else Set.singleton (mergeEntities (Set.findMin v1s) (Set.findMin v2s))
   mergeEntities :: Entity -> Entity -> Entity
   mergeEntities (Var name, value1) (Var _, value2) = 
     (Var name, value1 `mergeValues` value2) 
@@ -155,16 +180,16 @@ declsEnv fullEnv decls = unionRelationsWith mergeEntities (map (declEnv fullEnv)
   mergeError = 
     error "Environment.moduleDefines: same name for type/class and other entity."
 
-declEnv :: (SrcInfo l, Eq l) => Environment -> Decl l -> Environment
-declEnv fullEnv (TypeDecl _ declHead ty) =
+declEnv :: SrcInfo l => Bool -> Environment -> Decl l -> Environment
+declEnv _ fullEnv (TypeDecl _ declHead ty) =
   singleton tyName 
     (TypeClass (getId tyName)
     ,TyCls (splitSynonym fullEnv (map tyVarBind2Name (declHeadTyVarBinds declHead)) ty))
   where
   tyName = declHeadName declHead
-declEnv _ (TypeFamDecl l declHead _) = 
+declEnv _ _ (TypeFamDecl l declHead _) = 
   notSupported l "type family declaration"
-declEnv _ (DataDecl _ ts _ declHead qualConDecls _) = 
+declEnv tracing _ (DataDecl _ ts _ declHead qualConDecls _) = 
   fromList ((name, (TypeClass (getId name)
                   ,TyCls (Ty (map getId consNames) (map getId fieldNames)))) :
            [(consName
@@ -178,20 +203,29 @@ declEnv _ (DataDecl _ ts _ declHead qualConDecls _) =
   conDecls = map getConDeclFromQualConDecl qualConDecls
   consNames = map getConstructorFromConDecl conDecls
   fieldNames = nubBy eqName (concatMap getFieldNamesFromConDecl conDecls)
-declEnv _ (GDataDecl l _ _ declHead _ gadtDecls _) =
+declEnv _ _ (GDataDecl l _ _ declHead _ gadtDecls _) =
   notSupported l "gadt declaration"
-declEnv _ (DataFamDecl l declHead _ _) = 
+declEnv _ _ (DataFamDecl l declHead _ _) = 
   notSupported l "data family declaration"
-declEnv _ (TypeInsDecl _ _ _) = emptyRelation
-declEnv _ (DataInsDecl l _ _ _ _) = 
+declEnv _ _ (TypeInsDecl _ _ _) = emptyRelation
+declEnv _ _ (DataInsDecl l _ _ _ _) = 
   notSupported l "data family instance declaration"
-declEnv _ (GDataInsDecl l _ _ _ _ _) =
+declEnv _ _ (GDataInsDecl l _ _ _ _ _) =
   notSupported l "gadt family instance declaration"
-declEnv _ (ClassDecl _ _ declHead _ Nothing) = emptyRelation
-declEnv finalEnv (ClassDecl _ _ declHead _ (Just classDecls)) =
-  varToMethod `mapRng` (declsEnv finalEnv decls)
+declEnv _ _ (ClassDecl _ _ declHead _ Nothing) = 
+  singleton className
+    (TypeClass (getId className)
+    ,TyCls (Cls []))
   where
-  classId = getId (declHeadName declHead)
+  className = declHeadName declHead
+declEnv tracing finalEnv (ClassDecl _ _ declHead _ (Just classDecls)) =
+  unionRelations 
+    [singleton className (TypeClass classId, TyCls (Cls methodIds)), methodRelation]
+  where
+  methodIds = map (\(Method _ id,_) -> id) . Set.toAscList . rng $ methodRelation
+  methodRelation = varToMethod `mapRng` (declsEnv tracing finalEnv decls)
+  classId = getId className
+  className = declHeadName declHead
   varToMethod  :: Entity -> Entity
   varToMethod (Var id, value) = (Method classId id, value{args = -1})
   decls = map getDecl classDecls
@@ -201,9 +235,9 @@ declEnv finalEnv (ClassDecl _ _ declHead _ (Just classDecls)) =
   getDecl (ClsTyFam l _ _) = notSupported l "associated type synonym declaration"
   getDecl (ClsTyDef l _ _) = notSupported l 
                                  "default choice for an associated type synonym"
-declEnv _ (InstDecl _ _ _ _) = emptyRelation
-declEnv _ (DerivDecl _ _ _) = emptyRelation
-declEnv _ (InfixDecl _ assoc maybePri ops) =
+declEnv _ _ (InstDecl _ _ _ _) = emptyRelation
+declEnv _ _ (DerivDecl _ _ _) = emptyRelation
+declEnv tracing _ (InfixDecl _ assoc maybePri ops) =
   fromList (map opToQNameEntity ops)
   -- Environment only has valid entity information for fixity and priority,
   -- otherwise default values.
@@ -213,7 +247,7 @@ declEnv _ (InfixDecl _ assoc maybePri ops) =
     (name
     ,(Var (getId name)
      ,Value {args = -1,fixity = fixityVal, priority = priorityVal
-            ,letBound = True, traced = True}))
+            ,letBound = True, traced = tracing}))
   opToQNameEntity (ConOp l name) = opToQNameEntity (VarOp l name)
     -- Use Var here as well, as other arguments for Con are unknown here.
   fixityVal = case assoc of
@@ -221,77 +255,77 @@ declEnv _ (InfixDecl _ assoc maybePri ops) =
                 AssocLeft _ -> L
                 AssocRight _ -> R
   priorityVal = fromMaybe 9 maybePri
-declEnv _ (DefaultDecl _ _) = emptyRelation
-declEnv _ (SpliceDecl l _) = 
+declEnv _ _ (DefaultDecl _ _) = emptyRelation
+declEnv _ _ (SpliceDecl l _) = 
   notSupported l "splice declaration"
-declEnv _ (TypeSig _ names _) =
+declEnv tracing _ (TypeSig _ names _) =
   fromList [(name
            ,(Var (getId name), Value{args = -1, fixity = Def, priority = 9
-                                    ,letBound = True, traced = True}))
+                                    ,letBound = True, traced = tracing}))
            | name <- names]
   -- needed for methods in classes
-declEnv _ (FunBind _ matches) = matchEnv (head matches)
-declEnv _ (PatBind _ pat _ _ _) = patEnv pat
-declEnv _ (ForImp l _ _ _ name ty) =
+declEnv tracing _ (FunBind _ matches) = matchEnv tracing (head matches)
+declEnv tracing _ (PatBind _ pat _ _ _) = patEnv tracing pat
+declEnv tracing _ (ForImp l _ _ _ name ty) =
   -- only for NoHat. import
   singleton name
     (Var (getId name), Value{args = length tyArgs, fixity = Def, priority = 9
-                            ,letBound = True, traced = True})
+                            ,letBound = True, traced = tracing})
   where
   (tyArgs,_) = decomposeFunType ty
-declEnv _ (ForExp _ _ _ _ _) = emptyRelation
-declEnv _ (RulePragmaDecl _ _) = emptyRelation
-declEnv _ (DeprPragmaDecl _ _) = emptyRelation
-declEnv _ (WarnPragmaDecl _ _) = emptyRelation
-declEnv _ (InlineSig _ _ _ _) = emptyRelation
-declEnv _ (InlineConlikeSig _ _ _) = emptyRelation
-declEnv _ (SpecSig _ _ _) = emptyRelation
-declEnv _ (SpecInlineSig _ _ _ _ _) = emptyRelation
-declEnv _ (InstSig _ _ _) = emptyRelation
-declEnv _ (AnnPragma _ _) = emptyRelation
+declEnv _ _ (ForExp _ _ _ _ _) = emptyRelation
+declEnv _ _ (RulePragmaDecl _ _) = emptyRelation
+declEnv _ _ (DeprPragmaDecl _ _) = emptyRelation
+declEnv _ _ (WarnPragmaDecl _ _) = emptyRelation
+declEnv _ _ (InlineSig _ _ _ _) = emptyRelation
+declEnv _ _ (InlineConlikeSig _ _ _) = emptyRelation
+declEnv _ _ (SpecSig _ _ _) = emptyRelation
+declEnv _ _ (SpecInlineSig _ _ _ _ _) = emptyRelation
+declEnv _ _ (InstSig _ _ _) = emptyRelation
+declEnv _ _ (AnnPragma _ _) = emptyRelation
 
 
-matchEnv :: Match l -> Environment
-matchEnv (Match l name pats _ _) = 
+matchEnv :: Bool -> Match l -> Environment
+matchEnv tracing (Match l name pats _ _) = 
   singleton name
     (Var (getId name),Value{args = length pats, fixity = Def, priority = 9
-                           ,letBound = True, traced = True})
-matchEnv (InfixMatch l pat name pats rhs maybeBinds) =
-  matchEnv (Match l name (pat:pats) rhs maybeBinds)
+                           ,letBound = True, traced = tracing})
+matchEnv tracing (InfixMatch l pat name pats rhs maybeBinds) =
+  matchEnv tracing (Match l name (pat:pats) rhs maybeBinds)
 
-patEnv :: SrcInfo l => Pat l -> Environment
-patEnv (PVar l name) = 
+patEnv :: SrcInfo l => Bool -> Pat l -> Environment
+patEnv tracing (PVar l name) = 
   singleton name
     (Var (getId name), Value{args = 0, fixity = Def, priority = 9
-                     ,letBound = True, traced = True})
-patEnv (PLit _ _) = emptyRelation
-patEnv (PNeg _ pat) = patEnv pat
-patEnv (PNPlusK l name _) = patEnv (PVar l name)
-patEnv (PInfixApp _ patl _ patr) = unionRelations [patEnv patl, patEnv patr]
-patEnv (PApp _ _ pats) = unionRelations . map patEnv $ pats
-patEnv (PTuple _ pats) = unionRelations . map patEnv $ pats
-patEnv (PList _ pats) = unionRelations . map patEnv $ pats
-patEnv (PParen _ pat) = patEnv pat
-patEnv (PRec _ _ patFields) = unionRelations . map patField $ patFields
-patEnv (PAsPat _ _ pat) = patEnv pat
-patEnv (PWildCard _) = emptyRelation
-patEnv (PIrrPat _ pat) = patEnv pat
-patEnv (PatTypeSig _ pat _) = patEnv pat
-patEnv (PViewPat _ _ pat) = patEnv pat
-patEnv (PRPat l _) = notSupported l "regular list pattern"
-patEnv (PXTag l _ _ _ _) = notSupported l "XML element pattern"
-patEnv (PXETag l _ _ _) = notSupported l "XML singleton element pattern"
-patEnv (PXPcdata l _) = notSupported l "XML PCDATA pattern"
-patEnv (PXPatTag l _) = notSupported l "XML embedded pattern"
-patEnv (PXRPats l _) = notSupported l "XML regular list pattern"
-patEnv (PExplTypeArg l _ _) = notSupported l "explicit generics style type argument"
-patEnv (PQuasiQuote l _ _) = notSupported l "quasi quote pattern"
-patEnv (PBangPat _ pat) = patEnv pat
+                     ,letBound = True, traced = tracing})
+patEnv _ (PLit _ _) = emptyRelation
+patEnv tracing (PNeg _ pat) = patEnv tracing pat
+patEnv tracing (PNPlusK l name _) = patEnv tracing (PVar l name)
+patEnv tracing (PInfixApp _ patl _ patr) = unionRelations [patEnv tracing patl, patEnv tracing patr]
+patEnv tracing (PApp _ _ pats) = unionRelations . map (patEnv tracing) $ pats
+patEnv tracing (PTuple _ pats) = unionRelations . map (patEnv tracing) $ pats
+patEnv tracing (PList _ pats) = unionRelations . map (patEnv tracing) $ pats
+patEnv tracing (PParen _ pat) = patEnv tracing pat
+patEnv tracing (PRec _ _ patFields) = unionRelations . map (patField tracing) $ patFields
+patEnv tracing (PAsPat _ _ pat) = patEnv tracing pat
+patEnv _ (PWildCard _) = emptyRelation
+patEnv tracing (PIrrPat _ pat) = patEnv tracing pat
+patEnv tracing (PatTypeSig _ pat _) = patEnv tracing pat
+patEnv tracing (PViewPat _ _ pat) = patEnv tracing pat
+patEnv _ (PRPat l _) = notSupported l "regular list pattern"
+patEnv _ (PXTag l _ _ _ _) = notSupported l "XML element pattern"
+patEnv _ (PXETag l _ _ _) = notSupported l "XML singleton element pattern"
+patEnv _ (PXPcdata l _) = notSupported l "XML PCDATA pattern"
+patEnv _ (PXPatTag l _) = notSupported l "XML embedded pattern"
+patEnv _ (PXRPats l _) = notSupported l "XML regular list pattern"
+patEnv _ (PExplTypeArg l _ _) = notSupported l "explicit generics style type argument"
+patEnv _ (PQuasiQuote l _ _) = notSupported l "quasi quote pattern"
+patEnv tracing (PBangPat _ pat) = patEnv tracing pat
 
-patField :: SrcInfo l => PatField l -> Environment
-patField (PFieldPat _ _ pat) = patEnv pat
-patField (PFieldPun l _) = notSupported l "field pun"
-patField (PFieldWildcard _) = emptyRelation
+patField :: SrcInfo l => Bool -> PatField l -> Environment
+patField tracing (PFieldPat _ _ pat) = patEnv tracing pat
+patField _ (PFieldPun l _) = notSupported l "field pun"
+patField _ (PFieldWildcard _) = emptyRelation
 
 -- -----------------------------------------------------------------------------------
 -- Determine export and import environments
@@ -300,11 +334,11 @@ patField (PFieldWildcard _) = emptyRelation
 type HxEnvironment = Relation (Name ()) Entity
 
 -- Determine the exports of a module
-exports :: (SrcInfo l, Eq l) => Module l -> Environment -> HxEnvironment
-exports mod@(Module l maybeModuleHead _ _ _) env =
+exports :: SrcInfo l => Bool -> Module l -> Environment -> HxEnvironment
+exports tracing mod@(Module l maybeModuleHead _ _ _) env =
   case maybeModuleHead of
     Nothing -> exportList [EVar l (UnQual l (Ident l "main"))]
-    Just (ModuleHead _ _ _ Nothing) -> getQualified `mapDom` moduleDefines env mod
+    Just (ModuleHead _ _ _ Nothing) -> getQualified `mapDom` moduleDefines tracing env mod
     Just (ModuleHead _ _ _ (Just (ExportSpecList _ list))) -> exportList list
   where
   exportList list = getQualified `mapDom` unionRelations exports
@@ -318,8 +352,7 @@ filterExportSpec env (EModuleContents _ moduleName) =
   where
   moduleNameT = dropAnn moduleName
   (qs,unqs) = partitionDom isQual env
-filterExportSpec env eSpec =
-  unionRelations [mSpec, mSub]
+filterExportSpec env eSpec = unionRelations [mSpec, mSub]
   where
   mSpec = restrictRng notIsCon (restrictDom (== qNameT) env)
   allOwners = rng mSpec
@@ -331,6 +364,14 @@ filterExportSpec env eSpec =
     EThingAll _ qName -> (qName, subs)
     EThingWith _ qName cNames -> 
       (qName, restrictDom ((`elem` map getId cNames) . getId) subs)
+
+-- Assumes that list is in ascending order without duplicate names.
+listToHxEnvironment :: [Entity] -> HxEnvironment
+listToHxEnvironment =
+  Relation.listToRelation . map (\(id,aux) -> (identifierToName id, (id,aux)))
+
+hxEnvironmentToList :: HxEnvironment -> [Entity]
+hxEnvironmentToList = Set.toAscList . Relation.rng
 
 -- Filter with one import declaration from the export environment of the imported module
 imports :: HxEnvironment -> ImportDecl l -> Environment
@@ -375,7 +416,7 @@ filterImportSpec isHiding exports iSpec =
 -- the *final* environment is needed, because in the body of a type synonym
 -- a type synonym may appear; because type synonyms shall not be recursive,
 -- a blackhole cannot occur for type correct programs.
-splitSynonym :: (SrcInfo l,Eq l) => Environment -> [Name l] -> Type l -> TyCls
+splitSynonym :: SrcInfo l => Environment -> [Name l] -> Type l -> TyCls
 splitSynonym env tyVars rhs =
   case go rhs [] of
     Syn 1 THelper -> Syn 0 THelper  -- nothing to split off (bogus THelper)
@@ -388,7 +429,7 @@ splitSynonym env tyVars rhs =
   go (TyTuple _ _ _) [] = Syn 1 THelper
   go (TyList _ _) [] = Syn 1 THelper
   go (TyApp _ tyL tyR) tys = go tyL (tyR:tys)
-  go (TyVar _ tyVar) tys = Syn 1 (TVar (fromJust (elemIndex tyVar tyVars)))
+  go (TyVar _ tyVar) tys = Syn 0 (TVar (fromJust (elemIndexBy eqName tyVar tyVars)))
   go (TyCon _ tyCon) tys
     | isFunTyCon tyCon = case tys of
                            [] -> Syn 1 THelper
@@ -404,6 +445,13 @@ splitSynonym env tyVars rhs =
       then go (expandTypeSynonym env tyCon (tyL:tyR:tys)) []
       else Syn 1 THelper
   go (TyKind l ty kind) _ = notSupported l "kind annotation in type synonym"
+
+
+elemIndexBy :: (a -> a -> Bool) -> a -> [a] -> Maybe Int
+elemIndexBy eq x xs = go 0 xs
+  where
+  go c [] = Nothing
+  go c (y:ys) = if x `eq` y then Just c else go (c+1) ys 
 
 -- Expand only to expose function type constructors.
 -- Uses the helper type synonyms introduced by the transformation.
@@ -438,21 +486,26 @@ nameTransTySynHelper syn no = updateId update syn
 -- Looking up, inserting and mutating individual environment entries.
 
 -- For generating an appropriate error message.
-one :: String -> [a] -> a
-one msg [] = error (msg ++ " not found.")
-one msg [x] = x
-one msg _ = error (msg ++ " ambigious.")
+one :: Environment -> String -> [a] -> a
+one env msg [] = error (prettyEnv env ++ msg ++ " not found.")
+one env msg [x] = x
+one env msg _ = error (prettyEnv env ++ msg ++ " ambigious.")
 
--- Not a data constructor
+prettyEnv :: (Pretty a, Ord a) => Relation a b -> String
+prettyEnv = ("Environment: " ++) . foldr space "\n" . map prettyPrint . Set.toAscList . Relation.dom
+  where
+  space xs ys = xs ++ "," ++ ys
+
+-- A name for a variable, data constructor, method or field:
 lookupValueEnv :: Environment -> QName l -> Entity
 lookupValueEnv env qName = 
-  one ("Environment.lookupValueEnv: " ++ prettyPrint qName)
+  one env ("Environment.lookupValueEnv: `" ++ prettyPrint qName ++ "'")
     (filter isValue . Set.toList . applyRelation env $ dropAnn qName)
 
 -- Not a class
 lookupTypeEnv :: Environment -> QName l -> Entity
 lookupTypeEnv env qName =
-  one ("Environment.lookupTypeEnv: " ++ prettyPrint qName)
+  one env ("Environment.lookupTypeEnv: `" ++ prettyPrint qName ++ "'")
     (filter isType . Set.toList . applyRelation env $ dropAnn qName)
     
 arity :: Environment -> QName l -> Maybe Int
@@ -512,6 +565,6 @@ hasPriority env name =
 
 clsTySynInfo :: Environment -> QName l -> TyCls
 clsTySynInfo env qName = 
-  one ("Environment.clsTySynInfo: " ++ prettyPrint qName)
+  one env ("Environment.clsTySynInfo: " ++ prettyPrint qName)
     [tyCls | (TypeClass _, TyCls tyCls) <- 
                Set.toList (applyRelation env (dropAnn qName))]

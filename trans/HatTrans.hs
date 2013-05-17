@@ -1,6 +1,6 @@
 {- ---------------------------------------------------------------------------
-This `main' function is basically just the front-end of the nhc98
-compiler.  It parses the .hs source file, creates the .hx file, and
+This `main' function calls all passes of Hat.
+It parses the .hs source file, creates the .hx file, and
 then stops immediately after writing a new transformed .hs file.
 -} 
 module Main where
@@ -22,7 +22,7 @@ import Language.Haskell.Exts.Annotated(ParseMode(..),ParseResult,fromParseResult
 import Language.Haskell.Exts.Fixity(Fixity,preludeFixities)
 import Language.Haskell.Exts.Pretty(prettyPrintStyleMode,Style(..),style,PPHsMode,defaultMode)
 import Wrap(wrap)
-import Environment(Environment)
+import Environment(Environment,globalEnv,prettyEnv,exports)
 import TraceTrans(Tracing(Traced,Trusted),traceTrans)
 import AuxFile(readAuxFiles,writeAuxFile)
 
@@ -57,20 +57,25 @@ main = do
   let moduleAST3 = implicitlyImportPrelude flags moduleAST2
   dumpIntermediate (sParse flags) "post-Prelude" (pretty moduleAST3)
 
-  {- Read .aux file of every imported module to produce the global environment -}
-  env <- readAuxFiles flags moduleAST3
+  {- Read .aux file of every imported module to produce the complete import environment -}
+  importEnv <- readAuxFiles flags moduleAST3
 
-  {- Write .aux file for current module. -}
+  {- Create global environment of this module. -}
+  let env = globalEnv (not (sDbgTrusted flags)) moduleAST3 importEnv
+
+  {- Write .hx file for current module. -}
   writeAuxFile flags (sHatAuxFile flags) env moduleAST3
 
-  dumpIntermediate (sIBound flags) "Environment" (show env)
+  dumpIntermediate (sIBound flags) "Top-level environment of module" (prettyEnv env)
   
+{-
   {- Actual tracing transformation. -}
   let outputAST = implicitlyImportPreludeBasic flags 
                     (traceTrans (sSourceFile flags) (if sDbgTrusted flags then Trusted else Traced) env moduleAST3)
 
   {- Write result file and finish. -}
   writeFile (sHatTransFile flags) (pretty outputAST)
+-}
   putStrLn ("Wrote " ++ sHatTransFile flags)
   exitWith (ExitSuccess)
 

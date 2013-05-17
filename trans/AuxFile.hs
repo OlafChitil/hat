@@ -1,21 +1,33 @@
 module AuxFile (readAuxFiles,writeAuxFile) where
 
-import Flags(Flags,sIncludes,sPreludes)
-import Environment(Environment,Identifier,AuxiliaryInfo)
+import Flags(Flags,sIncludes,sPreludes,sDbgTrusted)
+import Environment(Environment,Entity,exports,imports,hxEnvironmentToList,listToHxEnvironment)
+import Relation(unionRelations)
 import Language.Haskell.Exts.Annotated
   (Module(..),ModuleHead(..),ExportSpecList(..),ExportSpec(..)
-  ,ImportDecl(..),ModuleName(..))
+  ,ImportDecl(..),ModuleName(..),QName(..),SrcInfo)
+import SynHelp (mkQName,Id(getId),getModuleNameFromModule)
 import System.FilePath(FilePath,addExtension,pathSeparator,(</>))
 import System.IO(stderr,hPutStr)
 import System.Exit(exitFailure)
-import Control.Exception(catch,IOException)
+import qualified Control.Exception(catch,IOException)
 
+-- Create environment for all imports.
+-- Exception if hx-file of an imported module is not found.
 readAuxFiles :: Flags -> Module l -> IO Environment
-readAuxFiles = undefined
+readAuxFiles flags mod@(Module l maybeModuleHead _ importDecls decls) = do
+  importEnvs <- mapM (importEnv flags) importDecls
+  return (unionRelations importEnvs)
+
+importEnv :: Flags -> ImportDecl l -> IO Environment
+importEnv flags importDecl = do
+  entities <- readAuxFile flags (importModule importDecl)
+  return (imports (listToHxEnvironment entities) importDecl)
+
 
 -- Read whole content of .hx file of given module, using search paths in flags.
 -- Aborts with error if no such .hx file is found.
-readAuxFile :: Flags -> ModuleName l -> IO [(Identifier, AuxiliaryInfo)]
+readAuxFile :: Flags -> ModuleName l -> IO [Entity]
 readAuxFile flags (ModuleName l moduleStr) = do
   let filePaths = potentialFilePaths flags moduleStr
   (filePath,contents) <- readFirst moduleStr filePaths
@@ -56,12 +68,12 @@ readFirst modStr (x:xs) =
 -- `writeAuxFile' writes out the .hx file given this module's complete
 -- parse tree.  The .hx file mentions all exported identifiers, both
 -- those defined in this module, and those reexported from imports.
-writeAuxFile :: Flags -> FilePath -> Environment -> Module l -> IO ()
-writeAuxFile flags filePath env (Module l maybeModuleHead _ _ _) = 
-  writeFile filePath ((showString "module " . shows moduleName . showChar '\n' .
-                       showLines (listAT (filter (isExported exportSpec)  
+writeAuxFile :: (SrcInfo l, Eq l) => 
+                Flags -> FilePath -> Environment -> Module l -> IO ()
+writeAuxFile flags filePath env mod = 
+  writeFile filePath 
+    ((showString "module " . (getId (getModuleNameFromModule mod) ++) . showChar '\n' .
+     showLines (hxEnvironmentToList (exports (not (sDbgTrusted flags)) mod env))) "")
   where
-  (moduleName,exportSpecs) = case maybeModuleHead of
-    Nothing -> let mod = ModuleName l "Main" in (mod, [EVar l (UnQual l "main")])
-    Just (ModuleHead _ thisMod _ Nothing) -> (thisMod, [EModuleContents l thisMod])
-    Just (ModuleHead _ thisMod _ (Just (ExportSpecList _ list))) -> (thisMod, list)
+  showLines :: Show a => [a] -> ShowS
+  showLines = foldr (\x y-> shows x . showChar '\n' . y) id

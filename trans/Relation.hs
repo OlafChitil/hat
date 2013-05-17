@@ -11,7 +11,7 @@
 module Relation
   (Relation
   ,listToRelation,relationToList,emptyRelation,restrictDom,restrictRng
-  ,dom,rng,mapDom,mapRng,intersectRelation,unionRelations,unionRelationsWith
+  ,dom,rng,mapDom,mapRng,intersectRelation,unionRelations,unionRelationsWith,unionLocalRelation
   ,minusRelation,partitionDom,applyRelation
   ) where
 
@@ -38,7 +38,7 @@ restrictDom :: (Ord a, Ord b) => (a -> Bool) -> Relation a b -> Relation a b
 restrictDom p r = Map.filterWithKey (\a _ -> p a) r
 
 restrictRng :: (Ord a, Ord b) => (b -> Bool) -> Relation a b -> Relation a b
-restrictRng p = Map.filterWithKey (\_ bs -> Set.null bs) . Map.map (Set.filter p)
+restrictRng p = Map.filter (not . Set.null) . Map.map (Set.filter p)
 
 dom :: Ord a => Relation a b -> Set.Set a
 dom r = Map.keysSet r
@@ -58,15 +58,13 @@ intersectRelation = Map.intersectionWith (Set.intersection)
 unionRelations :: (Ord a, Ord b) => [Relation a b] -> Relation a b
 unionRelations rs = Map.unionsWith (Set.union) rs
 
--- Assumes that if one relation contains (a,b1) and another (a,b2),
--- these relations contain no other pairs for a.
--- Uses given merge function so that result has (a,b1 `merge` b2)
-unionRelationsWith :: (Ord a, Ord b) => (b -> b -> b) -> [Relation a b] -> Relation a b
-unionRelationsWith merge rs = Map.unionsWith setMerge rs
-  where
-  setMerge b1s b2s = Set.singleton (listMerge (Set.elems b1s) (Set.elems b2s))
-  listMerge [b1] [b2] = b1 `merge` b2
-  listMerge _ _ = error "Relation.unionRelationsWith: sets have more than one element."
+-- When one a is related to several b's, the latter are combined.
+unionRelationsWith :: (Ord a, Ord b) => (Set.Set b -> Set.Set b -> Set.Set b) -> [Relation a b] -> Relation a b
+unionRelationsWith merge rs = Map.unionsWith merge rs
+
+-- Second relation is for a local scope and has precedence over the first relation.
+unionLocalRelation :: (Ord a, Ord b) => Relation a b -> Relation a b -> Relation a b
+unionLocalRelation r1 r2 = Map.unionWith (const id) r1 r2
 
 minusRelation :: (Ord a, Ord b) => Relation a b -> Relation a b -> Relation a b
 minusRelation r1 r2 = Map.differenceWith subtract r1 r2
@@ -78,4 +76,4 @@ partitionDom :: Ord a => (a -> Bool) -> Relation a b -> (Relation a b, Relation 
 partitionDom p = Map.partitionWithKey (\a bs -> p a)
 
 applyRelation :: (Ord a, Ord b) => Relation a b -> a -> Set.Set b
-applyRelation r a = r Map.! a
+applyRelation r a = Map.findWithDefault Set.empty a r
