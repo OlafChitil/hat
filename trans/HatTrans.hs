@@ -18,7 +18,7 @@ import Flags(processArgs,Flags,sSourceFile,sParse,sPrelude,sPreludes,sIncludes,s
             ,sWrap,sIBound,sShowWidth,sHatAuxFile,sHatTransFile,sSrcDir)
 import System.FilePath(FilePath(..),splitDirectories,combine)
 import Language.Haskell.Exts.Annotated(ParseMode(..),ParseResult,fromParseResult,parseFileWithMode
-                                      ,Module(..),ImportDecl(..),ModuleName(..))
+                                      ,Module(..),ImportDecl(..),ModuleName(..),Extension(..))
 import Language.Haskell.Exts.Fixity(Fixity,preludeFixities)
 import Language.Haskell.Exts.Pretty(prettyPrintStyleMode,Style(..),style,PPHsMode,defaultMode)
 import Wrap(wrap)
@@ -35,7 +35,7 @@ main = do
   {- parse source code -}
   let filePath = sSourceFile flags
   let parseMode = ParseMode {parseFilename = filePath
-                            ,extensions = []
+                            ,extensions = [ForeignFunctionInterface]
                             ,ignoreLanguagePragmas = False
                             ,ignoreLinePragmas = True
                             ,fixities = Just preludeFixities} 

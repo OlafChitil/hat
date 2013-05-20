@@ -30,7 +30,7 @@ importEnv flags importDecl = do
 readAuxFile :: Flags -> ModuleName l -> IO [Entity]
 readAuxFile flags (ModuleName l moduleStr) = do
   let filePaths = potentialFilePaths flags moduleStr
-  (filePath,contents) <- readFirst moduleStr filePaths
+  (filePath,contents) <- readFirst moduleStr filePaths filePaths
   return (map (myRead filePath) . tail . lines $ contents)
 
 -- read function with better error message
@@ -38,8 +38,8 @@ myRead :: (Read a) => String -> String -> a
 myRead file s =  
   case [x | (x,t) <- reads s, ("","") <- lex t] of
     [x] -> x
-    []  -> error ("AuxFile: Cannot parse in .hx file " ++ file ++ " line " ++ s)
-    y   -> error ("AuxFile: Ambiguous parse of .hx file " ++ file)
+    []  -> error ("Interface file: Cannot parse in .hx file " ++ file ++ " line " ++ s)
+    y   -> error ("Interface file: Ambiguous parse of .hx file " ++ file)
 
 -- For given module name (String) and search paths in flags produce all file paths that .hx file may have.
 potentialFilePaths :: Flags -> String -> [FilePath]
@@ -53,21 +53,21 @@ potentialFilePaths flags moduleStr = map (</> modPath) paths
 -- Given a list of filenames, return filename and its content of first file
 -- that was read successfully (intention: other files may not exist)
 
-readFirst :: String -> [FilePath] -> IO (FilePath,String)
-readFirst modStr [] = do
-  hPutStr stderr ("Fail: .hx file for module " ++ modStr ++ "not found. Give path with -I or -P.") 
+readFirst :: String -> [FilePath] -> [FilePath] -> IO (FilePath,String)
+readFirst modStr [] paths = do
+  hPutStr stderr ("Fail: .hx file for module `" ++ modStr ++ "' not found in " ++ show paths ++ 
+                  ". Give path with -I or -P.\n") 
   exitFailure
-readFirst _ [x] = do 
-  finput <- readFile x
-  return (x,finput)
-readFirst modStr (x:xs) =
+readFirst modStr (x:xs) paths =
   Control.Exception.catch (do finput <- readFile x
                               return (x,finput))
-        (\ y -> (y :: Control.Exception.IOException) `seq` readFirst modStr xs)
+        (\ y -> (y :: Control.Exception.IOException) `seq` readFirst modStr xs paths)
 
 -- `writeAuxFile' writes out the .hx file given this module's complete
--- parse tree.  The .hx file mentions all exported identifiers, both
--- those defined in this module, and those reexported from imports.
+-- parse tree.  The .hx file has an entry for every exported identifier, whether
+-- defined in this module or reexported from imports.
+-- Note that an entry may also contain names that are not exported, e.g. for a type its data constructors
+-- or for a method its class.
 writeAuxFile :: (SrcInfo l, Eq l) => 
                 Flags -> FilePath -> Environment -> Module l -> IO ()
 writeAuxFile flags filePath env mod = 

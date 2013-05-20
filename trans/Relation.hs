@@ -10,7 +10,7 @@
 
 module Relation
   (Relation
-  ,listToRelation,relationToList,emptyRelation,restrictDom,restrictRng
+  ,ascListToRelation,listToRelation,relationToList,emptyRelation,restrictDom,restrictRng
   ,dom,rng,mapDom,mapRng,intersectRelation,unionRelations,unionRelationsWith,unionLocalRelation
   ,minusRelation,partitionDom,applyRelation
   ) where
@@ -22,9 +22,13 @@ import qualified Data.Set as Set
 type Relation a b = Map.Map a (Set.Set b)
 
 -- pre-condition: input list is in ascending order in first component
+ascListToRelation :: (Ord a, Ord b) => [(a,b)] -> Relation a b
+ascListToRelation xs = 
+  Map.fromAscListWith (Set.union) (map (\(x,y) -> (x,Set.singleton y)) xs)
+
 listToRelation :: (Ord a, Ord b) => [(a,b)] -> Relation a b
 listToRelation xs = 
-  Map.fromAscListWith (Set.union) (map (\(x,y) -> (x,Set.singleton y)) xs)
+  Map.fromListWith (Set.union) (map (\(x,y) -> (x,Set.singleton y)) xs)
 
 -- post-condition: output list is in ascending order in first component
 relationToList :: Relation a b -> [(a,b)]

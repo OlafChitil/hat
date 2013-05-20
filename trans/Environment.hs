@@ -23,7 +23,6 @@ import Relation
 import Data.Maybe (fromMaybe,fromJust)
 import Data.List (nubBy)
 
-
 -- The following types for representing Entities are unnecessarily complicated and bizarr.
 -- However, their Show instances are used in the hx-files, and hence any type changes
 -- would mean changing the hx-file format and thus rebooting Hat from scratch.
@@ -196,8 +195,12 @@ declEnv tracing _ (DataDecl _ ts _ declHead qualConDecls _) =
             , (Environment.Con (toTypeSort ts) (getId name) (getId consName)
               ,Value {args = getArityFromConDecl conDecl 
                      ,fixity = Def, priority = 9
-                     ,letBound = True, traced = True}))
-             | conDecl <- conDecls, let consName = getConstructorFromConDecl conDecl])
+                     ,letBound = True, traced = tracing}))
+             | conDecl <- conDecls, let consName = getConstructorFromConDecl conDecl] ++
+           [(fieldName
+            , (Field (getId name) (getId fieldName)
+              ,Value {args = 1, fixity = Def, priority = 9, letBound = True, traced = tracing}))
+            | fieldName <- fieldNames])
   where
   name = declHeadName declHead
   conDecls = map getConDeclFromQualConDecl qualConDecls
@@ -368,7 +371,7 @@ filterExportSpec env eSpec = unionRelations [mSpec, mSub]
 -- Assumes that list is in ascending order without duplicate names.
 listToHxEnvironment :: [Entity] -> HxEnvironment
 listToHxEnvironment =
-  Relation.listToRelation . map (\(id,aux) -> (identifierToName id, (id,aux)))
+  Relation.ascListToRelation . map (\(id,aux) -> (identifierToName id, (id,aux)))
 
 hxEnvironmentToList :: HxEnvironment -> [Entity]
 hxEnvironmentToList = Set.toAscList . Relation.rng
