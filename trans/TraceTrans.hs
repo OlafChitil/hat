@@ -24,16 +24,20 @@ import Data.Char (digitToInt,isAlpha)
 import Data.Ratio (numerator,denominator)
 import Data.Set (Set)
 import qualified Data.Set as Set
-
+import Relation (emptyRelation,unionLocalRelation)
 import Environment (Environment
                    ,TySynBody(TApp,TFun,THelper,TVar),TyCls(Ty,Cls,Syn)
                    ,arity,isLambdaBound,isTracedQName,mutateLetBound
                    ,fixPriority
                    ,clsTySynInfo,isExpandableTypeSynonym,typeSynonymBody
-                   ,nameTransTySynHelper,expandTypeSynonym)
+                   ,nameTransTySynHelper,expandTypeSynonym
+                   ,maybeBindsEnv)
 import Wired
 import SynHelp
 import Derive (derive)
+
+import Environment (prettyEnv)
+import Debug.Trace
 
 -- ----------------------------------------------------------------------------
 -- central types
@@ -61,7 +65,7 @@ traceTrans ::
   Module SrcSpanInfo -> 
   Module SrcSpanInfo  -- some srcSpanInfo will be fake
 traceTrans moduleFilename tracing env
-  (Module span maybeModuleHead modulePragmas impDecls decls) =
+  mod@(Module span maybeModuleHead modulePragmas impDecls decls) =
   Module span (fmap (tModuleHead env declsExported) maybeModuleHead) 
     (map tModulePragma modulePragmas) 
     (tImpDecls env impDecls)
@@ -73,8 +77,7 @@ traceTrans moduleFilename tracing env
       map (defNameVar env Local Local modTrace) vars ++ 
       (if isTraced tracing then map (defNameSpan modTrace) poss else []))
   where
-  modName = maybe (ModuleName noSpan "Main") (\(ModuleHead _ n _ _) -> n) 
-              maybeModuleHead
+  modName = getModuleNameFromModule mod
   declsExported = decls' ++ conNameDefs ++ globalVarNameDefs ++
                     if isMain modName
                       then [defMain tracing (traceBaseFilename moduleFilename)] 
@@ -429,13 +432,24 @@ defNameSpan moduleTrace span =
 
 -- Encode a span in the trace file
 encodeSpan :: SrcSpanInfo -> [Exp SrcSpanInfo]
-encodeSpan SrcSpanInfo{srcInfoSpan=
-             SrcSpan{srcSpanStartLine=beginRow
-                    ,srcSpanStartColumn=beginCol
-                    ,srcSpanEndLine=endRow
-                    ,srcSpanEndColumn=endCol}} =
+encodeSpan span =
   [litInt noSpan (10000*beginRow + beginCol)
   ,litInt noSpan (10000*endRow + endCol)]
+  where
+  (beginRow,beginCol,endRow,endCol) = getSpan span
+
+-- Obtain start line, column and end line, column
+-- Try to get correct end, as parser gives start of next construct instead.
+getSpan :: SrcSpanInfo -> (Int,Int,Int,Int)
+getSpan SrcSpanInfo{srcInfoSpan=srcSpan,srcInfoPoints=points} =
+  (srcSpanStartLine srcSpan, srcSpanStartColumn srcSpan, erow, ecol)
+  where
+  end = if null points 
+          then srcSpanEnd srcSpan
+          else srcSpanEnd (last points)  
+  correct (row,col) = (row,if col > 0 then col-1 else col) 
+  (erow,ecol) = correct end          
+                     
 -- ----------------------------------------------------------------------------
 -- Abstract data type for keeping track of constants introduced by the
 -- transformation.
@@ -800,8 +814,9 @@ tCaf env scope tracing l name maybeType rhs maybeBinds =
   ,addVar l name emptyModuleConsts `withLocal` 
      (rhsConsts `merge` bindsConsts))
   where
-  (rhs', rhsConsts) = tRhs env tracing True failContinuation rhs
-  (maybeBinds', bindsConsts) = tMaybeBinds env tracing maybeBinds
+  env2 = env `unionLocalRelation` maybeBindsEnv (isTraced tracing) env maybeBinds
+  (rhs', rhsConsts) = tRhs env2 tracing True failContinuation rhs
+  (maybeBinds', bindsConsts) = tMaybeBinds env2 tracing maybeBinds
   smartExpLet :: Maybe (Binds SrcSpanInfo) -> Exp SrcSpanInfo -> Exp SrcSpanInfo
   smartExpLet Nothing exp = exp
   smartExpLet (Just binds) exp = Let noSpan binds exp
@@ -965,8 +980,9 @@ tMatch env tracing cr funName contExp (Match l _ pats rhs maybeBinds) =
   where
   varFun = Var l (UnQual l nameFun)
   (pats', numericLitInfos) = tPats pats
-  (rhs', rhsConsts) = tRhs env tracing cr contExp rhs
-  (maybeBinds', bindsConsts) = tMaybeBinds env tracing maybeBinds
+  (rhs', rhsConsts) = tRhs env2 tracing cr contExp rhs
+  env2 = env `unionLocalRelation` maybeBindsEnv (isTraced tracing) env maybeBinds
+  (maybeBinds', bindsConsts) = tMaybeBinds env2 tracing maybeBinds
   Just (cond, bindings, argvars, argpats) = numericLitInfos
   (cond', condConsts) = tExp env tracing False cond
   (decl', declConsts) = tDecls env Local tracing bindings
@@ -2312,22 +2328,14 @@ showsEncodeSpan :: SrcSpanInfo -> ShowS
 showsEncodeSpan span = shows beginRow . ('v':) . shows beginColumn . ('v':) 
   . shows endRow  . ('v':) . shows endColumn
   where
-  beginRow = srcSpanStartLine srcSpan
-  beginColumn = srcSpanStartColumn srcSpan
-  endRow = srcSpanEndLine srcSpan
-  endColumn = srcSpanEndColumn srcSpan
-  srcSpan = srcInfoSpan span
+  (beginRow,beginColumn,endRow,endColumn) = getSpan span
 
 showsSymEncodeSpan :: SrcSpanInfo -> ShowS
 showsSymEncodeSpan span = 
   \xs -> numToSym (show beginRow) ++ '=' : numToSym (show beginColumn) ++ '=' 
     : numToSym (show endRow) ++ '=' : numToSym (show endColumn) ++ xs 
   where
-  beginRow = srcSpanStartLine srcSpan
-  beginColumn = srcSpanStartColumn srcSpan
-  endRow = srcSpanEndLine srcSpan
-  endColumn = srcSpanEndColumn srcSpan
-  srcSpan = srcInfoSpan span
+  (beginRow,beginColumn,endRow,endColumn) = getSpan span
 
 prefixName :: UpdId i => Char -> Char -> i -> i
 prefixName c d = updateId update

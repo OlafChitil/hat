@@ -5,6 +5,7 @@ module Environment
   (Environment,Identifier,AuxiliaryInfo,Entity
   ,TySynBody(TApp,TFun,THelper,TVar),TyCls(Ty,Cls,Syn)
   ,globalEnv,prettyEnv
+  ,declsEnv,maybeBindsEnv
   ,arity,isLambdaBound,isTracedQName,mutateLetBound,fixPriority, hasPriority
   ,clsTySynInfo,isExpandableTypeSynonym,typeSynonymBody
   ,nameTransTySynHelper,expandTypeSynonym
@@ -128,6 +129,13 @@ globalEnv tracing mod importEnv = env
 -- Take complete environment of module for lookups (cycle)
 moduleDefines :: SrcInfo l => Bool -> Environment -> Module l -> Environment
 moduleDefines tracing fullEnv (Module _ _ _ _ decls) = declsEnv tracing fullEnv decls
+
+maybeBindsEnv :: SrcInfo l => Bool -> Environment -> Maybe (Binds l) -> Environment
+maybeBindsEnv tracing env = maybe emptyRelation (bindsEnv tracing env)
+
+bindsEnv :: SrcInfo l => Bool -> Environment -> Binds l -> Environment
+bindsEnv tracing env (BDecls _ decls) = declsEnv tracing env decls
+bindsEnv _ _ (IPBinds l _) = notSupported l "binding group for implicit parameters"
 
 -- Note that a fixity or type signature definition also yield an entity in the environment.
 -- Such an entity needs to be merged with its main entity.

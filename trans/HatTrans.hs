@@ -68,14 +68,14 @@ main = do
 
   dumpIntermediate (sIBound flags) "Top-level environment of module" (prettyEnv env)
   
-{-
   {- Actual tracing transformation. -}
   let outputAST = implicitlyImportPreludeBasic flags 
-                    (traceTrans (sSourceFile flags) (if sDbgTrusted flags then Trusted else Traced) env moduleAST3)
+                    (traceTrans (sSourceFile flags)
+                      (if sDbgTrusted flags then Trusted else Traced) env moduleAST3)
 
   {- Write result file and finish. -}
   writeFile (sHatTransFile flags) (pretty outputAST)
--}
+
   putStrLn ("Wrote " ++ sHatTransFile flags)
   exitWith (ExitSuccess)
 

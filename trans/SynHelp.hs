@@ -73,14 +73,12 @@ fieldDeclNames (FieldDecl _ names _) = names
 -- Build n-ary application
 -- pre-condition: list is non-empty
 appN :: [Exp l] -> Exp l
-appN [e] = e
-appN (e:es) = App (ann e) e (appN es)
+appN = foldl1 (\e1 e2 -> App (ann e1) e1 e2)
 
 -- Build n-ary type application
 -- pre-condiiton: list is non-empy
 tyAppN :: [Type l] -> Type l
-tyAppN [t] = t
-tyAppN (t:ts) = TyApp (ann t) t (tyAppN ts)
+tyAppN = foldl1 (\t1 t2 -> TyApp (ann t1) t1 t2)
 
 litInt :: (Show i, Integral i) => l -> i -> Exp l
 litInt l i = Lit l (Int l (fromIntegral i) (show i))
