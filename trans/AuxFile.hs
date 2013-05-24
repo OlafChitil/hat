@@ -1,11 +1,11 @@
 module AuxFile (readAuxFiles,writeAuxFile) where
 
 import Flags(Flags,sIncludes,sPreludes,sDbgTrusted)
-import Environment(Environment,Entity,exports,imports,hxEnvironmentToList,listToHxEnvironment)
+import Environment(Environment,Entity,HxEntity,exports,imports,hxEnvironmentToList,listToHxEnvironment)
 import Relation(unionRelations)
 import Language.Haskell.Exts.Annotated
   (Module(..),ModuleHead(..),ExportSpecList(..),ExportSpec(..)
-  ,ImportDecl(..),ModuleName(..),QName(..),SrcInfo)
+  ,ImportDecl(..),ModuleName(..),QName(..),SrcSpanInfo)
 import SynHelp (mkQName,Id(getId),getModuleNameFromModule)
 import System.FilePath(FilePath,addExtension,pathSeparator,(</>))
 import System.IO(stderr,hPutStr)
@@ -27,7 +27,7 @@ importEnv flags importDecl = do
 
 -- Read whole content of .hx file of given module, using search paths in flags.
 -- Aborts with error if no such .hx file is found.
-readAuxFile :: Flags -> ModuleName l -> IO [Entity]
+readAuxFile :: Flags -> ModuleName l -> IO [HxEntity]
 readAuxFile flags (ModuleName l moduleStr) = do
   let filePaths = potentialFilePaths flags moduleStr
   (filePath,contents) <- readFirst moduleStr filePaths filePaths
@@ -68,8 +68,7 @@ readFirst modStr (x:xs) paths =
 -- defined in this module or reexported from imports.
 -- Note that an entry may also contain names that are not exported, e.g. for a type its data constructors
 -- or for a method its class.
-writeAuxFile :: (SrcInfo l, Eq l) => 
-                Flags -> FilePath -> Environment -> Module l -> IO ()
+writeAuxFile :: Flags -> FilePath -> Environment -> Module SrcSpanInfo -> IO ()
 writeAuxFile flags filePath env mod = 
   writeFile filePath 
     ((showString "module " . (getId (getModuleNameFromModule mod) ++) . showChar '\n' .

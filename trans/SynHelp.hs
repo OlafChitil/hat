@@ -302,6 +302,22 @@ instance UpdId (CName l) where
 dropAnn :: Annotated ast => ast l -> ast ()
 dropAnn = fmap (const ())
 
+
+-- bogus span, does not appear in the source
+noSpan :: SrcSpanInfo
+noSpan = noInfoSpan (SrcSpan "" 0 0 0 0)
+
+isNoSpan :: SrcSpanInfo -> Bool
+isNoSpan (SrcSpanInfo (SrcSpan "" _ _ _ _) []) = True
+isNoSpan _ = False
+
+emptySpan :: SrcSpan
+emptySpan = SrcSpan "" 0 0 0 0
+
+isEmptySpan :: SrcSpan -> Bool
+isEmptySpan (SrcSpan "" _ _ _ _) = True
+isEmptySpan _ = False
+
 -- ----------------------------------------------------------------------------
 -- Error for non-supported language features
 
