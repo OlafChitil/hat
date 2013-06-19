@@ -18,6 +18,7 @@ module Flags
   ,sHatAuxFile
   ,sHatTransFile
   ,sSrcDir
+  ,sFixities
   ) where
 
 import System.Console.GetOpt(getOpt,usageInfo,ArgOrder(..),OptDescr(..),ArgDescr(..))
@@ -42,6 +43,7 @@ data Flags = FF
 --v debugging flags - show program / import tables (after each compiler phase)
   ,sParse      :: Bool	-- ast		after parsing
   ,sIBound     :: Bool	-- environment
+  ,sFixities   :: Bool  -- fixity declarations in top-level scope
 
 --v pretty-printing flags
   ,sShowWidth  :: Int   -- width for showing intermediate program
@@ -76,6 +78,9 @@ options =
   ,Option [] ["env"]
      (NoArg (\flags -> flags{sIBound = True}))
      "Show environment that is written to .aux file."
+  ,Option [] ["fixities"]
+     (NoArg (\flags -> flags{sFixities = True}))
+     "Show all fixity declarations in scope."
   ,Option [] ["width"]
      (ReqArg (\w flags -> flags{sShowWidth = if all isDigit w then read w else 80}) "NAT")
      "Width for showing intermediate programs (syntax trees)."
@@ -111,5 +116,6 @@ defaultFlags sourcefile = flags
     ,sWrap       = False
     ,sParse  = False
     ,sIBound = False
+    ,sFixities = False
     ,sShowWidth = 80 
     }

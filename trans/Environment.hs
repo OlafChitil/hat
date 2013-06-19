@@ -13,11 +13,12 @@ module Environment
   ,isExpandableTypeSynonym,typeSynonymBody
   ,nameTransTySynHelper,expandTypeSynonym
   ,imports,exports,hxEnvironmentToList,listToHxEnvironment
-  ,defineNameEnv
+  ,defineNameEnv,env2Fixities
   ) where
 
 import Language.Haskell.Exts.Annotated hiding (Var,Con,Fixity,EVar)
-import qualified Language.Haskell.Exts.Annotated as Syntax (Exp(Var,Con),Fixity,ExportSpec(EVar))
+import qualified Language.Haskell.Exts.Annotated as Syntax (Exp(Var,Con),Fixity(Fixity),ExportSpec(EVar))
+import qualified Language.Haskell.Exts as Short(Assoc(..),QName(..),Name(..))
 import SynHelp (Id(getId),getQualified,mkQual,qual,isQual,notSupported
                ,tyVarBind2Name,declHeadTyVarBinds,declHeadName,instHeadQName,getArityFromConDecl
                ,getConDeclFromQualConDecl,getConstructorFromConDecl,eqName,mkName
@@ -28,6 +29,7 @@ import qualified Data.Map as Map (singleton,adjust)
 import Relation
 import Data.Maybe (fromMaybe,fromJust)
 import Data.List (nubBy)
+import Data.Char (isAlpha)
 
 import Debug.Trace
 
@@ -314,12 +316,13 @@ declsEnv tracing fullEnv decls = unionRelationsWith mergeSets (map (declEnv trac
   mergeEntities :: Entity -> Entity -> Entity
   mergeEntities e1 e2 
     | isSig e1 = e2
+    | isSig e2 = e1
     | isInfix e1 = e2 {eFixity = eFixity e1, ePriority = ePriority e1}
+    | isInfix e2 = e1 {eFixity = eFixity e2, ePriority = ePriority e2}    
     | (isMethod e1 && isMethod e2) || (isField e1 && isField e2) 
     = e1 {eSrcs = eSrcs e1 ++ eSrcs e2
          ,eFixity = eFixity e1 `mergeFixities` eFixity e2
          ,ePriority = ePriority e1 `mergePriorities` ePriority e2}
-    | isSig e2 || isInfix e2 = mergeEntities e2 e1
     | otherwise = error "Environment.mergeEntities: cannot be merged."
   mergeFixities :: Fixity -> Fixity -> Fixity
   mergeFixities Def f = f
@@ -723,3 +726,22 @@ defineNameEnv scope env defNameVar defNameCon = concatMap define nameEntries
     | isMethod e =
     map (\l -> defNameVar (fmap (const l) name) (eFixPriority e) (eArity e) Global Local) (eSrcs e)
     | otherwise = []  -- for types and classes
+
+
+-- ----------------
+-- Obtain all fixities from a given enviroment, suitable for fixing the parse tree.
+-- Don't include identifiers that just have default fixity.
+env2Fixities :: Environment -> [Syntax.Fixity]
+env2Fixities env = 
+  map makeFixity . filter (\entity -> isExp entity && eFixity entity /= Def) . Set.toAscList . rng $ env
+  where
+  makeFixity :: Entity -> Syntax.Fixity
+  makeFixity e = Syntax.Fixity (transFixity (eFixity e)) (ePriority e) (Short.UnQual (mkName (eId e)))
+    where
+    transFixity :: Fixity -> Short.Assoc
+    transFixity None = Short.AssocNone
+    transFixity L = Short.AssocLeft
+    transFixity R = Short.AssocRight
+    transFixity _ = error "Environment.env2Fixities: unexpected associativity."
+    mkName :: String -> Short.Name
+    mkName s = if isAlpha (head s) then Short.Ident s else Short.Symbol s

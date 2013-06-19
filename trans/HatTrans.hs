@@ -14,15 +14,15 @@ import System.Directory(doesDirectoryExist,createDirectory)
 import System.IO.Error(isAlreadyExistsError,ioError)
 import qualified Control.Exception(catch)
 import Control.Monad(when)
-import Flags(processArgs,Flags,sSourceFile,sParse,sPrelude,sPreludes,sIncludes,sDbgTrusted
+import Flags(processArgs,Flags,sSourceFile,sParse,sFixities,sPrelude,sPreludes,sIncludes,sDbgTrusted
             ,sWrap,sIBound,sShowWidth,sHatAuxFile,sHatTransFile,sSrcDir)
 import System.FilePath(FilePath(..),splitDirectories,combine)
 import Language.Haskell.Exts.Annotated(ParseMode(..),ParseResult,fromParseResult,parseFileWithMode
-                                      ,Module(..),ImportDecl(..),ModuleName(..),Extension(..))
-import Language.Haskell.Exts.Fixity(Fixity,preludeFixities)
+                                      ,Module(..),ImportDecl(..),ModuleName(..),Extension(..),applyFixities)
+import Language.Haskell.Exts.Fixity(Fixity)
 import Language.Haskell.Exts.Pretty(prettyPrintStyleMode,Style(..),style,PPHsMode,defaultMode)
 import Wrap(wrap)
-import Environment(Environment,globalEnv,prettyEnv,exports)
+import Environment(Environment,globalEnv,prettyEnv,exports,env2Fixities)
 import TraceTrans(Tracing(Traced,Trusted),traceTrans)
 import AuxFile(readAuxFiles,writeAuxFile)
 
@@ -38,7 +38,7 @@ main = do
                             ,extensions = [ForeignFunctionInterface]
                             ,ignoreLanguagePragmas = False
                             ,ignoreLinePragmas = True
-                            ,fixities = Just preludeFixities} 
+                            ,fixities = Nothing} 
   parseResult <- parseFileWithMode parseMode filePath
   let moduleAST = fromParseResult parseResult
   dumpIntermediate (sParse flags) "Parse" (pretty moduleAST)
@@ -55,7 +55,6 @@ main = do
 
   {- Add import of Prelude if not done explicitly. -}
   let moduleAST3 = implicitlyImportPrelude flags moduleAST2
-  dumpIntermediate (sParse flags) "post-Prelude" (pretty moduleAST3)
 
   {- Read .aux file of every imported module to produce the complete import environment -}
   importEnv <- readAuxFiles flags moduleAST3
@@ -67,11 +66,20 @@ main = do
   writeAuxFile flags (sHatAuxFile flags) env moduleAST3
 
   dumpIntermediate (sIBound flags) "Top-level environment of module" (prettyEnv env)
+
+  {- Now correct all fixities of expression identifiers. -}
+  let fixities = env2Fixities env
+
+  dumpIntermediate (sFixities flags) "Fixities in scope" (unlines . map show $ fixities)
+
+  moduleAST4 <- applyFixities fixities moduleAST3
   
+  dumpIntermediate (sParse flags) "After fixity corrections" (pretty moduleAST4)
+
   {- Actual tracing transformation. -}
   let outputAST = implicitlyImportPreludeBasic flags 
                     (traceTrans (sSourceFile flags)
-                      (if sDbgTrusted flags then Trusted else Traced) env moduleAST3)
+                      (if sDbgTrusted flags then Trusted else Traced) env moduleAST4)
 
   {- Write result file and finish. -}
   writeFile (sHatTransFile flags) (pretty outputAST)
