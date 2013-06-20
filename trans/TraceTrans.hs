@@ -1072,11 +1072,12 @@ tMatch env tracing cr funName contExp m@(Match l _ pats rhs maybeBinds) =
   envLocal = maybeBindsEnv (isTraced tracing) maybeBinds
   envLambdas = makeAllLambdaBound (patsEnv l (isTraced tracing) pats)
   env2 = (env `unionLocalRelation` envLambdas) `unionLocalRelation` envLocal 
-  varFun = Var l (UnQual l nameFun)
   (pats', numericLitInfos) = tPats pats
   (rhs', rhsConsts) = tRhs env2 tracing cr contExp rhs
   (maybeBinds', bindsConsts) = tMaybeBinds env2 tracing maybeBinds
   -- from here for else branch above:
+  nameFun = nameFunFromSpan l
+  varFun = Var l (UnQual l nameFun)
   Just (qName, cond, bindings, argvars, argpats) = numericLitInfos
   envLocalExtra = declsEnv (isTraced tracing) env2 bindings
   env3 = (env2 `unionLocalRelation` envLocalExtra) `unionLocalRelation` lambdaVarEnv (isTraced tracing) qName
@@ -2417,8 +2418,8 @@ nameSR :: UpdId i => i -> i
 nameSR = prefixName 'p' '%'
 
 -- intermediate function
-nameFun :: Name SrcSpanInfo
-nameFun = Ident noSpan "h"
+nameFunFromSpan :: SrcSpanInfo -> Name SrcSpanInfo
+nameFunFromSpan span = Ident span ('h' : showsEncodeSpan span "n")
 
 -- infinite list of var ids made from one id (for function clauses)
 nameFuns :: UpdId i => i -> [i]
