@@ -33,7 +33,8 @@ import Environment (Environment,Scope(..),isLocal
                    ,fixPriority
                    ,isExpandableTypeSynonym,typeSynonymBody
                    ,nameTransTySynHelper,expandTypeSynonym
-                   ,declsEnv,moduleDefines,maybeBindsEnv,bindsEnv,defineNameEnv)
+                   ,declsEnv,moduleDefines,maybeBindsEnv,bindsEnv,patsEnv,defineNameEnv
+                   ,lambdaVarEnv,makeAllLambdaBound)
 import Wired
 import SynHelp
 import Derive (derive)
@@ -1033,7 +1034,10 @@ namePat pat var@(PVar l name) = (PAsPat l name pat,var)
 -- Transform such literals and n+k patterns into conditions in guards.
 -- Have to be careful to preserve left-to-right pattern matching,
 -- e.g. f 1 True = ... -> f x True | x == 1 = ... is wrong.
+-- Correct: f 1 True = M -> f v1 v2 | v1 == 1 = h v2 where h True = M
 -- Assume that ~ has been removed before.
+-- Cannot remove numeric patterns in a separate, earlier phase, because
+-- need to handle continuation correctly when already a guard exists.
 -- Definition similar to tGuardedExps
 tMatch :: Environment ->
           Tracing ->
@@ -1042,7 +1046,7 @@ tMatch :: Environment ->
           ContExp SrcSpanInfo -> -- continuation in case of match failure
           Match SrcSpanInfo ->
           (Match SrcSpanInfo, ModuleConsts)
-tMatch env tracing cr funName contExp (Match l _ pats rhs maybeBinds) =
+tMatch env tracing cr funName contExp m@(Match l _ pats rhs maybeBinds) =
   if isNothing numericLitInfos
     then (Match l funName pats' (UnGuardedRhs l rhs') maybeBinds'
          ,moduleConstsEnv Local envLocal `moduleConstsUnion` bindsConsts `moduleConstsUnion` rhsConsts)
@@ -1066,15 +1070,18 @@ tMatch env tracing cr funName contExp (Match l _ pats rhs maybeBinds) =
          -- declsConsts contains locations of the bound variables
   where
   envLocal = maybeBindsEnv (isTraced tracing) maybeBinds
-  env2 = env `unionLocalRelation` envLocal
+  envLambdas = makeAllLambdaBound (patsEnv l (isTraced tracing) pats)
+  env2 = (env `unionLocalRelation` envLambdas) `unionLocalRelation` envLocal 
   varFun = Var l (UnQual l nameFun)
   (pats', numericLitInfos) = tPats pats
   (rhs', rhsConsts) = tRhs env2 tracing cr contExp rhs
   (maybeBinds', bindsConsts) = tMaybeBinds env2 tracing maybeBinds
   -- from here for else branch above:
-  Just (cond, bindings, argvars, argpats) = numericLitInfos
-  (cond', condConsts) = tExp env tracing False cond
-  (decl', declConsts) = tDecls env Local tracing bindings
+  Just (qName, cond, bindings, argvars, argpats) = numericLitInfos
+  envLocalExtra = declsEnv (isTraced tracing) env2 bindings
+  env3 = (env2 `unionLocalRelation` envLocalExtra) `unionLocalRelation` lambdaVarEnv (isTraced tracing) qName
+  (cond', condConsts) = tExp env3 tracing False cond
+  (decl', declConsts) = tDecls env3 Local tracing bindings
   def = FunBind l [Match l nameFun (mpats'++[patParent]) mrhs' mmdecls'
                   ,Match l nameFun 
                      (replicate funArity (PWildCard l) ++ [patParent])
@@ -1082,7 +1089,7 @@ tMatch env tracing cr funName contExp (Match l _ pats rhs maybeBinds) =
                      Nothing]
   funArity = length argpats
   (Match _ _ mpats' mrhs' mmdecls', matchConsts) =
-    tMatch env tracing cr funName contExp 
+    tMatch env3 tracing cr funName contExp 
       (Match l nameFun argpats rhs maybeBinds)
 
 -- Here failure means a failed test that can be observed in the trace,
@@ -1668,6 +1675,10 @@ tExpA env tracing cr (Tuple l exps) [] [] =
 tExpA env tracing cr (TupleSection l maybeExps) ls es =
   -- desugar tuple section into lambda
   tExpA env tracing cr (desugarTupleSection l maybeExps) ls es
+tExpA env tracing cr (List l []) [] [] = -- just the empty list, transform efficiently
+  (appN [Var noSpan (qNameCon noSpan 0),mkExpSR l tracing,expParent
+        ,Con noSpan (qNameConNil noSpan),Var noSpan (qNameTraceInfoConNil noSpan)]
+  ,moduleConstsEmpty)
 tExpA env tracing cr (List l exps) [] [] =
   -- use special combinator that transforms list at runtime;
   -- desugaring and subsequent transformation would lead to large program.
@@ -1997,21 +2008,22 @@ desugarListComprehension l exp qualStmts =
 tPats :: [Pat SrcSpanInfo] ->
          ([Pat SrcSpanInfo]    -- transformed patterns
          ,Maybe       -- only if there is a numeric pattern (k or n+k)
-           (Exp SrcSpanInfo    -- test for the numeric pattern (e.g. x==k)
+           (QName SrcSpanInfo   -- new name for numeric pattern
+           ,Exp SrcSpanInfo     -- test for the numeric pattern (e.g. x==k)
            ,[Decl SrcSpanInfo]  -- binding for n if there is an n+k pattern
            ,[Exp SrcSpanInfo]   -- variables inserted in pattern after num pat
            ,[Pat SrcSpanInfo])) -- original patterns after num pat
 tPats = mapCombinePats tPat
 
 mapCombinePats :: (Pat SrcSpanInfo ->
-      (Pat SrcSpanInfo, Maybe (c,d,[Exp SrcSpanInfo],[Pat SrcSpanInfo]))) ->
+      (Pat SrcSpanInfo, Maybe (a,c,d,[Exp SrcSpanInfo],[Pat SrcSpanInfo]))) ->
       [Pat SrcSpanInfo] ->
-      ([Pat SrcSpanInfo], Maybe (c,d,[Exp SrcSpanInfo],[Pat SrcSpanInfo]))
+      ([Pat SrcSpanInfo], Maybe (a,c,d,[Exp SrcSpanInfo],[Pat SrcSpanInfo]))
 mapCombinePats f [] = ([], Nothing)
 mapCombinePats f (x:xs) =
   case f x of
     (pat, Nothing) -> (pat:pats, numPatInfos)
-    (pat, Just (e,d,vs,ps)) -> (pat:xvps, Just (e,d,vs++xves,ps++xs))
+    (pat, Just (i,e,d,vs,ps)) -> (pat:xvps, Just (i,e,d,vs++xves,ps++xs))
   where
   (pats, numPatInfos) = mapCombinePats f xs
   xvps = map patToVar xs
@@ -2028,11 +2040,14 @@ patToVar pat = PVar l (nameFromSpan l)
 pVarToVar :: Pat l -> Exp l
 pVarToVar (PVar l name) = Var l (UnQual l name)
 
-
+-- Transform a pattern.
+-- In particular handle numeric subpatterns, i.e. k and n+k.
+-- Also create environment for occuring variables assuming they are
+-- lambda-bound, except where declaration with let-binding created.
 tPat :: Pat SrcSpanInfo ->
         (Pat SrcSpanInfo
-        ,Maybe (Exp SrcSpanInfo, [Decl SrcSpanInfo], [Exp SrcSpanInfo], 
-                [Pat SrcSpanInfo]))
+        ,Maybe (QName SrcSpanInfo, Exp SrcSpanInfo, [Decl SrcSpanInfo]
+               ,[Exp SrcSpanInfo], [Pat SrcSpanInfo]))
 tPat (PVar l name) = (PVar l (nameTransLambdaVar name), Nothing)
 tPat (PLit _ lit@(Char l c str)) = 
   (wrapPat (PLit l lit) (PWildCard l), Nothing)
@@ -2043,7 +2058,8 @@ tPat (PLit _ (String l s str)) =
   mkPatChar c = PLit l (Char l c (show c)) 
 tPat (PLit _ lit@(Int l int str)) =
   (PVar l (nameTransLambdaVar nameNew)
-  ,Just (App l (App l (mkExpPreludeEqualEqual l)
+  ,Just (UnQual l nameNew
+        ,App l (App l (mkExpPreludeEqualEqual l)
                       (Var l (UnQual l nameNew))) 
                (Lit l lit)
         ,[],[],[]))
@@ -2051,7 +2067,8 @@ tPat (PLit _ lit@(Int l int str)) =
   nameNew = nameFromSpan l
 tPat (PLit _ lit@(Frac l rat str)) =
   (PVar l (nameTransLambdaVar nameNew)
-  ,Just (App l (App l (mkExpPreludeEqualEqual l) 
+  ,Just (UnQual l nameNew
+        ,App l (App l (mkExpPreludeEqualEqual l) 
                       (Var l (UnQual l nameNew))) 
                (Lit l lit)
         ,[],[],[]))
@@ -2069,7 +2086,8 @@ tPat (PNeg l _) =
   notSupported l "negated pattern"
 tPat (PNPlusK l n k) =
   (PVar l (nameTransLambdaVar nameNew)
-  ,Just (App l (App l (mkExpPreludeGreaterEqual l)
+  ,Just (UnQual l nameNew
+        ,App l (App l (mkExpPreludeGreaterEqual l)
                       varNew)
                litK
         ,[PatBind l (PVar l n) Nothing 
@@ -2092,6 +2110,8 @@ tPat (PTuple l pats) =
   tPat (PApp l (Special l (TupleCon l Boxed arity)) pats)
   where
   arity = length pats
+tPat (PList l []) = -- just empty list constructor
+  (wrapPat (PApp l (qNameConNil l) []) (PWildCard l), Nothing)
 tPat (PList l pats) =
   tPat (mkPatList l pats)
 tPat (PParen l pat) = 
@@ -2149,8 +2169,8 @@ tPat (PBangPat l pat) =
 -- Rename field labels and process patterns.
 tPatFields :: [PatField SrcSpanInfo] -> 
               ([PatField SrcSpanInfo]
-              ,Maybe (Exp SrcSpanInfo, [Decl SrcSpanInfo], [Exp SrcSpanInfo], 
-                      [Pat SrcSpanInfo]))
+              ,Maybe (QName SrcSpanInfo, Exp SrcSpanInfo, [Decl SrcSpanInfo]
+                     ,[Exp SrcSpanInfo], [Pat SrcSpanInfo]))
 tPatFields patFields =
   (patFields', numInfos)
   where

@@ -35,7 +35,7 @@ main = do
   {- parse source code -}
   let filePath = sSourceFile flags
   let parseMode = ParseMode {parseFilename = filePath
-                            ,extensions = [ForeignFunctionInterface]
+                            ,extensions = [ForeignFunctionInterface,NPlusKPatterns]
                             ,ignoreLanguagePragmas = False
                             ,ignoreLinePragmas = True
                             ,fixities = Nothing} 

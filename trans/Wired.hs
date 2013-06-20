@@ -204,6 +204,17 @@ qNamePreludeTrue = qNamePreludeIdent "True"
 qNamePreludeFalse :: l -> QName l
 qNamePreludeFalse = qNamePreludeIdent "False"
 
+
+-- For special symbols
+-- lists:
+
+qNameConNil :: l -> QName l
+qNameConNil l = Qual l (tracingModuleNameShort l) (Ident l "Nil")
+
+qNameTraceInfoConNil :: l -> QName l
+qNameTraceInfoConNil l = Qual l (tracingModuleNameShort l) (Ident l "aNil")
+
+
 -- Names from original (NotHat) prelude:
 
 qNamePreludeGtGt :: l -> QName l

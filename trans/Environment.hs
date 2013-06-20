@@ -8,12 +8,12 @@ module Environment
   ,TySynBody(TApp,TFun,THelper,TVar)
   ,Scope(Local,Global),isLocal
   ,globalEnv,moduleDefines,prettyEnv
-  ,declsEnv,maybeBindsEnv,bindsEnv
+  ,declsEnv,maybeBindsEnv,bindsEnv, patsEnv
   ,arity,isLambdaBound,isTracedQName,mutateLetBound,fixPriority, hasPriority
   ,isExpandableTypeSynonym,typeSynonymBody
   ,nameTransTySynHelper,expandTypeSynonym
   ,imports,exports,hxEnvironmentToList,listToHxEnvironment
-  ,defineNameEnv,env2Fixities
+  ,defineNameEnv,env2Fixities,makeAllLambdaBound, lambdaVarEnv
   ) where
 
 import Language.Haskell.Exts.Annotated hiding (Var,Con,Fixity,EVar)
@@ -270,6 +270,9 @@ isClassId id e = isClass e && id == eId e
 -- -----------------------------------------------------------------------------------
 -- Obtain an environment from parts of a syntax tree.
 
+lambdaVarEnv :: Bool -> QName SrcSpanInfo -> Environment
+lambdaVarEnv tracing id = singleton ((eVar (getId id) (ann id) 0 tracing) {eLetBound=False})
+
 -- Create global environment of this module, given whether it is tracing (or trusted) and
 -- the complete import environment.
 globalEnv :: Bool -> Module SrcSpanInfo -> Environment -> Environment
@@ -444,6 +447,9 @@ matchEnv l tracing (Match _ name pats _ _) =
   singleton (eVar (getId name) l (length pats) tracing)
 matchEnv l tracing (InfixMatch _ pat name pats rhs maybeBinds) =
   matchEnv l tracing (Match l name (pat:pats) rhs maybeBinds)
+
+patsEnv :: SrcSpanInfo -> Bool -> [Pat SrcSpanInfo] -> Environment
+patsEnv l tracing pats = unionRelations (map (patEnv l tracing) pats)
 
 patEnv :: SrcSpanInfo -> Bool -> Pat SrcSpanInfo -> Environment
 patEnv l tracing (PVar _ name) = 
@@ -691,6 +697,9 @@ mutateLetBound env name =
   where
   mutate :: Entity -> Entity
   mutate e = if isVar e then e {eLetBound = True, eArity = 0} else e
+
+makeAllLambdaBound :: Environment -> Environment
+makeAllLambdaBound = mapRng (\e -> e {eLetBound = False})
 
 -- Obtain combined fixity and priority
 eFixPriority :: Entity -> Int

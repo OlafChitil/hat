@@ -231,11 +231,11 @@ fromTuple2 f g h (x,y) =
     (wrapForward h (f h x)) (wrapForward h (g h y))
 
 
-data List a = Cons (R a) (R (List a)) | List  
-  -- type constructor and empty list constructor need to have same name,
-  -- because transformation doesn't distinguish between the two
+data List a = Cons (R a) (R (List a)) | Nil  
+  -- type constructor and empty list constructor don't need to have same name,
+  -- old transformation didn't distinguish between the two
 aCons = mkConstructor tPrelude 0 0 21 2 ":"
-aList = mkConstructor tPrelude 0 0 3 0 "[]"
+aNil = mkConstructor tPrelude 0 0 3 0 "[]"
 
 -- ----------------------------------------------------------------------------
 -- Main combinator
