@@ -766,7 +766,7 @@ tPatBind env scope tracing l (PAsPat _ name pat) maybeType rhs maybeBinds =
   -- can break off simple case
   (cafDecls ++ patDecls, cafConsts `moduleConstsUnion` patConsts)
   where
-  envLet = mutateLetBound env name
+  envLet = mutateLetBound env name -- needed at all?
   (cafDecls, cafConsts) = 
     tCaf envLet scope tracing l name maybeType rhs maybeBinds
   (patDecls, patConsts) = tDecl envLet scope tracing
@@ -784,14 +784,13 @@ tPatBind env scope tracing l pat maybeType rhs maybeBinds =
   --           _  -> fail noPos parent
   (map (useDef tracing) patNames ++
    map (projDef scope tracing patTuple 
-          (Var l (UnQual l resultTraceName)) firstName) patNames ++
+          (Var l (UnQual l resultTraceName)) patName resultTraceName) patNames ++
    [PatBind l (PVar l patName) Nothing (UnGuardedRhs l (
      (Case l exp'
        [Alt l pat'' (UnGuardedAlt l expTuple) Nothing
        ,Alt l (PWildCard l) (UnGuardedAlt l (mkFailExp expParent)) Nothing])))
      Nothing]
-  ,altConsts)
-  -- ,foldr (addVar l) (moduleConstsEmpty `withLocal` altConsts) patNames)
+  ,foldr moduleConstsUnion altConsts (map (moduleConstsSpan . ann) patNames))
   where
   firstName = head patNames
   patNames = map (\(PVar _ name) -> name) patVars
@@ -801,14 +800,16 @@ tPatBind env scope tracing l pat maybeType rhs maybeBinds =
   patTuple = PTuple l (map (PVar l) (resultTraceName : patNames'))
   patNames' = map (\(PVar _ name) -> name) patVars'
   (patVars', Nothing) = tPats patVars
-  -- Nothing means that we do not supported numeric patterns (k and n+k)
+  -- Nothing means that we do not support numeric patterns (k and n+k)
   patVars = getPatVars pat
-  pat'' = case pat' of
-            PApp l r [v, _] ->
-              PApp l r [v, PVar l resultTraceName]
+  pat'' = patAddReference resultTraceName pat'
   (Match _ _ [pat'] (UnGuardedRhs _ exp') maybeBinds', altConsts) =
     tMatch env tracing False undefined failContinuation 
       (Match l firstName [pat] rhs maybeBinds)
+
+patAddReference :: Name l -> Pat l -> Pat l
+patAddReference n (PParen l pat) = PParen l (patAddReference n pat)
+patAddReference n (PApp l r [v,_]) = PApp l r [v,PVar l n]
   
 -- Build the first set of definitions for pattern bindings.
 useDef :: Tracing -> Name SrcSpanInfo -> Decl SrcSpanInfo
@@ -826,15 +827,15 @@ useDef tracing name =
 
 -- Caf for one variable in a pattern binding
 projDef :: Scope -> Tracing -> Pat SrcSpanInfo -> Exp SrcSpanInfo -> 
-           Name SrcSpanInfo -> Name SrcSpanInfo -> Decl SrcSpanInfo
-projDef scope tracing patTuple expVarResultTrace firstName name =
+           Name SrcSpanInfo -> Name SrcSpanInfo -> Name SrcSpanInfo -> Decl SrcSpanInfo
+projDef scope tracing patTuple expVarResultTrace patName resultTraceName name =
   PatBind l (PVar l (nameShare name)) Nothing 
     (UnGuardedRhs l (appN 
       [mkExpConstDef tracing
       ,expParent
       ,Var l (UnQual l (nameTraceInfoVar l scope name))
       ,Lambda l [PWildCard l]
-         (Case l (Var l (UnQual l (nameTraceShared l firstName)))
+         (Case l (Var l (UnQual l patName))
            [Alt l patTuple (UnGuardedAlt l 
              (if isLocal scope && tracing == Trusted
                 then varLambdaName
@@ -848,7 +849,6 @@ projDef scope tracing patTuple expVarResultTrace firstName name =
   where
   l = ann name
   varLambdaName = Var l (UnQual l (nameTransLambdaVar name))
-  resultTraceName = nameTrace2 firstName
 
 -- Extract all variables from a pattern, left-to-right
 getPatVars :: Pat SrcSpanInfo -> [Pat SrcSpanInfo]
