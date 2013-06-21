@@ -314,8 +314,7 @@ tEntityVar :: SrcInfo l => Environment -> QName l -> [QName l]
 tEntityVar env qname = 
   nameTransLetVar qname : 
   case arity env qname of
-    Just a | a > 0 -> [nameTraceInfoGlobalVar qname, nameWorker qname, 
-                      nameShare qname]            
+    Just a | a > 0 -> [nameTraceInfoGlobalVar qname, nameWorker qname]            
     Just (-1)      -> [nameShare qname]
     _              -> []
 
@@ -2503,7 +2502,7 @@ mkExpSR l tracing =
 
 mkExpProjection :: Exp SrcSpanInfo -> Exp SrcSpanInfo -> Exp SrcSpanInfo
 mkExpProjection sr e =
-  appN [expProjection, expParent, e]
+  appN [expProjection, sr, expParent, e]
 
 mkExpApplyArity :: Tracing ->
                    Exp SrcSpanInfo -> -- location of application
