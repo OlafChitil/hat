@@ -9,7 +9,7 @@ module Environment
   ,Scope(Local,Global),isLocal
   ,globalEnv,moduleDefines,prettyEnv
   ,declsEnv,maybeBindsEnv,bindsEnv, patsEnv
-  ,arity,isLambdaBound,isTracedQName,mutateLetBound,fixPriority, hasPriority
+  ,arity,isLambdaBound,isTracedQName,fixPriority, hasPriority
   ,isExpandableTypeSynonym,typeSynonymBody
   ,nameTransTySynHelper,expandTypeSynonym
   ,imports,exports,hxEnvironmentToList,listToHxEnvironment
@@ -461,7 +461,8 @@ patEnv l tracing (PTuple _ pats) = unionRelations . map (patEnv l tracing) $ pat
 patEnv l tracing (PList _ pats) = unionRelations . map (patEnv l tracing) $ pats
 patEnv l tracing (PParen _ pat) = patEnv l tracing pat
 patEnv l tracing (PRec _ _ patFields) = unionRelations . map (patField l tracing) $ patFields
-patEnv l tracing (PAsPat _ _ pat) = patEnv l tracing pat
+patEnv l tracing (PAsPat _ name pat) = 
+  unionRelations [singleton (eVar (getId name) (ann name) 0 tracing), patEnv l tracing pat]
 patEnv _ _ (PWildCard _) = emptyRelation
 patEnv l tracing (PIrrPat _ pat) = patEnv l tracing pat
 patEnv l tracing (PatTypeSig _ pat _) = patEnv l tracing pat
@@ -687,15 +688,7 @@ isExpandableTypeSynonym env qName = isSyn entity && eNo entity > 0
   where
   entity = lookupTypeEnv env qName
 
--- make given local variable let-bound
--- assumes name is for a local value variable
-mutateLetBound :: Environment -> Name l -> Environment
-mutateLetBound env name = 
-  Map.adjust (Set.map mutate) (UnQual () (dropAnn name)) env
-  where
-  mutate :: Entity -> Entity
-  mutate e = if isVar e then e {eLetBound = True, eArity = 0} else e
-
+-- Assumes all entities of given environment are expression variables.
 makeAllLambdaBound :: Environment -> Environment
 makeAllLambdaBound = mapRng (\e -> e {eLetBound = False})
 

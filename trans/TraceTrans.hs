@@ -29,7 +29,7 @@ import Environment (Environment,Scope(..),isLocal
                    ,TySynBody(TApp,TFun,THelper,TVar)
                    ,lookupExpEnv, lookupTypeEnv, eArity, eNo, eBody, eCons, eFields
                    ,Entity,isClass, isSyn, isType
-                   ,arity,isLambdaBound,isTracedQName,mutateLetBound
+                   ,arity,isLambdaBound,isTracedQName
                    ,fixPriority
                    ,isExpandableTypeSynonym,typeSynonymBody
                    ,nameTransTySynHelper,expandTypeSynonym
@@ -766,10 +766,9 @@ tPatBind env scope tracing l (PAsPat _ name pat) maybeType rhs maybeBinds =
   -- can break off simple case
   (cafDecls ++ patDecls, cafConsts `moduleConstsUnion` patConsts)
   where
-  envLet = mutateLetBound env name -- needed at all?
   (cafDecls, cafConsts) = 
-    tCaf envLet scope tracing l name maybeType rhs maybeBinds
-  (patDecls, patConsts) = tDecl envLet scope tracing
+    tCaf env scope tracing l name maybeType rhs maybeBinds
+  (patDecls, patConsts) = tDecl env scope tracing
     (PatBind l pat maybeType (UnGuardedRhs l (Var l (UnQual l name))) Nothing)
 tPatBind env scope tracing l pat maybeType rhs maybeBinds =
   -- unfortunately we cannot transform a pattern binding into another pattern
