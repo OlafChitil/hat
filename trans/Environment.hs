@@ -717,7 +717,7 @@ defineNameEnv scope env defNameVar defNameCon = concatMap define nameEntries
   hxEnv = getQualified `mapDom` env
   nameEntries = relationToList hxEnv
   define (name, e) 
-    | isVar e =
+    | isVar e && eLetBound e =
     [defNameVar (fmap (const (eSrc e)) name) (eFixPriority e) (eArity e) scope scope]
     | isCon e =
     [defNameCon (fmap (const (eSrc e)) name) (map (mkName noSpan) (eFields e)) (eFixPriority e) (eArity e)]

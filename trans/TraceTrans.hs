@@ -507,20 +507,20 @@ dropInfo SrcSpanInfo{srcInfoSpan=srcSpan,srcInfoPoints=points} =
   
                      
 -- ----------------------------------------------------------------------------
--- Abstract data type for keeping track of constants introduced by the
--- transformation.
--- Implements sets of spans, defined this-level and local variables, 
--- defined methods and defined constructors (no duplicates)
--- this-level means defined on the currently considered declaration level,
--- local means defined in some declaration local to the current declaration.
--- Variables and constructors come with the span at which they are defined.
--- Pre-condition: a constructor is only added once.
--- A variable with span may be added several times, because
--- the span may be zero. (really?) 
--- Because same span may be used for a variable, an application etc,
--- a position may be added several times. (really?)
--- Maybe could use lists instead of sets, because no duplicates occur anyway?
--- The scope states if the variable is defined globally or locally.
+-- Abstract data type for keeping track of two sorts of constants introduced 
+-- by the transformation.
+-- 
+-- 1. Collects all spans used in source references of transformed code, 
+-- so that corresponding variables can be defined at the top-level of the module.
+-- The same span can be added repeatedly, but doubtful this ever happens.
+-- 2. Collects information about defined expression names 
+-- (let-bound variables, fields, methods and data constructors) 
+-- from the environment of every scope. From this corresponding variables 
+-- describing the namse and definition locations are obtained at the end.
+-- Needs to know whether a scope is local or global, to produce appropriate
+-- variable names. 
+--
+-- Have compositional union operator to combine constants.
 
 data ModuleConsts = MC (Set SrcSpan) ([DeclFun] -> [DeclFun])
 type DeclFun = Exp SrcSpanInfo -> Decl SrcSpanInfo
@@ -542,66 +542,6 @@ moduleConstsUnion (MC spans1 dfs1) (MC spans2 dfs2) = MC (spans1 `Set.union` spa
 moduleConstsGet :: ModuleConsts -> ([SrcSpan], [DeclFun])
 moduleConstsGet (MC spans dfs) = (Set.elems spans, dfs [])
 
-
-{-
-data ModuleConsts = 
-  MC (Set SrcSpan)  -- spans used in traces
-    (Set (Name SrcSpanInfo))  -- this-level variable ids for traces
-    (Set (Name SrcSpanInfo))  -- local variable ids for use in traces
-    (Set (Name SrcSpanInfo))  -- ids for methods for use in trace
-    [(Name SrcSpanInfo,[Name SrcSpanInfo])]  
-                            -- constructor ids for use in traces
-                            -- together with field labels (global)
-
-emptyModuleConsts :: ModuleConsts
-emptyModuleConsts = MC Set.empty Set.empty Set.empty Set.empty []
-
-addSpan :: SrcSpanInfo -> ModuleConsts -> ModuleConsts
-addSpan ssi (MC poss tids ids mids cons) = 
-  MC (Set.insert (srcInfoSpan ssi) poss) tids ids mids cons
-
-
--- pre-condition: name is a variable
-addVar :: SrcSpanInfo ->  -- span of whole variable definition, not just variable
-          Name SrcSpanInfo -> ModuleConsts -> ModuleConsts
-addVar l name (MC poss tids ids mids cons) = 
-  MC (Set.insert (srcInfoSpan l) poss) 
-    (Set.insert name tids) ids mids cons
-
--- pre-condition: name is a data constructor
-addCon :: Name SrcSpanInfo -> [Name SrcSpanInfo] -> ModuleConsts -> 
-          ModuleConsts
-addCon name fields (MC poss tids ids mids cons) =
-  MC (Set.insert (srcInfoSpan (ann name)) poss) tids ids mids 
-    ((name,fields) : cons)
-
--- reclassify this-level variables as methods
-classifyMethods :: ModuleConsts -> ModuleConsts
-classifyMethods (MC poss tids ids mids cons) 
-  | Set.null mids = MC poss Set.empty ids tids cons
-
--- both from the same declaration level
-merge :: ModuleConsts -> ModuleConsts -> ModuleConsts
-merge (MC poss1 tids1 ids1 mids1 cons1) (MC poss2 tids2 ids2 mids2 cons2) = 
-  MC (poss1 `Set.union` poss2) (tids1 `Set.union` tids2) 
-    (ids1 `Set.union` ids2) (mids1 `Set.union` mids2) (cons1 ++ cons2)
-
--- Combine this declaration level with a local declaration level
--- The second collection is the local one.
-withLocal :: ModuleConsts -> ModuleConsts -> ModuleConsts
-withLocal (MC poss1 tids1 ids1 mids1 cons1) (MC poss2 tids2 ids2 mids2 []) |
-  Set.null mids2 =
-  MC (poss1 `Set.union` poss2) tids1 
-    (ids1 `Set.union` tids2 `Set.union` ids2) mids1 cons1
-withLocal _ _ = 
-  error "TraceTrans.withLocal: locally defined data constructors or method"
-
-getModuleConsts :: ModuleConsts 
-                -> ([SrcSpan],[Name SrcSpanInfo],[Name SrcSpanInfo]
-                   ,[Name SrcSpanInfo],[(Name SrcSpanInfo,[Name SrcSpanInfo])])
-getModuleConsts (MC pos tids ids mids cons) =
-  (Set.elems pos,Set.elems tids,Set.elems ids,Set.elems mids,cons)
--}
 
 -- ----------------------------------------------------------------------------
 -- Transformation of declarations, expressions etc.
