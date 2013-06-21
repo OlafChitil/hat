@@ -278,20 +278,20 @@ instance SrcInfo l => UpdId (QName l) where
     Qual l (nameTransModule moduleName) (updateId f name)
   updateId f (UnQual l name) = UnQual l (updateId f name)
   updateId f (Special l specialCon) =
-    case specialCon of
-      UnitCon l' -> newName "Tuple0"
-      ListCon l' -> newName "List"
-      FunCon l' -> newName "Fun"
-      TupleCon l' Boxed arity -> newName ("Tuple" ++ show arity)
-      TupleCon l' Unboxed _ -> 
-        notSupported l' "Unboxed tuple."
-      Cons l' -> newName "List"
-      UnboxedSingleCon l' -> 
-        notSupported l' "Unboxed singleton tuple constructor."
+    Qual l (tracingModuleNameShort l) (updateId f (Ident l (specialToId specialCon))) 
     where
-    newName id = Qual l (tracingModuleNameShort l) (Ident l id) 
+    specialToId :: SrcInfo l => SpecialCon l -> String
+    specialToId (UnitCon _) = "Tuple0"
+    specialToId (ListCon _) = "List"
+    specialToId (FunCon _) = "Fun"
+    specialToId (TupleCon _ Boxed arity) = "Tuple" ++ show arity
+    specialToId (TupleCon l' Unboxed _) = notSupported l' "Unboxed tuple."
+    specialToId (Cons l') = "Cons"
+    specialToId (UnboxedSingleCon l') =
+      notSupported l' "Unboxed singleton tuple constructor."
 
 instance UpdId (Name l) where
+  -- updateId f = f  is ill-typed
   updateId f (Ident l ident) = Ident l (getId (f (Ident undefined ident)))
   updateId f (Symbol l ident) = Symbol l (getId (f (Symbol undefined ident)))
 

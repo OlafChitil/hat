@@ -1859,19 +1859,20 @@ mapSnd f (x,y) = (x, f y)
 tConApp :: Environment -> Tracing -> QName SrcSpanInfo -> 
            [SrcSpanInfo] -> [Exp SrcSpanInfo] -> 
            (Exp SrcSpanInfo, ModuleConsts)
-tConApp env tracing qName ls es = trace (show qName ++ " *** " ++ show (lookupExpEnv env (UnQual () (Symbol () ":"))))  $ 
+tConApp env tracing qName ls es =
   (if conArity > numberOfArgs  -- undersaturated application
-     then mkExpPartial sr conArity numberOfArgs qName es
+     then mkExpPartial sr conArity numberOfArgs qName es'
    else if conArity == numberOfArgs -- saturated application
-     then mkExpCon sr conArity qName es
+     then mkExpCon sr conArity qName es'
    else
      error "TraceTrans.tConApp: data constructor with too many arguments."
-  ,moduleConstsSpan lApp)
+  ,moduleConstsSpan lApp `moduleConstsUnion` esModuleConsts)
   where
   Just conArity = arity env qName  -- a constructor always has an arity
   numberOfArgs = length es
   lApp = ls !! (conArity-1)
   sr = mkExpSR lApp tracing
+  (es',esModuleConsts) = tExps env tracing es
 
 tLiteral :: Environment -> Tracing -> Literal SrcSpanInfo ->
             Exp SrcSpanInfo
