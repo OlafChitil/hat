@@ -188,9 +188,18 @@ cName2QName (Special _ _) (ConName l name) = UnQual l name
 
 -- Build parts of syntax tree:
 
+-- String may contain . with module name before
+-- Assume that this is a normal identifier or symbol, not
+-- any special name.
 mkQName :: l -> String -> QName l
+-- mkQName l "()" = Special l (UnitCon l)
+-- mkQName l "[]" = Special l (ListCon l)  -- list type constructor
+-- mkQName l "->" = Special l (FunCon l) -- function type constructor
+-- mkQName l i@(',':_) = Special l (TupleCon l Boxed (length i))
+-- mkQName l ":" = Special l (Cons l) -- list data constructor
+-- mkQName l "##" = Special l (UnboxedSingleCon l) -- unboxed singleton tuple constructor
 mkQName l str = 
-  if null revQual 
+  if length revQual <= 1  -- include function composition "."
     then UnQual l (mkName l str) 
     else Qual l (ModuleName l (reverse (tail revQual))) 
            (mkName l (reverse revName))
@@ -198,6 +207,7 @@ mkQName l str =
   (revName,revQual) = break (== '.') (reverse str)
 
 mkName :: l -> String -> Name l
+mkName _ "" = error "SynHelp.mkName: empty String."
 mkName l str =
   if isAlpha (head str)
     then Ident l str

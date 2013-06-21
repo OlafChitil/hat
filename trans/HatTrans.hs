@@ -22,7 +22,8 @@ import Language.Haskell.Exts.Annotated(ParseMode(..),ParseResult,fromParseResult
 import Language.Haskell.Exts.Fixity(Fixity)
 import Language.Haskell.Exts.Pretty(prettyPrintStyleMode,Style(..),style,PPHsMode,defaultMode)
 import Wrap(wrap)
-import Environment(Environment,globalEnv,prettyEnv,exports,env2Fixities)
+import Environment(Environment,wiredEnv,globalEnv,prettyEnv,exports,env2Fixities)
+import Relation(unionRelations)
 import TraceTrans(Tracing(Traced,Trusted),traceTrans)
 import AuxFile(readAuxFiles,writeAuxFile)
 
@@ -60,12 +61,12 @@ main = do
   importEnv <- readAuxFiles flags moduleAST3
 
   {- Create global environment of this module. -}
-  let env = globalEnv (not (sDbgTrusted flags)) moduleAST3 importEnv
+  let env = globalEnv (not (sDbgTrusted flags)) moduleAST3 (unionRelations [importEnv,wiredEnv])
+
+  dumpIntermediate (sIBound flags) "Top-level environment of module" (prettyEnv importEnv)
 
   {- Write .hx file for current module. -}
   writeAuxFile flags (sHatAuxFile flags) env moduleAST3
-
-  dumpIntermediate (sIBound flags) "Top-level environment of module" (prettyEnv env)
 
   {- Now correct all fixities of expression identifiers. -}
   let fixities = env2Fixities env

@@ -885,6 +885,8 @@ tCaf :: Environment -> Scope -> Tracing -> SrcSpanInfo ->
         Rhs SrcSpanInfo -> Maybe (Binds SrcSpanInfo) -> 
         ([Decl SrcSpanInfo], ModuleConsts)
 tCaf env scope tracing l name maybeType rhs maybeBinds =
+  -- Produce a wrapper and a worker, the latter must be a caf
+  -- to avoid reevaluation.
   -- name sr p = constUse sr p name'
   -- name' = constDef parent "name" (\p -> [[rhs]]_p)
   ([useDef tracing name
@@ -932,6 +934,7 @@ tFunBind :: Environment -> Scope -> Tracing -> SrcSpanInfo ->
             [Match SrcSpanInfo] ->
             ([Decl SrcSpanInfo], ModuleConsts)
 tFunBind env scope tracing l matches =
+  -- Define the wrapper and the worker.
   (FunBind l [Match l (nameTransLetVar orgName) 
                [PVar l sr, patParent]
                (UnGuardedRhs l 
@@ -968,7 +971,7 @@ tFunBind env scope tracing l matches =
 -- Transformation of matches is complex because guarded equations may fail
 -- and thus 'fall' to next equation.
 -- This is simulated here by a sequence of functions, each possibly calling
--- the next.
+-- the next, i.e., we use continuation passing style.
 tMatches :: Environment -> Tracing -> SrcSpanInfo -> 
             [Name SrcSpanInfo] -> -- names for definitions that clauses become
             [Pat SrcSpanInfo] -> -- vars for naming arguments that are not vars
@@ -977,8 +980,11 @@ tMatches :: Environment -> Tracing -> SrcSpanInfo ->
             Bool -> -- preceeding match will never fail
             [Match SrcSpanInfo] ->
             ([Match SrcSpanInfo], [Decl SrcSpanInfo], ModuleConsts)
-tMatches _ _ _ _ _ _ _ True [] = ([], [], moduleConstsEmpty)
+tMatches _ _ _ _ _ _ _ True [] = 
+  -- Preceeding match never fails, so no further match required.
+  ([], [], moduleConstsEmpty)
 tMatches env tracing l ids pVars funName funArity False [] =
+  -- End of matches, but add catch-all match to explicitly raise an error.
   ([Match l funName (replicate funArity (PWildCard l) ++ [patParent])
      (UnGuardedRhs l (continuationToExp failContinuation))
      Nothing]
@@ -986,6 +992,7 @@ tMatches env tracing l ids pVars funName funArity False [] =
   ,moduleConstsEmpty)
 tMatches env tracing l ids pVars funName funArity _
   (m@(Match _ _ pats _ _) : matches) | not (null matches) && matchCanFail m =
+  -- Normal sort of match: further matches afterwards and this match may fail.
   ([Match l funName (pats'' ++ [patParent]) rhs' decls'
    ,Match l funName (vars ++ [patParent]) 
       (UnGuardedRhs l (continuationToExp failCont)) Nothing]
@@ -1564,7 +1571,7 @@ tExpA :: Environment -> Tracing -> Bool -> Exp SrcSpanInfo ->
 tExpA env tracing cr (Var l qName) ls es 
   | Just a <- arity env qName, a > 0, a <= length es, a <= 5, 
     let lApp = ls!!(a-1) =
-  -- known arity optimisation that calls worker directly
+  -- Known arity optimisation that calls worker directly
   tExpF env tracing (drop a ls) (drop a es) $
     (if isTraced tracing || isTracedQName env qName
        then mkExpApplyArity tracing (mkExpSR lApp tracing) (mkExpSR l tracing)
@@ -1576,6 +1583,7 @@ tExpA env tracing cr (Var l qName) ls es
   (es', esConsts) = tExps env tracing es
   expWorker = Var noSpan (nameWorker qName)
 tExpA env tracing cr (Var l qName) ls es =
+  -- Unknown arity.
   tExpF env tracing ls es $
     if isLambdaBound env qName
       then 
@@ -1852,7 +1860,7 @@ mapSnd f (x,y) = (x, f y)
 tConApp :: Environment -> Tracing -> QName SrcSpanInfo -> 
            [SrcSpanInfo] -> [Exp SrcSpanInfo] -> 
            (Exp SrcSpanInfo, ModuleConsts)
-tConApp env tracing qName ls es =
+tConApp env tracing qName ls es = trace (show qName ++ " *** " ++ show (lookupExpEnv env (UnQual () (Symbol () ":"))))  $ 
   (if conArity > numberOfArgs  -- undersaturated application
      then mkExpPartial sr conArity numberOfArgs qName es
    else if conArity == numberOfArgs -- saturated application

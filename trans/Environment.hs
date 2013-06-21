@@ -14,6 +14,7 @@ module Environment
   ,nameTransTySynHelper,expandTypeSynonym
   ,imports,exports,hxEnvironmentToList,listToHxEnvironment
   ,defineNameEnv,env2Fixities,makeAllLambdaBound, lambdaVarEnv
+  ,wiredEnv
   ) where
 
 import Language.Haskell.Exts.Annotated hiding (Var,Con,Fixity,EVar)
@@ -21,7 +22,7 @@ import qualified Language.Haskell.Exts.Annotated as Syntax (Exp(Var,Con),Fixity(
 import qualified Language.Haskell.Exts as Short(Assoc(..),QName(..),Name(..))
 import SynHelp (Id(getId),getQualified,mkQual,qual,isQual,notSupported
                ,tyVarBind2Name,declHeadTyVarBinds,declHeadName,instHeadQName,getArityFromConDecl
-               ,getConDeclFromQualConDecl,getConstructorFromConDecl,eqName,mkName
+               ,getConDeclFromQualConDecl,getConstructorFromConDecl,eqName,mkName,mkQName
                ,getFieldNamesFromConDecl,decomposeFunType,isFunTyCon,tyAppN,getModuleNameFromModule
                ,UpdId(updateId),dropAnn,noSpan)
 import qualified Data.Set as Set
@@ -58,13 +59,6 @@ data TypeSort = Data | Newtype deriving (Show,Read,Eq,Ord)
 toTypeSort :: DataOrNew l -> TypeSort
 toTypeSort (DataType _) = Data
 toTypeSort (NewType _) = Newtype
-
-identifierToName :: Identifier -> Name ()
-identifierToName (Var id) = mkName () id
-identifierToName (Con _ _ id) = mkName () id
-identifierToName (Field _ id) = mkName () id
-identifierToName (Method _ id) = mkName () id
-identifierToName (TypeClass id) = mkName () id
 
 -- AuxiliaryInfo is the extra information we need to know about identifiers.
 data AuxiliaryInfo = 
@@ -243,9 +237,11 @@ hxEntity2Entity (TypeClass id, TyCls (Syn n body)) =
 hxEntity2Entity (TypeClass id, TyCls (Cls methods)) =
   EClass {eId = id, eMethods = methods}
 
+-- Produce environment for one unqualified name.
 singleton :: Entity -> Environment
 singleton entity = Map.singleton (UnQual () (mkName () (eId entity))) (Set.singleton entity)
 
+-- Produce environment of unqualified names.
 fromList :: [Entity] -> Environment
 fromList = listToRelation . map (\entity -> (UnQual () (mkName () (eId entity)),entity))
 
@@ -451,6 +447,8 @@ matchEnv l tracing (InfixMatch _ pat name pats rhs maybeBinds) =
 patsEnv :: SrcSpanInfo -> Bool -> [Pat SrcSpanInfo] -> Environment
 patsEnv l tracing pats = unionRelations (map (patEnv l tracing) pats)
 
+-- All occurring variables are let-bound, because this function is for 
+-- pattern bindings.
 patEnv :: SrcSpanInfo -> Bool -> Pat SrcSpanInfo -> Environment
 patEnv l tracing (PVar _ name) = 
   singleton (eVar (getId name) l 0 tracing)
@@ -634,7 +632,7 @@ nameTransTySynHelper syn no = updateId update syn
   where 
   update (Ident l name) = Ident l (name ++ "___" ++ show no)
   update (Symbol _ _) = 
-    error "TraceTrans, nameTransTySynHelper: synom name is a symbol"
+    error "TraceTrans.nameTransTySynHelper: synonym name is a symbol."
 
 
 -- -------------------------------------------------------------------------------------
@@ -754,3 +752,21 @@ env2Fixities env =
     transFixity _ = error "Environment.env2Fixities: unexpected associativity."
     mkName :: String -> Short.Name
     mkName s = if isAlpha (head s) then Short.Ident s else Short.Symbol s
+
+
+-- -------------------------
+-- All identifiers whose bindings are fixed by the Haskell language
+wiredEnv :: Environment
+wiredEnv = listToRelation $
+  [(Special () (UnitCon ()), eCon "()" noSpan 0 "()" Data [] False)
+  ,(Special () (UnitCon ()), eType "()" ["()"] [])
+  ,(Special () (ListCon ()), eType "[]" [":","[]"] [])
+  ,(Special () (FunCon ()), eType "->" [] [])
+  ,(Special () (Cons ()), eCon ":" noSpan 2 "[]" Data [] False)]
+  ++ concatMap mkTuple [2..12]
+
+mkTuple :: Int -> [(QName (), Entity)]
+mkTuple n = [(Special () (TupleCon () Boxed n), eCon commas noSpan n commas Data [] False)
+            ,(Special () (TupleCon () Boxed n), eType commas [commas] [])]
+  where
+  commas = replicate (n-1) ',' 
