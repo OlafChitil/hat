@@ -26,6 +26,7 @@ import Environment(Environment,wiredEnv,globalEnv,prettyEnv,exports,env2Fixities
 import Relation(unionRelations)
 import TraceTrans(Tracing(Traced,Trusted),traceTrans)
 import AuxFile(readAuxFiles,writeAuxFile)
+import SynHelp(getId)
 
 main = do
   args <- getArgs
@@ -114,16 +115,17 @@ implicitlyImportPrelude flags
                                   ,importQualified = False, importSrc = False
                                   ,importPkg = Nothing, importAs = Nothing, importSpecs = Nothing} : importDecls
 
--- Add import Hat.PreludeBasic if current module is not part of the Prelude
--- Module Hat.PreludeBasic defines identifiers introduced by the transformation or deriving
+-- Add import Hat.Prelude if current module is not part of the Prelude
+-- or the Prelude is already imported otherwise.
+-- Module Hat.Prelude defines identifiers introduced by the transformation or deriving
 implicitlyImportPreludeBasic :: Flags -> Module l -> Module l
 implicitlyImportPreludeBasic flags 
   (Module l maybeHead pragmas importDecls decls) =
   Module l maybeHead pragmas importDecls' decls
   where
-  importDecls' = if sPrelude flags 
+  importDecls' = if sPrelude flags || "Prelude" `elem` map (getId . importModule) importDecls
                    then importDecls
-                   else ImportDecl{importAnn = l, importModule = ModuleName l "Hat.PreludeBasic"
+                   else ImportDecl{importAnn = l, importModule = ModuleName l "Hat.Prelude"
                                   ,importQualified = False, importSrc = False
                                   ,importPkg = Nothing, importAs = Nothing, importSpecs = Nothing} : importDecls
 
