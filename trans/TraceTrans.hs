@@ -1083,7 +1083,7 @@ tRhs :: Environment ->
         ContExp SrcSpanInfo ->  -- continuation in case of match failure
         Rhs SrcSpanInfo ->
         (Exp SrcSpanInfo, ModuleConsts)
-tRhs env tracing cr failCont (UnGuardedRhs _ exp) =
+tRhs env tracing cr failCont (UnGuardedRhs _ exp) = 
   tExp env tracing cr exp
 tRhs env tracing cr failCont (GuardedRhss _ gdRhss) =
   tGuardedRhss env tracing cr failCont gdRhss
@@ -1625,7 +1625,7 @@ tExpA env tracing cr (TupleSection l maybeExps) ls es =
 tExpA env tracing cr (List l []) [] [] = -- just the empty list, transform efficiently
   (appN [Var noSpan (qNameCon noSpan 0),mkExpSR l tracing,expParent
         ,Con noSpan (qNameConNil noSpan),Var noSpan (qNameTraceInfoConNil noSpan)]
-  ,moduleConstsEmpty)
+  ,moduleConstsSpan l)
 tExpA env tracing cr (List l exps) [] [] =
   -- use special combinator that transforms list at runtime;
   -- desugaring and subsequent transformation would lead to large program.
@@ -1794,7 +1794,7 @@ mapSnd f (x,y) = (x, f y)
 
 -- Transform data constructor application.
 -- Number of arguments may be smaller than arity of the data constructor.
--- (but never bigger.)
+-- (but never greater.)
 tConApp :: Environment -> Tracing -> QName SrcSpanInfo -> 
            [SrcSpanInfo] -> [Exp SrcSpanInfo] -> 
            (Exp SrcSpanInfo, ModuleConsts)
