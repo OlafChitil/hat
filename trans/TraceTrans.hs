@@ -638,10 +638,10 @@ tDecl env _ _ (TypeSig l names ty) =
   -- Also shared constants need to be typed, in case they are overloaded,
   -- so that the monomorphic restriction does not lead to type error
   -- (actually then sharing is unfortunately lost)
-  (TypeSig l (map nameTransLetVar names) (tFunType ty) :
+  (TypeSig l (map nameTransLetVar names) (tMapType tFunType ty) :
    concatMap mkWorkerTypeSig nonConstNames ++
    if null constNames then []
-     else [TypeSig l (map nameShare constNames) (tConstType ty)]
+     else [TypeSig l (map nameShare constNames) (tMapType tConstType ty)]
   ,moduleConstsEmpty)
   where
   (constNames, nonConstNames) = Data.List.partition isNonMethodConstant names
@@ -653,7 +653,7 @@ tDecl env _ _ (TypeSig l names ty) =
   mkWorkerTypeSig :: Name SrcSpanInfo -> [Decl SrcSpanInfo]
   mkWorkerTypeSig name =
     case arity env (UnQual l name) of
-      Just n | n > 0 -> [TypeSig l [nameWorker name] (tWorkerType env n ty)]
+      Just n | n > 0 -> [TypeSig l [nameWorker name] (tMapType (tWorkerType env n) ty)]
       _ -> []
 tDecl env scope tracing (FunBind l matches) =
   tFunBind env scope tracing l matches  
@@ -1264,7 +1264,7 @@ tClassInstDecl env tracing decl@(PatBind _ _ _ _ _) =
 tClassInstDecl env tracing decl@(TypeSig l names ty) =
   -- For every method type declaration produce an additional type declaration
   -- of the sharing variable.
-  ([TypeSig l (map nameShare names) (tConstType ty), tySig'], moduleConsts)
+  ([TypeSig l (map nameShare names) (tMapType tConstType ty), tySig'], moduleConsts)
   where
   ([tySig'], moduleConsts) = tDecl env Local tracing decl
   -- This should cover all declarations that can occur.
@@ -2188,6 +2188,12 @@ tFunType ty =
   where 
   l = ann ty
 
+-- Leave any outer context unchanged but apply function to rest of type.
+tMapType :: (Type SrcSpanInfo -> Type SrcSpanInfo) -> Type SrcSpanInfo -> Type SrcSpanInfo
+tMapType f (TyForall l maybeBinds maybeContext ty) = TyForall l maybeBinds maybeContext (f ty)
+tMapType f (TyParen l ty) = TyParen l (f ty)
+tMapType f ty = f ty
+
 -- Build type of worker from original type
 tWorkerType :: Environment -> Arity -> Type SrcSpanInfo -> Type SrcSpanInfo
 tWorkerType _ 0 ty =
@@ -2211,8 +2217,9 @@ tWorkerSynExpand env a (TyApp l tyL tyR) tys =
   tWorkerSynExpand env a tyL (tyR : tys)
 tWorkerSynExpand env a (TyParen l ty) tys =
   TyParen l (tWorkerSynExpand env a ty tys)
-tWorkerSynExpand _ _ _ _ = 
-  error "TraceTrans.tWorkerSynExpand: type must be a function but is not"
+tWorkerSynExpand _ a ty tys = 
+  error ("TraceTrans.tWorkerSynExpand: type must be a function but is not:\ntWorkerSynExpand env " ++ 
+         show a ++ prettyPrint ty ++ concatMap ((" & "++) . prettyPrint) tys)
 
 
 -- Just rewrite built-in type constructors, especially function type.
