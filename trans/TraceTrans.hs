@@ -930,7 +930,7 @@ tMatches env tracing l ids pVars funName funArity False [] =
   ,moduleConstsEmpty)
 tMatches env tracing l ids pVars funName funArity _
   (m@(Match _ _ pats _ _) : matches) | not (null matches) && matchCanFail m =
-  -- Normal sort of match: further matches afterwards and this match may fail.
+  -- Normal sort of match: further matches afterwards and guard or numeric literals may fail.
   ([Match l funName (pats'' ++ [patParent]) rhs' decls'
    ,Match l funName (vars ++ [patParent]) 
       (UnGuardedRhs l (continuationToExp failCont)) Nothing]
@@ -947,8 +947,8 @@ tMatches env tracing l ids pVars funName funArity _
       (neverFailingPats pats) matches
 tMatches env tracing l ids pVars funName funArity _ 
   (m@(Match _ _ pats _ _) : matches) =
-  -- last match or this match cannot fail (others are dead code)
-  (Match l funName (pats' ++ [patParent]) rhs' decls' : matches
+  -- Last match or guards and numeric literals cannot fail.
+  (Match l funName (pats' ++ [patParent]) rhs' decls' : matches'
   ,matchesDecls
   ,matchConsts `moduleConstsUnion` matchesConsts)
   where
