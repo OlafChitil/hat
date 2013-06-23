@@ -1512,7 +1512,7 @@ tExpA env tracing cr (Var l qName) ls es
   -- Known arity optimisation that calls worker directly
   tExpF env tracing (drop a ls) (drop a es) $
     (if isTraced tracing || isTracedQName env qName
-       then mkExpApplyArity tracing (mkExpSR lApp tracing) (mkExpSR l tracing)
+       then mkExpApplyArity (isTracedQName env qName) (mkExpSR lApp tracing) (mkExpSR l tracing)
               a (Var noSpan (nameTraceInfoVar l Global qName)) expWorker es'
        else mkExpUWrapForward (appN (expWorker : es' ++ [expParent]))
     ,moduleConstsSpan l `moduleConstsUnion` moduleConstsSpan lApp `moduleConstsUnion` esConsts)
@@ -2451,7 +2451,7 @@ mkExpProjection :: Exp SrcSpanInfo -> Exp SrcSpanInfo -> Exp SrcSpanInfo
 mkExpProjection sr e =
   appN [expProjection, sr, expParent, e]
 
-mkExpApplyArity :: Tracing ->
+mkExpApplyArity :: Bool ->  -- function is traced
                    Exp SrcSpanInfo -> -- location of application
                    Exp SrcSpanInfo -> -- location of applied function
                    Arity -> 
@@ -2459,8 +2459,8 @@ mkExpApplyArity :: Tracing ->
                    Exp SrcSpanInfo -> 
                    [Exp SrcSpanInfo] ->
                    Exp SrcSpanInfo
-mkExpApplyArity tracing srA srF a info fun args =
-  appN (Var noSpan ((if isTraced tracing then qNameApp else qNameUApp) noSpan a)
+mkExpApplyArity tracedFun srA srF a info fun args =
+  appN (Var noSpan ((if tracedFun then qNameApp else qNameUApp) noSpan a)
        :srA
        :srF
        :expParent
