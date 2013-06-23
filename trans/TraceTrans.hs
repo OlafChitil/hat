@@ -1639,13 +1639,15 @@ tExpA env tracing cr (LeftSection l exp qOp) ls es =
   -- desugar into normal function application
   tExpA env tracing cr (App l (qOp2Exp qOp) exp) ls es
 tExpA env tracing cr (RightSection l qOp exp) ls es =
-  -- desugar into a lambda abstraction
-  tExpA env tracing cr
-    (Lambda noSpan [PVar noSpan name] 
-      (App l (App l (qOp2Exp qOp) (Var noSpan (UnQual noSpan name))) exp)) 
-    ls es
-  where
-  name = nameFromSpan l
+  -- desugar into use of flip: (op e) = (flip op e)
+  tExpA env tracing cr (App l (App l (mkExpPreludeFlip l) (qOp2Exp qOp)) exp) ls es
+  -- -- desugar into a lambda abstraction
+  -- tExpA env tracing cr
+  --   (Lambda noSpan [PVar noSpan name] 
+  --     (App l (App l (qOp2Exp qOp) (Var noSpan (UnQual noSpan name))) exp)) 
+  --   ls es
+  -- where
+  -- name = nameFromSpan l
 tExpA env tracing cr (RecConstr l qName fieldUpdates) ls es =
   tExpF env tracing ls es $
     (appN [expWrapValFun, mkExpSR l tracing, 

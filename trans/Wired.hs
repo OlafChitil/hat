@@ -226,6 +226,9 @@ qNamePreludeGtGtEq = qNamePreludeSymbol ">>="
 qNamePreludeFail :: l -> QName l
 qNamePreludeFail = qNamePreludeIdent "fail"
 
+mkExpPreludeFlip :: l -> Exp l
+mkExpPreludeFlip l = Var l (qNamePreludeIdent "flip" l)
+
 mkExpPreludeEnumFrom :: l -> Exp l
 mkExpPreludeEnumFrom l = Var l (qNamePreludeIdent "enumFrom" l)
 
