@@ -1812,7 +1812,7 @@ tConApp env tracing qName ls es =
   where
   Just conArity = arity env qName  -- a constructor always has an arity
   numberOfArgs = length es
-  lApp = if conArity > 0 then ls !! (conArity-1) else ann qName
+  lApp = last (ann qName : ls) -- location of outermost application (or just constructor itself)
   sr = mkExpSR lApp tracing
   (es',esModuleConsts) = tExps env tracing es
 
