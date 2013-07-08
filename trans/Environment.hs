@@ -757,7 +757,7 @@ wiredEnv = listToRelation $
   ,(Special () (ListCon ()), eType "[]" [":","[]"] [])
   ,(Special () (FunCon ()), eType "->" [] [])
   ,(Special () (Cons ()), eCon ":" noSpan 2 "[]" Data [] False)]
-  ++ concatMap mkTuple [2..12]
+  ++ concatMap mkTuple [2..15]
 
 mkTuple :: Int -> [(QName (), Entity)]
 mkTuple n = [(Special () (TupleCon () Boxed n), eCon commas noSpan n commas Data [] False)

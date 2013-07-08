@@ -944,7 +944,7 @@ tMatches env tracing l ids pVars funName funArity _
   (Match _ _ pats' rhs' decls', matchConsts) =
     tMatch env tracing True funName failCont m
   (matches', matchesDecls, matchesConsts) =
-    tMatches env tracing l (tail ids) pVars funName funArity 
+    tMatches env tracing l (tail ids) pVars funName funArity -- shouldn't contId appear here?
       (neverFailingPats pats) matches
 tMatches env tracing l ids pVars funName funArity _ 
   (m@(Match _ _ pats _ _) : matches) =
@@ -1812,7 +1812,7 @@ tConApp env tracing qName ls es =
   where
   Just conArity = arity env qName  -- a constructor always has an arity
   numberOfArgs = length es
-  lApp = ls !! (conArity-1)
+  lApp = if conArity > 0 then ls !! (conArity-1) else ann qName
   sr = mkExpSR lApp tracing
   (es',esModuleConsts) = tExps env tracing es
 
