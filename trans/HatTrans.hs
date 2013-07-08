@@ -22,7 +22,7 @@ import Language.Haskell.Exts.Annotated(ParseMode(..),ParseResult,fromParseResult
 import Language.Haskell.Exts.Fixity(Fixity)
 import Language.Haskell.Exts.Pretty(prettyPrintStyleMode,Style(..),style,PPHsMode,defaultMode)
 import Wrap(wrap)
-import Environment(Environment,wiredEnv,globalEnv,prettyEnv,exports,env2Fixities)
+import Environment(Environment,wiredEnv,globalEnv,prettyEnv,env2Fixities)
 import Relation(unionRelations)
 import TraceTrans(Tracing(Traced,Trusted),traceTrans)
 import AuxFile(readAuxFiles,writeAuxFile)

@@ -10,6 +10,7 @@ import Data.Char (isAlpha)
 import Data.List (stripPrefix)
 import Data.Maybe (fromMaybe)
 
+import Debug.Trace
 
 -- Common features of all identifiers (names)
 
@@ -161,21 +162,27 @@ qOp2Exp :: QOp l -> Exp l
 qOp2Exp (QVarOp l qName) = Var l qName
 qOp2Exp (QConOp l qName) = Con l qName
 
-getQualified :: QName l -> Name l
+getQualified :: SrcInfo l => QName l -> Name l
 getQualified (UnQual _ name) = name
 getQualified (Qual _ _ name) = name
-getQualified (Special _ _) = error "SynHelp.getQualified: special QName."
+getQualified (Special _ specialCon) = 
+  error ("SynHelp.getQualified: special QName " ++ specialToId specialCon ++ ".")
 
 mkQual :: ModuleName l -> Name l -> QName l
 mkQual modName name = Qual (ann name) modName name
 
-qual :: ModuleName l -> QName l -> QName l
-qual modName qName = mkQual modName (getQualified qName)
+qual ::SrcInfo l => ModuleName l -> QName l -> QName l
+qual modName qName = trace ("qual " ++ prettyPrint qName) $ mkQual modName (getQualified qName)
 
 isQual :: QName l -> Bool
 isQual (Qual _ _ _) = True
 isQual (UnQual _ _) = False
 isQual (Special _ _) = False
+
+isUnQual :: QName l -> Bool
+isUnQual (UnQual _ _) = True
+isUnQual (Qual _ _ _) = False
+isUnQual (Special _ _) = False
 
 -- The first name possibly provides a module qualifier
 cName2QName :: QName l -> CName l -> QName l
@@ -279,16 +286,16 @@ instance SrcInfo l => UpdId (QName l) where
   updateId f (UnQual l name) = UnQual l (updateId f name)
   updateId f (Special l specialCon) =
     Qual l (tracingModuleNameShort l) (updateId f (Ident l (specialToId specialCon))) 
-    where
-    specialToId :: SrcInfo l => SpecialCon l -> String
-    specialToId (UnitCon _) = "Tuple0"
-    specialToId (ListCon _) = "List"
-    specialToId (FunCon _) = "Fun"
-    specialToId (TupleCon _ Boxed arity) = "Tuple" ++ show arity
-    specialToId (TupleCon l' Unboxed _) = notSupported l' "Unboxed tuple."
-    specialToId (Cons l') = "Cons"
-    specialToId (UnboxedSingleCon l') =
-      notSupported l' "Unboxed singleton tuple constructor."
+
+specialToId :: SrcInfo l => SpecialCon l -> String
+specialToId (UnitCon _) = "Tuple0"
+specialToId (ListCon _) = "List"
+specialToId (FunCon _) = "Fun"
+specialToId (TupleCon _ Boxed arity) = "Tuple" ++ show arity
+specialToId (TupleCon l' Unboxed _) = notSupported l' "Unboxed tuple."
+specialToId (Cons l') = "Cons"
+specialToId (UnboxedSingleCon l') =
+  notSupported l' "Unboxed singleton tuple constructor."
 
 instance UpdId (Name l) where
   -- updateId f = f  is ill-typed

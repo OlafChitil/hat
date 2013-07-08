@@ -20,7 +20,7 @@ module Environment
 import Language.Haskell.Exts.Annotated hiding (Var,Con,Fixity,EVar)
 import qualified Language.Haskell.Exts.Annotated as Syntax (Exp(Var,Con),Fixity(Fixity),ExportSpec(EVar))
 import qualified Language.Haskell.Exts as Short(Assoc(..),QName(..),Name(..))
-import SynHelp (Id(getId),getQualified,mkQual,qual,isQual,notSupported
+import SynHelp (Id(getId),getQualified,mkQual,qual,isQual,isUnQual,notSupported
                ,tyVarBind2Name,declHeadTyVarBinds,declHeadName,instHeadQName,getArityFromConDecl
                ,getConDeclFromQualConDecl,getConstructorFromConDecl,eqName,mkName,mkQName
                ,getFieldNamesFromConDecl,decomposeFunType,isFunTyCon,tyAppN,getModuleNameFromModule
@@ -279,7 +279,7 @@ globalEnv tracing mod importEnv = env
   qualDefEnv = qual (dropAnn (getModuleNameFromModule mod)) `mapDom` unqualDefEnv
 
 -- Get the environment for all top-level definitions of a module.
--- Only produce unqualified QNames.
+-- Post-condition: Only produce unqualified QNames.
 -- Take complete environment of module for lookups (cycle)
 moduleDefines :: Bool -> Environment -> Module SrcSpanInfo -> Environment
 moduleDefines tracing fullEnv (Module _ _ _ _ decls) = declsEnv tracing fullEnv decls
@@ -506,7 +506,8 @@ filterExportSpec env (EModuleContents _ moduleName) =
   (qual moduleNameT `mapDom` unqs) `intersectRelation` qs
   where
   moduleNameT = dropAnn moduleName
-  (qs,unqs) = partitionDom isQual env
+  (qs,nonqs) = partitionDom isQual env
+  (unqs,_) = partitionDom isUnQual nonqs
 filterExportSpec env eSpec = unionRelations [mSpec, mSub]
   where
   mSpec = restrictRng (not . isCon) (restrictDom (== qNameT) env)
@@ -522,7 +523,14 @@ filterExportSpec env eSpec = unionRelations [mSpec, mSub]
 
 -- Assumes that list is in ascending order without duplicate names.
 listToHxEnvironment :: [HxEntity] -> HxEnvironment
-listToHxEnvironment =  (getQualified `mapDom`) . fromList . map hxEntity2Entity
+listToHxEnvironment = (getQualified `mapDom`) . fromList . map hxEntity2Entity
+
+instance SrcInfo () where -- required for definition above
+  toSrcInfo = undefined
+  fromSrcInfo = undefined
+  fileName _ = ""
+  startLine _ = 0
+  startColumn _ = 0
 
 hxEnvironmentToList :: HxEnvironment -> [HxEntity]
 hxEnvironmentToList = map entity2HxEntity . Set.toAscList . Relation.rng
@@ -715,7 +723,7 @@ defineNameEnv :: Scope -> Environment -> (Name SrcSpanInfo -> Int -> Int -> Scop
   (Name SrcSpanInfo -> [Name SrcSpanInfo] -> Int -> Int -> a) -> [a]
 defineNameEnv scope env defNameVar defNameCon = concatMap define nameEntries
   where
-  hxEnv = getQualified `mapDom` env
+  hxEnv = trace "defineNameEnv" $ getQualified `mapDom` env
   nameEntries = relationToList hxEnv
   define (name, e) 
     | isVar e && eLetBound e =
