@@ -190,9 +190,9 @@ isInfix _ = False
 isExp :: Entity -> Bool
 isExp e = isVar e || isCon e || isField e || isMethod e || isSig e || isInfix e
 
--- Is a type or type synoym.
-isTySyn :: Entity -> Bool
-isTySyn e = isType e || isSyn e
+-- Is a type, type synoym or class
+isTySynClass :: Entity -> Bool
+isTySynClass e = isType e || isSyn e || isClass e
 
 entity2HxEntity :: Entity -> HxEntity
 entity2HxEntity e 
@@ -656,11 +656,12 @@ lookupExpEnv env qName =
   one env ("Environment.lookupExpEnv: `" ++ prettyPrint qName ++ "'")
     (filter isExp . Set.toList . applyRelation env $ dropAnn qName)
 
--- Not a class
+-- A name for a type, type synonym or class.
 lookupTypeEnv :: Environment -> QName l -> Entity
 lookupTypeEnv env qName =
   one env ("Environment.lookupTypeEnv: `" ++ prettyPrint qName ++ "'")
-    (filter isTySyn . Set.toList . applyRelation env $ dropAnn qName)
+    (filter isTySynClass . Set.toList . applyRelation env $ dropAnn qName)
+
 
 -- Identifiers defined by pattern binding have arity 0.
 ar :: AuxiliaryInfo -> Int

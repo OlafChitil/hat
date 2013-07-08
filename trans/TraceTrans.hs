@@ -27,7 +27,8 @@ import qualified Data.Set as Set
 import Relation (emptyRelation,unionLocalRelation)
 import Environment (Environment,Scope(..),isLocal
                    ,TySynBody(TApp,TFun,THelper,TVar)
-                   ,lookupExpEnv, lookupTypeEnv, eArity, eNo, eBody, eCons, eFields
+                   ,lookupExpEnv, lookupTypeEnv
+                   ,eArity, eNo, eBody, eCons, eFields
                    ,Entity,isClass, isSyn, isType
                    ,arity,isLambdaBound,isTracedQName
                    ,fixPriority
