@@ -172,7 +172,7 @@ mkQual :: ModuleName l -> Name l -> QName l
 mkQual modName name = Qual (ann name) modName name
 
 qual ::SrcInfo l => ModuleName l -> QName l -> QName l
-qual modName qName = trace ("qual " ++ prettyPrint qName) $ mkQual modName (getQualified qName)
+qual modName qName = mkQual modName (getQualified qName)
 
 isQual :: QName l -> Bool
 isQual (Qual _ _ _) = True

@@ -386,18 +386,20 @@ declEnv tracing finalEnv (ClassDecl _ _ declHead _ (Just classDecls)) =
   getDecl (ClsTyDef l _ _) = notSupported l 
                                  "default choice for an associated type synonym"
 declEnv _ _ (InstDecl _ _ _ Nothing) = emptyRelation
-declEnv tracing finalEnv (InstDecl _ _ instHead (Just instDecls)) =
-  var2Method `mapRng` (declsEnv tracing finalEnv (map getDecl instDecls))
-  where
-  classId = getId (instHeadQName instHead)
-  var2Method :: Entity -> Entity
-  var2Method e | isVar e = eMethod (eId e) [eSrc e] classId tracing
-               | otherwise = error "Environment.declEnv: unexpected declaration in instance."
-  getDecl :: InstDecl SrcSpanInfo -> Decl SrcSpanInfo
-  getDecl (InsDecl _ decl) = decl
-  getDecl (InsType l _ _) = notSupported l "associated type definition"
-  getDecl (InsData l _ _ _ _) = notSupported l "associated data type implementation"
-  getDecl (InsGData l _ _ _ _ _) = notSupported l "GADT style assoicated data type type implementation"
+declEnv tracing finalEnv (InstDecl _ _ instHead (Just instDecls)) = emptyRelation
+  -- all entities defined in instance should be already in scope anyway; 
+  -- avoid duplicate entries in environment
+  -- var2Method `mapRng` (declsEnv tracing finalEnv (map getDecl instDecls))
+  -- where
+  -- classId = getId (instHeadQName instHead)
+  -- var2Method :: Entity -> Entity
+  -- var2Method e | isVar e = eMethod (eId e) [eSrc e] classId tracing
+  --              | otherwise = error "Environment.declEnv: unexpected declaration in instance."
+  -- getDecl :: InstDecl SrcSpanInfo -> Decl SrcSpanInfo
+  -- getDecl (InsDecl _ decl) = decl
+  -- getDecl (InsType l _ _) = notSupported l "associated type definition"
+  -- getDecl (InsData l _ _ _ _) = notSupported l "associated data type implementation"
+  -- getDecl (InsGData l _ _ _ _ _) = notSupported l "GADT style assoicated data type type implementation"
 declEnv _ _ (DerivDecl _ _ _) = emptyRelation
 declEnv tracing _ (InfixDecl _ assoc maybePri ops) =
   fromList (map op2Entity ops)
@@ -648,10 +650,10 @@ nameTransTySynHelper syn no = updateId update syn
 -- Looking up, inserting and mutating individual environment entries.
 
 -- For generating an appropriate error message.
-one :: Environment -> String -> [a] -> a
+one :: Environment -> String -> [Entity] -> Entity
 one env msg [] = error (prettyEnv env ++ msg ++ " not found.")
 one env msg [x] = x
-one env msg _ = error (prettyEnv env ++ msg ++ " ambigious.")
+one env msg xs = error (prettyEnv env ++ msg ++ " ambigious. " ++ show xs)
 
 prettyEnv :: (Pretty a, Ord a) => Relation a b -> String
 prettyEnv = ("Environment: " ++) . foldr space "\n" . map prettyPrint . Set.toAscList . Relation.dom
@@ -723,7 +725,7 @@ defineNameEnv :: Scope -> Environment -> (Name SrcSpanInfo -> Int -> Int -> Scop
   (Name SrcSpanInfo -> [Name SrcSpanInfo] -> Int -> Int -> a) -> [a]
 defineNameEnv scope env defNameVar defNameCon = concatMap define nameEntries
   where
-  hxEnv = trace "defineNameEnv" $ getQualified `mapDom` env
+  hxEnv = getQualified `mapDom` env
   nameEntries = relationToList hxEnv
   define (name, e) 
     | isVar e && eLetBound e =
