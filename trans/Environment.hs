@@ -408,7 +408,7 @@ declEnv tracing _ (InfixDecl _ assoc maybePri ops) =
   where
   op2Entity :: Op l -> Entity
   op2Entity (VarOp _ name) = eInfix (getId name) fixityVal priorityVal
-  opToQNameEntity (ConOp _ name) = eInfix (getId name) fixityVal priorityVal
+  op2Entity (ConOp _ name) = eInfix (getId name) fixityVal priorityVal
     -- Use Var here as well, as other arguments for Con are unknown here.
   fixityVal = case assoc of
                 AssocNone _ -> None
