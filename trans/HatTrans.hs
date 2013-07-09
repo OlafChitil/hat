@@ -55,10 +55,10 @@ main = do
   when (sWrap flags)
        (dumpIntermediate (sParse flags) "Wrap" (pretty moduleAST2))
 
-  {- Add import of Prelude if not done explicitly. -}
-  let moduleAST3 = implicitlyImportPrelude flags moduleAST2
+  {- Add import of Prelude if not done explicitly, and PreludeBasic. -}
+  let moduleAST3 = implicitlyImportPreludeBasic flags (implicitlyImportPrelude flags moduleAST2)
 
-  {- Read .aux file of every imported module to produce the complete import environment -}
+  {- Read .hx file of every imported module to produce the complete import environment -}
   importEnv <- readAuxFiles flags moduleAST3
 
   {- Create global environment of this module. -}
@@ -79,9 +79,8 @@ main = do
   dumpIntermediate (sParse flags) "After fixity corrections" (pretty moduleAST4)
 
   {- Actual tracing transformation. -}
-  let outputAST = implicitlyImportPreludeBasic flags 
-                    (traceTrans (sSourceFile flags)
-                      (if sDbgTrusted flags then Trusted else Traced) env moduleAST4)
+  let outputAST = traceTrans (sSourceFile flags)
+                    (if sDbgTrusted flags then Trusted else Traced) env moduleAST4
 
   {- Write result file and finish. -}
   writeFile (sHatTransFile flags) (pretty outputAST)
@@ -108,25 +107,24 @@ implicitlyImportPrelude flags
   (Module l maybeHead pragmas importDecls decls) =
   Module l maybeHead pragmas importDecls' decls
   where
-  importDecls' = if sPrelude flags || 
-                      (any (== "Prelude") . map ((\(ModuleName _ str) -> str) . importModule) $ importDecls)
+  importDecls' = if sPrelude flags ||  "Prelude" `elem` map (getId . importModule) importDecls
                    then importDecls
                    else ImportDecl{importAnn = l, importModule = ModuleName l "Prelude"
                                   ,importQualified = False, importSrc = False
                                   ,importPkg = Nothing, importAs = Nothing, importSpecs = Nothing} : importDecls
 
--- Add import Hat.Prelude if current module is not part of the Prelude
--- or the Prelude is already imported otherwise.
--- Module Hat.Prelude defines identifiers introduced by the transformation or deriving
+-- Add import PreludeBasic if current module is not part of the Prelude.
+-- Module PreludeBasic defines identifiers introduced by the transformation or deriving
+-- and *not* exported by module Prelude.
 implicitlyImportPreludeBasic :: Flags -> Module l -> Module l
 implicitlyImportPreludeBasic flags 
   (Module l maybeHead pragmas importDecls decls) =
   Module l maybeHead pragmas importDecls' decls
   where
-  importDecls' = if sPrelude flags || "Prelude" `elem` map (getId . importModule) importDecls
+  importDecls' = if sPrelude flags
                    then importDecls
-                   else ImportDecl{importAnn = l, importModule = ModuleName l "Hat.Prelude"
-                                  ,importQualified = False, importSrc = False
+                   else ImportDecl{importAnn = l, importModule = ModuleName l "PreludeBasic"
+                                  ,importQualified = True, importSrc = False
                                   ,importPkg = Nothing, importAs = Nothing, importSpecs = Nothing} : importDecls
 
 {- If first argument is True, then print second and third with formatting -}
