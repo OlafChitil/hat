@@ -215,10 +215,10 @@ mkQName l str =
 
 mkName :: l -> String -> Name l
 mkName _ "" = error "SynHelp.mkName: empty String."
-mkName l str =
-  if isAlpha (head str)
-    then Ident l str
-    else Symbol l str
+mkName l id@(x:_) =
+  if isAlpha x || x == '_'
+    then Ident l id
+    else Symbol l id
 
 -- Test for specific names:
 

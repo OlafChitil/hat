@@ -8,7 +8,7 @@ module Environment
   ,TySynBody(TApp,TFun,THelper,TVar)
   ,Scope(Local,Global),isLocal
   ,globalEnv,moduleDefines,prettyEnv
-  ,declsEnv,maybeBindsEnv,bindsEnv, patsEnv
+  ,declsEnv,instanceEnv,maybeBindsEnv,bindsEnv, patsEnv
   ,arity,isLambdaBound,isTracedQName,fixPriority, hasPriority
   ,isExpandableTypeSynonym,typeSynonymBody
   ,nameTransTySynHelper,expandTypeSynonym
@@ -387,8 +387,9 @@ declEnv tracing finalEnv (ClassDecl _ _ declHead _ (Just classDecls)) =
                                  "default choice for an associated type synonym"
 declEnv _ _ (InstDecl _ _ _ Nothing) = emptyRelation
 declEnv tracing finalEnv (InstDecl _ _ instHead (Just instDecls)) = emptyRelation
-  -- all entities defined in instance should be already in scope anyway; 
-  -- avoid duplicate entries in environment
+  -- All entities defined in instance should be already in scope anyway; 
+  -- class declarations also declare the methods.
+  -- Have to avoid duplicate entries in environment.
   -- var2Method `mapRng` (declsEnv tracing finalEnv (map getDecl instDecls))
   -- where
   -- classId = getId (instHeadQName instHead)
@@ -438,6 +439,22 @@ declEnv _ _ (SpecSig _ _ _) = emptyRelation
 declEnv _ _ (SpecInlineSig _ _ _ _ _) = emptyRelation
 declEnv _ _ (InstSig _ _ _) = emptyRelation
 declEnv _ _ (AnnPragma _ _) = emptyRelation
+
+
+-- Produce local environment for a non-empty class instance definition.
+instanceEnv :: Bool -> Environment -> Decl SrcSpanInfo -> Environment
+instanceEnv tracing finalEnv (InstDecl l maybeContext instHead (Just instDecls)) =
+  var2Method `mapRng` (declsEnv tracing finalEnv (map getDecl instDecls))
+  where
+  classId = getId (instHeadQName instHead)
+  var2Method :: Entity -> Entity
+  var2Method e | isVar e = eMethod (eId e) [eSrc e] classId tracing
+               | otherwise = error "Environment.declEnv: unexpected declaration in instance."
+  getDecl :: InstDecl SrcSpanInfo -> Decl SrcSpanInfo
+  getDecl (InsDecl _ decl) = decl
+  getDecl (InsType l _ _) = notSupported l "associated type definition"
+  getDecl (InsData l _ _ _ _) = notSupported l "associated data type implementation"
+  getDecl (InsGData l _ _ _ _ _) = notSupported l "GADT style assoicated data type type implementation"
 
 
 matchEnv :: SrcSpanInfo -> Bool -> Match SrcSpanInfo -> Environment

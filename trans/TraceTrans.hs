@@ -34,7 +34,7 @@ import Environment (Environment,Scope(..),isLocal
                    ,fixPriority
                    ,isExpandableTypeSynonym,typeSynonymBody
                    ,nameTransTySynHelper,expandTypeSynonym
-                   ,declsEnv,moduleDefines,maybeBindsEnv,bindsEnv,patsEnv,defineNameEnv
+                   ,declsEnv,instanceEnv,moduleDefines,maybeBindsEnv,bindsEnv,patsEnv,defineNameEnv
                    ,lambdaVarEnv,makeAllLambdaBound)
 import Wired
 import SynHelp
@@ -616,12 +616,16 @@ tDecl env _ tracing -- class instance without methods
   onlyDecl (InstDecl l (fmap tContext maybeContext) (tInstHead instHead) 
     Nothing)
 tDecl env _ tracing -- class instance with methods
-  (InstDecl l maybeContext instHead (Just instDecls)) =
+  inst@(InstDecl l maybeContext instHead (Just instDecls)) =
   ([InstDecl l (fmap tContext maybeContext) (tInstHead instHead) 
      (Just instDecls')]
   ,declsConsts)
   where
-  (instDecls', declsConsts) = tInstDecls env tracing instDecls
+  (instDecls', declsConsts) = tInstDecls env2 tracing instDecls
+  -- Add unqualified method names to environment.
+  -- Qualfied ones should already be in environment but unqualfied may not.
+  env2 = env `unionLocalRelation` instanceEnv (isTraced tracing) env inst
+
 tDecl _ _ _ (DerivDecl l _ _) =
   notSupported l "standalone deriving declaration"
 tDecl _ _ _ (InfixDecl l assoc priority ops) =
