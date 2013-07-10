@@ -25,6 +25,7 @@ instance Id (QName l) where
   isSymbol (Special _ _) = True
   getId (Qual _ _ name) = getId name
   getId (UnQual _ name) = getId name
+  getId qn@(Special _ spec) = error ("SynHelp.getId: " ++ prettyPrint qn)
 
 instance Id (Name l) where
   isSymbol (Ident _ _) = False

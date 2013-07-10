@@ -246,15 +246,15 @@ tImpDecls env impDecls =
     -- Avoid default import of Prelude by importing it qualified.
     -- Transformed program still uses a few (qualified) Prelude
     -- functions and data constructors.
-  : ImportDecl {importAnn = noSpan,
-                importModule = ModuleName noSpan "Hat.Hack",
-                importQualified = False,
-                importSrc = False,
-                importPkg = Nothing,
-                importAs = Nothing,
-                importSpecs = Nothing}
-    -- For list syntax : and [].
-    -- Is that really needed?
+--  : ImportDecl {importAnn = noSpan,
+--                importModule = ModuleName noSpan "Hat.Hack",
+--                importQualified = False,
+--                importSrc = False,
+--                importPkg = Nothing,
+--                importAs = Nothing,
+--                importSpecs = Nothing}
+--    -- For list syntax : and [].
+--    -- Is that really needed?
   : ImportDecl {importAnn = noSpan,
                 importModule = ModuleName noSpan "Hat.Hat",
                 importQualified = True,
@@ -2601,7 +2601,11 @@ expType to (TyApp l tyL tyR) =
 expType to (TyVar l _) =
   Var l (qNameShortIdent (prefix to ++ "Id") l)
 expType to (TyCon l qName) = 
-  Var l (qNameShortIdent (prefix to ++ getId qName) l)
+  Var l (qNameShortIdent (prefix to ++ getName qName) l)
+  where
+  getName :: QName SrcSpanInfo -> String
+  getName (Special _ specialCon) = specialToId specialCon
+  getName qName = getId qName
 
 prefix :: Bool -> String
 prefix True = "to"
