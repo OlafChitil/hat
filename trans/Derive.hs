@@ -4,7 +4,7 @@
 module Derive (derive) where
 
 import Language.Haskell.Exts.Annotated 
-import Wired (mkExpPreludeEqualEqual,mkExpPreludeAndAnd,mkExpTrue,mkExpFalse)
+import Wired (mkExpDeriveEqualEqual,mkExpDeriveAndAnd,mkExpDeriveTrue,mkExpDeriveFalse)
 import SynHelp (Id(getId),appN,tyAppN,litInt,litString,litChar,conDeclName,conDeclArity
                ,mkQName, fieldDeclNames
                ,instHeadQName,declHeadName,declHeadTyVarBinds,tyVarBind2Type
@@ -69,18 +69,18 @@ deriveEq l maybeContext instTy conDecls =
     (Just [InsDecl l (FunBind l (
       map matchEqConstr conDecls ++
       [Match l (Symbol l "==") [PWildCard l, PWildCard l] 
-        (UnGuardedRhs l (mkExpFalse l))
+        (UnGuardedRhs l (mkExpDeriveFalse l))
         Nothing]))])
   where
   names = newNames l
   -- mkExpEqual :: Exp l -> Exp l -> Exp l
-  mkExpEqual e1 e2 = App l (App l (mkExpPreludeEqualEqual l) e1) e2
+  mkExpEqual e1 e2 = App l (App l (mkExpDeriveEqualEqual l) e1) e2
   -- matchEqConstr :: ConDecl l -> Match l
   matchEqConstr conDecl =
     Match l (Symbol l "==") 
       [PApp l (UnQual l conName) patALs, PApp l (UnQual l conName) patARs] 
       (UnGuardedRhs l 
-        (foldr mkExpAnd (mkExpTrue l) (zipWith mkExpEqual expALs expARs)))
+        (foldr mkExpAnd (mkExpDeriveTrue l) (zipWith mkExpEqual expALs expARs)))
       Nothing
     where
     conName = conDeclName conDecl
@@ -238,7 +238,7 @@ deriveRead  env l maybeContext instTy conDecls =
   e1 `alt` e2 =  appN [Var l (mkQName l "PreludeBasic.alt"), e1, e2]
   expReadsPrec conDecl =
     if arity == 0
-      then readParen (mkExpFalse l) (yield conExp `thenLex` getId conName)
+      then readParen (mkExpDeriveFalse l) (yield conExp `thenLex` getId conName)
       else
         case conDecl of
           ConDecl _ _ _ ->
@@ -405,7 +405,7 @@ newNames l = map (Ident l . ('y':) . show) [1..]
 -- syntax helpers:
 
 mkExpAnd :: Exp l -> Exp l -> Exp l
-mkExpAnd e1 e2 = App l (App l (mkExpPreludeAndAnd l) e1) e2
+mkExpAnd e1 e2 = App l (App l (mkExpDeriveAndAnd l) e1) e2
   where 
   l = ann e1
 

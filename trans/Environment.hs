@@ -25,6 +25,7 @@ import SynHelp (Id(getId),getQualified,mkQual,qual,isQual,isUnQual,notSupported
                ,getConDeclFromQualConDecl,getConstructorFromConDecl,eqName,mkName,mkQName
                ,getFieldNamesFromConDecl,decomposeFunType,isFunTyCon,tyAppN,getModuleNameFromModule
                ,UpdId(updateId),dropAnn,noSpan)
+import Wired (qNamePreludeTrue,qNamePreludeFalse)
 import qualified Data.Set as Set
 import qualified Data.Map as Map (singleton,adjust)
 import Relation
@@ -777,9 +778,12 @@ env2Fixities env =
 
 -- -------------------------
 -- All identifiers whose bindings are fixed by the Haskell language
+-- plus a few for bootstrapping
 wiredEnv :: Environment
 wiredEnv = listToRelation $
-  [(Special () (UnitCon ()), eCon "()" noSpan 0 "()" Data [] False)
+  [(qNamePreludeTrue (), eCon "True" noSpan 0 "Bool" Data [] False)
+  ,(qNamePreludeFalse (), eCon "False" noSpan 0 "Bool" Data [] False)
+  ,(Special () (UnitCon ()), eCon "()" noSpan 0 "()" Data [] False)
   ,(Special () (UnitCon ()), eType "()" ["()"] [])
   ,(Special () (ListCon ()), eType "[]" [":","[]"] [])
   ,(Special () (FunCon ()), eType "->" [] [])

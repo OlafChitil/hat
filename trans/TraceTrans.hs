@@ -1551,7 +1551,7 @@ tExpA env tracing cr (InfixApp l e1 qop e2) ls es =
 tExpA env tracing cr (App l e1 e2) ls es = 
   tExpA env tracing cr e1 (l:ls) (e2:es)
 tExpA env tracing cr (NegApp l e) ls es =
-  tExpA env tracing cr (App l (Var l (qNamePreludeSymbol "-" l)) e) ls es
+  tExpA env tracing cr (App l (Var l (qNameDeriveSymbol "-" l)) e) ls es
 tExpA env tracing cr (Lambda l pats body) ls es =
   tExpF env tracing ls es
     (mkExpFun tracing (mkExpSR l tracing) expMkAtomLambda fun funArity
@@ -1645,7 +1645,7 @@ tExpA env tracing cr (LeftSection l exp qOp) ls es =
   tExpA env tracing cr (App l (qOp2Exp qOp) exp) ls es
 tExpA env tracing cr (RightSection l qOp exp) ls es =
   -- desugar into use of flip: (op e) = (flip op e)
-  tExpA env tracing cr (App l (App l (mkExpPreludeFlip l) (qOp2Exp qOp)) exp) ls es
+  tExpA env tracing cr (App l (App l (mkExpDeriveFlip l) (qOp2Exp qOp)) exp) ls es
   -- -- desugar into a lambda abstraction
   -- tExpA env tracing cr
   --   (Lambda noSpan [PVar noSpan name] 
@@ -1711,15 +1711,15 @@ tExpA env Trusted cr (RecUpdate l exp fieldUpdates) ls es =
   nameVar = nameFromSpan l
 tExpA env tracing cr (EnumFrom l exp) ls es =
   -- desugar list enumeration [from ..]
-  tExpA env tracing cr (App l (mkExpPreludeEnumFrom l) exp) ls es
+  tExpA env tracing cr (App l (mkExpDeriveEnumFrom l) exp) ls es
 tExpA env tracing cr (EnumFromTo l from to) ls es =
-  tExpA env tracing cr (App l (App l (mkExpPreludeEnumFromTo l) from) to) ls es
+  tExpA env tracing cr (App l (App l (mkExpDeriveEnumFromTo l) from) to) ls es
 tExpA env tracing cr (EnumFromThen l from the) ls es =
   tExpA env tracing cr 
-    (App l (App l (mkExpPreludeEnumFromThen l) from) the) ls es
+    (App l (App l (mkExpDeriveEnumFromThen l) from) the) ls es
 tExpA env tracing cr (EnumFromThenTo l from the to) ls es =
   tExpA env tracing cr
-    (App l (App l (App l (mkExpPreludeEnumFromThenTo l) from) the) to) ls es
+    (App l (App l (App l (mkExpDeriveEnumFromThenTo l) from) the) to) ls es
 tExpA env tracing cr (ListComp l exp qualStmts) ls es =
   tExpF env tracing ls es $
     tExpA env tracing cr (desugarListComprehension l exp qualStmts) ls es
@@ -1890,11 +1890,11 @@ removeDo :: [Stmt SrcSpanInfo] -> Exp SrcSpanInfo
 removeDo [Qualifier l exp] =  -- last stmt in do-expression
   exp
 removeDo (Qualifier l exp : stmts) =
-  appN [Var l (qNamePreludeGtGt l), exp, removeDo stmts]
+  appN [Var l (qNameDeriveGtGt l), exp, removeDo stmts]
 removeDo (LetStmt l binds : stmts) =
   Let l binds (removeDo stmts)
 removeDo (Generator l pat e : stmts) =
-  appN [Var l (qNamePreludeGtGtEq l)
+  appN [Var l (qNameDeriveGtGtEq l)
        ,e
        ,SCCPragma l "" $  -- hack to inform this really from a do-stmt
         if neverFailingPat pat
@@ -1904,7 +1904,7 @@ removeDo (Generator l pat e : stmts) =
                    [Alt l pat (UnGuardedAlt l (removeDo stmts)) Nothing
                    ,Alt l (PWildCard l)
                      (UnGuardedAlt l 
-                       (App l (Var l (qNamePreludeFail l)) 
+                       (App l (Var l (qNameDeriveFail l)) 
                               (Lit l (String l msg msg))))
                      Nothing])]
   where
@@ -1937,13 +1937,13 @@ desugarListComprehension l exp qualStmts =
   unQual (QualStmt _ stmt) = stmt
   unQual qs = notSupported l 
                 "qualifier beyond a statement in list comprehension"
-  trans [] = App l (mkExpPreludeCons l) exp
+  trans [] = App l (mkExpCons l) exp
   trans (LetStmt l binds : stmts) = 
     Let l binds (trans stmts)
   trans (Qualifier l exp : stmts) =
-    App l (App l (mkExpPreludeFilter l) exp) (trans stmts)
+    App l (App l (mkExpDeriveFilter l) exp) (trans stmts)
   trans (Generator l pat expG : stmts) =
-    App l (App l (mkExpPreludeFoldr l) 
+    App l (App l (mkExpDeriveFoldr l) 
             (Lambda l [PVar l nameX, PVar l nameY]
                       (Case l (Var l (UnQual l nameX))
                         [Alt l pat (UnGuardedAlt l 
@@ -2014,7 +2014,7 @@ tPat (PLit _ (String l s str)) =
 tPat (PLit _ lit@(Int l int str)) =
   (PVar l (nameTransLambdaVar nameNew)
   ,Just (UnQual l nameNew
-        ,App l (App l (mkExpPreludeEqualEqual l)
+        ,App l (App l (mkExpDeriveEqualEqual l)
                       (Var l (UnQual l nameNew))) 
                (Lit l lit)
         ,[],[],[]))
@@ -2023,7 +2023,7 @@ tPat (PLit _ lit@(Int l int str)) =
 tPat (PLit _ lit@(Frac l rat str)) =
   (PVar l (nameTransLambdaVar nameNew)
   ,Just (UnQual l nameNew
-        ,App l (App l (mkExpPreludeEqualEqual l) 
+        ,App l (App l (mkExpDeriveEqualEqual l) 
                       (Var l (UnQual l nameNew))) 
                (Lit l lit)
         ,[],[],[]))
@@ -2042,11 +2042,11 @@ tPat (PNeg l _) =
 tPat (PNPlusK l n k) =
   (PVar l (nameTransLambdaVar nameNew)
   ,Just (UnQual l nameNew
-        ,App l (App l (mkExpPreludeGreaterEqual l)
+        ,App l (App l (mkExpDeriveGreaterEqual l)
                       varNew)
                litK
         ,[PatBind l (PVar l n) Nothing 
-           (UnGuardedRhs l (App l (App l (mkExpPreludeMinus l) varNew)
+           (UnGuardedRhs l (App l (App l (mkExpDeriveMinus l) varNew)
                                   litK)) 
            Nothing]
         ,[],[]))
@@ -2156,7 +2156,7 @@ mkPatList :: l -> [Pat l] -> Pat l
 mkPatList l =
   foldr (\x xs -> PApp l cons [x,xs]) (PList l [])
   where
-  cons = qNamePreludeCons l
+  cons = qNameCons l
 
 -- ----------------------------------------------------------------------------
 -- Abstract continuation for guards
@@ -2622,7 +2622,7 @@ mkPatTuple ps = PTuple noSpan ps
 
 mkExpList :: [Exp SrcSpanInfo] -> Exp SrcSpanInfo
 mkExpList =
-  foldr (\x xs -> appN [mkExpPreludeCons noSpan,x,xs]) (List noSpan [])
+  foldr (\x xs -> appN [mkExpCons noSpan,x,xs]) (List noSpan [])
 
 mkFailExp :: Exp l -> Exp l
 mkFailExp parent = App l (Var l (qNameFatal l)) parent

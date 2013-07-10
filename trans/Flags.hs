@@ -93,11 +93,13 @@ Aborts with error, if the required filenames are not in argument list.
 -}
 
 processArgs :: [String] -> Flags
-processArgs argv =
-  case getOpt Permute options argv of
+processArgs argv = 
+  flags {sIncludes = sIncludes flags ++ [fst (splitFileName (sSourceFile flags))]} 
+     -- add rootdir at end
+  where
+  flags = case getOpt Permute options argv of
     (o,[f],[]) | takeExtension f `elem` [".hs",".lhs"] -> foldl (flip id) (defaultFlags f) o
     (_,_,errs) -> error (concat errs ++ usageInfo header options)
-  where
   header = "Usage: hat-trans [OPTION...] file.[l]hs\n"
 
 defaultFlags :: String -> Flags
@@ -108,7 +110,7 @@ defaultFlags sourcefile = flags
     {sSourceFile = sourcefile	-- original name 
     ,sHatAuxFile = rootdir </> replaceExtension filename "hx"
     ,sHatTransFile = rootdir </> "Hat" </> replaceExtension filename "hs"
-    ,sIncludes = [rootdir]
+    ,sIncludes = []
     ,sPreludes = []
     ,sSrcDir   = rootdir </> "Hat"  -- directory for transformed sources
     ,sPrelude = False		

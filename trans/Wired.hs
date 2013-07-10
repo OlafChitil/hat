@@ -33,18 +33,14 @@ qNameShortIdent ident l = Qual l (ModuleName l "T") (Ident l ident)
 qNameShortArity :: String -> l -> Arity -> QName l
 qNameShortArity ident l a = qNameShortIdent (ident ++ show a) l
 
+qNameDeriveIdent :: String -> l -> QName l
+qNameDeriveIdent ident l = 
+  Qual l (ModuleName l "PreludeBasic") (Ident l ident)
 
+qNameDeriveSymbol :: String -> l -> QName l
+qNameDeriveSymbol ident l = 
+  Qual l (ModuleName l "PreludeBasic") (Symbol l ident)
 
--- Syntax using identifiers in the standard Prelude.
-
-mkExpPreludeAndAnd :: l -> Exp l
-mkExpPreludeAndAnd l = Var l (qNamePreludeSymbol "&&" l)
-
-mkExpTrue :: l -> Exp l
-mkExpTrue l = Var l (qNamePreludeTrue l)
-
-mkExpFalse :: l -> Exp l
-mkExpFalse l = Var l (qNamePreludeFalse l)
 
 
 -- -----------------------------------------------------------------------------
@@ -198,12 +194,6 @@ qNameRefSrcSpan = qNameShortIdent "RefSrcPos"
 qNameRefExp :: l -> QName l
 qNameRefExp = qNameShortIdent "RefExp"
 
-qNamePreludeTrue :: l -> QName l
-qNamePreludeTrue = qNamePreludeIdent "True"
-
-qNamePreludeFalse :: l -> QName l
-qNamePreludeFalse = qNamePreludeIdent "False"
-
 
 -- For special symbols
 -- lists:
@@ -215,52 +205,80 @@ qNameTraceInfoConNil :: l -> QName l
 qNameTraceInfoConNil l = Qual l (tracingModuleNameShort l) (Ident l "aNil")
 
 
--- Names from original (NotHat) prelude:
+-- Always refers to list constructor from the (NoHat) prelude:
 
-qNamePreludeGtGt :: l -> QName l
-qNamePreludeGtGt = qNamePreludeSymbol ">>"
+qNameCons :: l -> QName l
+qNameCons l = Special l (Cons l)
 
-qNamePreludeGtGtEq :: l -> QName l
-qNamePreludeGtGtEq = qNamePreludeSymbol ">>="
-
-qNamePreludeFail :: l -> QName l
-qNamePreludeFail = qNamePreludeIdent "fail"
-
-mkExpPreludeFlip :: l -> Exp l
-mkExpPreludeFlip l = Var l (qNamePreludeIdent "flip" l)
-
-mkExpPreludeEnumFrom :: l -> Exp l
-mkExpPreludeEnumFrom l = Var l (qNamePreludeIdent "enumFrom" l)
-
-mkExpPreludeEnumFromTo :: l -> Exp l
-mkExpPreludeEnumFromTo l = Var l (qNamePreludeIdent "enumFromTo" l)
-
-mkExpPreludeEnumFromThen :: l -> Exp l
-mkExpPreludeEnumFromThen l = Var l (qNamePreludeIdent "enumFromThen" l)
-
-mkExpPreludeEnumFromThenTo :: l -> Exp l
-mkExpPreludeEnumFromThenTo l = Var l (qNamePreludeIdent "enumFromThenTo" l)
-
-qNamePreludeCons :: l -> QName l
-qNamePreludeCons l = Special l (Cons l)
-mkExpPreludeCons :: l -> Exp l
-mkExpPreludeCons l = Con l (qNamePreludeCons l)
-
-mkExpPreludeFilter :: l -> Exp l
-mkExpPreludeFilter l = Var l (qNamePreludeIdent "filter" l)
-
-mkExpPreludeFoldr :: l -> Exp l
-mkExpPreludeFoldr l = Var l (qNamePreludeIdent "foldr" l)
-
-mkExpPreludeEqualEqual :: l -> Exp l
-mkExpPreludeEqualEqual l = Var l (qNamePreludeSymbol "==" l)
-
-mkExpPreludeGreaterEqual :: l -> Exp l
-mkExpPreludeGreaterEqual l = Var l (qNamePreludeSymbol ">=" l)
-
-mkExpPreludeMinus :: l -> Exp l
-mkExpPreludeMinus l = Var l (qNamePreludeSymbol "-" l)
+mkExpCons :: l -> Exp l
+mkExpCons l = Con l (qNameCons l)
 
 -- function main
 nameMain :: l -> Name l
 nameMain l = Ident l "main"
+
+
+-- Names used for desugaring AST before actual transformation.
+-- So they are transformed and we must ensure they are always in scope.
+-- Hence qualify with PreludeBasic which is always imported qualified.
+
+mkExpDeriveFlip :: l -> Exp l
+mkExpDeriveFlip l = Var l (qNameDeriveIdent "flip" l)
+
+mkExpDeriveEnumFrom :: l -> Exp l
+mkExpDeriveEnumFrom l = Var l (qNameDeriveIdent "enumFrom" l)
+
+mkExpDeriveEnumFromTo :: l -> Exp l
+mkExpDeriveEnumFromTo l = Var l (qNameDeriveIdent "enumFromTo" l)
+
+mkExpDeriveEnumFromThen :: l -> Exp l
+mkExpDeriveEnumFromThen l = Var l (qNameDeriveIdent "enumFromThen" l)
+
+mkExpDeriveEnumFromThenTo :: l -> Exp l
+mkExpDeriveEnumFromThenTo l = Var l (qNameDeriveIdent "enumFromThenTo" l)
+
+mkExpDeriveFilter :: l -> Exp l
+mkExpDeriveFilter l = Var l (qNameDeriveIdent "filter" l)
+
+mkExpDeriveFoldr :: l -> Exp l
+mkExpDeriveFoldr l = Var l (qNameDeriveIdent "foldr" l)
+
+mkExpDeriveEqualEqual :: l -> Exp l
+mkExpDeriveEqualEqual l = Var l (qNameDeriveSymbol "==" l)
+
+mkExpDeriveGreaterEqual :: l -> Exp l
+mkExpDeriveGreaterEqual l = Var l (qNameDeriveSymbol ">=" l)
+
+mkExpDeriveMinus :: l -> Exp l
+mkExpDeriveMinus l = Var l (qNameDeriveSymbol "-" l)
+
+qNameDeriveGtGt :: l -> QName l
+qNameDeriveGtGt = qNameDeriveSymbol ">>"
+
+qNameDeriveGtGtEq :: l -> QName l
+qNameDeriveGtGtEq = qNameDeriveSymbol ">>="
+
+qNameDeriveFail :: l -> QName l
+qNameDeriveFail = qNameDeriveIdent "fail"
+
+mkExpDeriveAndAnd :: l -> Exp l
+mkExpDeriveAndAnd l = Var l (qNameDeriveSymbol "&&" l)
+
+-- transformed same as original; thus easier to transform Prelude
+mkExpDeriveTrue :: l -> Exp l
+mkExpDeriveTrue l = Var l (qNamePreludeTrue l) 
+
+-- transformed same as original; thus easier to transform Prelude
+mkExpDeriveFalse :: l -> Exp l
+mkExpDeriveFalse l = Var l (qNamePreludeFalse l)
+
+-- Not for desugaring, but for generated code.
+-- Hence not transformed any more.
+-- Has to refer to original, untransformed Prelude.
+
+qNamePreludeTrue :: l -> QName l
+qNamePreludeTrue = qNamePreludeIdent "True"
+
+qNamePreludeFalse :: l -> QName l
+qNamePreludeFalse = qNamePreludeIdent "False"
+
