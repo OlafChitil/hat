@@ -7,17 +7,21 @@ import Language.Haskell.Exts.Annotated
   (Module(..),ModuleHead(..),ExportSpecList(..),ExportSpec(..)
   ,ImportDecl(..),ModuleName(..),QName(..),SrcSpanInfo)
 import SynHelp (mkQName,Id(getId),getModuleNameFromModule)
-import System.FilePath(FilePath,addExtension,pathSeparator,(</>))
-import System.IO(stderr,hPutStr)
-import System.Exit(exitFailure)
+import System.FilePath (FilePath,addExtension,pathSeparator,(</>))
+import System.IO (stderr,hPutStr)
+import System.Exit (exitFailure)
 import qualified Control.Exception(catch,IOException)
+import Data.List (isPrefixOf)
 
 -- Create environment for all imports.
 -- Exception if hx-file of an imported module is not found.
 readAuxFiles :: Flags -> Module l -> IO Environment
 readAuxFiles flags mod@(Module l maybeModuleHead _ importDecls decls) = do
-  importEnvs <- mapM (importEnv flags) importDecls
+  importEnvs <- mapM (importEnv flags) (filter notNotHat importDecls)
   return (unionRelations importEnvs)
+
+notNotHat :: ImportDecl l -> Bool
+notNotHat importDecl = not ("NotHat" `isPrefixOf` getId (importModule importDecl))
 
 importEnv :: Flags -> ImportDecl l -> IO Environment
 importEnv flags importDecl = do
