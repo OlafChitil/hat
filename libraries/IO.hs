@@ -33,10 +33,10 @@ import IOBuiltin
 -- data Handle = ... -- implementation-dependent
 
 
-foreign import haskell "Prelude.=="
+foreign import ccall "NotHat.Prelude.=="
  primHandleEq :: Handle -> Handle -> Bool
 
-foreign import haskell "Prelude.showsPrec"
+foreign import ccall "NotHat.Prelude.showsPrec"
  primHandleShowsPrec :: Int -> Handle -> String -> String
 
 instance Eq Handle where 
@@ -47,14 +47,14 @@ instance Show Handle where
 
 -- data HandlePosn = ... -- implementation-dependent
 
-foreign import haskell "Prelude.=="
+foreign import ccall "NotHat.Prelude.=="
  primHandlePosnEq :: HandlePosn -> HandlePosn -> Bool
 
 instance Eq HandlePosn where 
   (==) = primHandlePosnEq
 
 {- not implemented in GHC 5.02
-foreign import haskell "Prelude.showsPrec"
+foreign import ccall "NotHat.Prelude.showsPrec"
  primHandlePosnShowsPrec :: Int -> HandlePosn -> String -> String
 
 instance Show HandlePosn where
@@ -62,56 +62,56 @@ instance Show HandlePosn where
 -}
 
 
-foreign import haskell "IO.stdin"
+foreign import ccall "NotHat.IO.stdin"
  stdin :: Handle
-foreign import haskell "IO.stdout"
+foreign import ccall "NotHat.IO.stdout"
  stdout :: Handle
-foreign import haskell "IO.stderr"
+foreign import ccall "NotHat.IO.stderr"
  stderr :: Handle
 
-foreign import haskell "IO.openFile"
+foreign import ccall "NotHat.IO.openFile"
  openFile              :: String -> IOMode -> IO Handle
-foreign import haskell "IO.hClose"
+foreign import ccall "NotHat.IO.hClose"
  hClose                :: Handle -> IO ()
 
-foreign import haskell "IO.hFileSize"
+foreign import ccall "NotHat.IO.hFileSize"
  hFileSize             :: Handle -> IO Integer
-foreign import haskell "IO.hIsEOF"
+foreign import ccall "NotHat.IO.hIsEOF"
  hIsEOF                :: Handle -> IO Bool
 
 isEOF                 :: IO Bool
 isEOF                 =  hIsEOF stdin
 
-foreign import haskell "IO.hSetBuffering"
+foreign import ccall "NotHat.IO.hSetBuffering"
  hSetBuffering         :: Handle  -> BufferMode -> IO ()
-foreign import haskell "IO.hGetBuffering"
+foreign import ccall "NotHat.IO.hGetBuffering"
  hGetBuffering         :: Handle  -> IO BufferMode
-foreign import haskell "IO.hFlush"
+foreign import ccall "NotHat.IO.hFlush"
  hFlush                :: Handle -> IO () 
-foreign import haskell "IO.hGetPosn"
+foreign import ccall "NotHat.IO.hGetPosn"
  hGetPosn              :: Handle -> IO HandlePosn
-foreign import haskell "IO.hSetPosn"
+foreign import ccall "NotHat.IO.hSetPosn"
  hSetPosn              :: HandlePosn -> IO () 
-foreign import haskell "IO.hSeek"
+foreign import ccall "NotHat.IO.hSeek"
  hSeek                 :: Handle -> SeekMode -> Integer -> IO () 
 
-foreign import haskell "IO.hWaitForInput"
+foreign import ccall "NotHat.IO.hWaitForInput"
  hWaitForInput       :: Handle -> Int -> IO Bool
 
 hReady :: Handle -> IO Bool 
 hReady h = hWaitForInput h 0
 
-foreign import haskell "IO.hGetChar"
+foreign import ccall "NotHat.IO.hGetChar"
  hGetChar              :: Handle -> IO Char
-foreign import haskell "IO.hGetLine"
+foreign import ccall "NotHat.IO.hGetLine"
  hGetLine              :: Handle -> IO String
-foreign import haskell "IO.hLookAhead"
+foreign import ccall "NotHat.IO.hLookAhead"
  hLookAhead            :: Handle -> IO Char
-foreign import haskell "IO.hGetContents"
+foreign import ccall "NotHat.IO.hGetContents"
  hGetContents          :: Handle -> IO String
-foreign import haskell "(\\_ h c -> T.outputTrace khPutChar [c] Prelude.>> IO.hPutChar h c) Prelude.True"
+foreign import ccall "NotHat.(\\_ h c -> T.outputTrace khPutChar [c] Prelude.>> IO.hPutChar h c) Prelude.True"
  hPutChar              :: Handle -> Char -> IO ()
-foreign import haskell "(\\_ h s -> T.outputTrace khPutStr s Prelude.>> IO.hPutStr h s) Prelude.True"
+foreign import ccall "NotHat.(\\_ h s -> T.outputTrace khPutStr s Prelude.>> IO.hPutStr h s) Prelude.True"
  hPutStr               :: Handle -> String -> IO () 
 
 hPutStrLn         :: Handle -> String -> IO ()
@@ -121,40 +121,40 @@ hPutStrLn h s     =  do hPutStr h s
 hPrint     :: Show a => Handle -> a -> IO ()
 hPrint h x = hPutStrLn h (show x)
 
-foreign import haskell "IO.hIsOpen"
+foreign import ccall "NotHat.IO.hIsOpen"
  hIsOpen               :: Handle -> IO Bool
-foreign import haskell "IO.hIsClosed"
+foreign import ccall "NotHat.IO.hIsClosed"
  hIsClosed             :: Handle -> IO Bool
-foreign import haskell "IO.hIsReadable"
+foreign import ccall "NotHat.IO.hIsReadable"
  hIsReadable           :: Handle -> IO Bool
-foreign import haskell "IO.hIsWritable"
+foreign import ccall "NotHat.IO.hIsWritable"
  hIsWritable           :: Handle -> IO Bool
-foreign import haskell "IO.hIsSeekable"
+foreign import ccall "NotHat.IO.hIsSeekable"
  hIsSeekable           :: Handle -> IO Bool
 
-foreign import haskell "Error.isAlreadyExistsError"
+foreign import ccall "NotHat.Error.isAlreadyExistsError"
  isAlreadyExistsError  :: IOError -> Bool
-foreign import haskell "Error.isDoesNotExistError"
+foreign import ccall "NotHat.Error.isDoesNotExistError"
  isDoesNotExistError   :: IOError -> Bool 
-foreign import haskell "Error.isAlreadyInUseError"
+foreign import ccall "NotHat.Error.isAlreadyInUseError"
  isAlreadyInUseError   :: IOError -> Bool
-foreign import haskell "Error.isFullError"
+foreign import ccall "NotHat.Error.isFullError"
  isFullError           :: IOError -> Bool
-foreign import haskell "Error.isEOFError"
+foreign import ccall "NotHat.Error.isEOFError"
  isEOFError            :: IOError -> Bool
-foreign import haskell "Error.isIllegalOperation"
+foreign import ccall "NotHat.Error.isIllegalOperation"
  isIllegalOperation    :: IOError -> Bool
-foreign import haskell "Error.isPermissionError"
+foreign import ccall "NotHat.Error.isPermissionError"
  isPermissionError     :: IOError -> Bool
-foreign import haskell "Error.isUserError"
+foreign import ccall "NotHat.Error.isUserError"
  isUserError           :: IOError -> Bool
 
-foreign import haskell "Error.ioeGetErrorString"
+foreign import ccall "NotHat.Error.ioeGetErrorString"
  ioeGetErrorString     :: IOError -> String
-foreign import haskell "Error.ioeGetHandle"
+foreign import ccall "NotHat.Error.ioeGetHandle"
  ioeGetHandle          :: IOError -> Maybe Handle
 
-foreign import haskell "Error.ioeGetFileName"
+foreign import ccall "NotHat.Error.ioeGetFileName"
  ioeGetFileName        :: IOError -> Maybe String
 
 -- Just provide an implementation of the system-indendent

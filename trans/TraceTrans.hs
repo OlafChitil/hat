@@ -2606,6 +2606,9 @@ expType to (TyCon l qName) =
   getName :: QName SrcSpanInfo -> String
   getName (Special _ specialCon) = specialToId specialCon
   getName qName = getId qName
+expType to (TyParen l ty) = Paren l (expType to ty)
+expType to (TyInfix l tyL qName tyR) = expType to (TyApp l (TyApp l (TyCon l qName) tyL) tyR)
+expType to (TyKind l ty kind) = notSupported l "type with kind"
 
 prefix :: Bool -> String
 prefix True = "to"

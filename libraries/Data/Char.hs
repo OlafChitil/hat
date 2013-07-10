@@ -45,24 +45,24 @@ import Ix
 import PreludeBuiltinTypes  -- (fromBool)
 import qualified NotHat.Data.Char  -- not to be transformed
 
-foreign import haskell "Data.Char.isLetter"
+foreign import ccall "NotHat.Data.Char.isLetter"
   isLetter :: Char -> Bool
-foreign import haskell "Data.Char.isMark"
+foreign import ccall "NotHat.Data.Char.isMark"
   isMark :: Char -> Bool
-foreign import haskell "Data.Char.isNumber"
+foreign import ccall "NotHat.Data.Char.isNumber"
   isNumber :: Char -> Bool
-foreign import haskell "Data.Char.isPunctuation"
+foreign import ccall "NotHat.Data.Char.isPunctuation"
   isPunctuation :: Char -> Bool
-foreign import haskell "Data.Char.isSymbol"
+foreign import ccall "NotHat.Data.Char.isSymbol"
   isSymbol :: Char -> Bool
-foreign import haskell "Data.Char.isSeparator"
+foreign import ccall "NotHat.Data.Char.isSeparator"
   isSeparator :: Char -> Bool
-foreign import haskell "Data.Char.isAsciiUpper"
+foreign import ccall "NotHat.Data.Char.isAsciiUpper"
   isAsciiUpper :: Char -> Bool
-foreign import haskell "Data.Char.isAsciiLower"
+foreign import ccall "NotHat.Data.Char.isAsciiLower"
   isAsciiLower :: Char -> Bool
 
-foreign import haskell "Data.Char.toTitle"
+foreign import ccall "NotHat.Data.Char.toTitle"
   toTitle :: Char -> Char
 
 data GeneralCategory
@@ -98,8 +98,8 @@ data GeneralCategory
         | NotAssigned           -- ^ Cn: Other, Not Assigned
         deriving (Eq, Ord, Enum, Read, Show, Bounded, Ix)
 
-foreign import haskell 
-  "(\\_ i -> Prelude.fromEnum (Data.Char.generalCategory (Prelude.toEnum i))) Prelude.True"
+foreign import ccall 
+  "NotHat.(\\_ i -> Prelude.fromEnum (Data.Char.generalCategory (Prelude.toEnum i))) Prelude.True"
   genCat :: Int -> Int
 
 generalCategory :: Char -> GeneralCategory

@@ -2,7 +2,8 @@
 module  Array ( 
     module Ix,  -- export all of Ix 
     Array, array, listArray, (!), bounds, indices, elems, assocs, 
-    accumArray, (//), accum, ixmap ) where
+    accumArray, (//), accum, ixmap 
+    ) where
 
 import Ix
 import List( (\\) )
@@ -10,6 +11,7 @@ import List( (\\) )
 infixl 9  !, //
 
 data Array a b = MkArray (a,a) (a -> b) deriving ()  -- no (Ix a) in 2010
+
 
 array       :: (Ix a) => (a,a) -> [(a,b)] -> Array a b
 array b ivs =
@@ -20,14 +22,18 @@ array b ivs =
                             []    -> error "Array.!: \
                                            \undefined array element"
                             _     -> error "Array.!: \
-                                           \multiply defined array element")
+                                           \multiply defined array element"
+                     )
         else error "Array.array: out-of-range array association"
+
 
 listArray             :: (Ix a) => (a,a) -> [b] -> Array a b
 listArray b vs        =  array b (zipWith (\ a b -> (a,b)) (range b) vs)
 
+
 (!)                   :: (Ix a) => Array a b -> a -> b
 (!) (MkArray _ f)     =  f
+
 
 bounds                :: (Ix a) => Array a b -> (a,a)
 bounds (MkArray b _)  =  b

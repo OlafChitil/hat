@@ -31,37 +31,37 @@ instance Ord  ClockTime where
 instance Eq   ClockTime where 
   (==) = primClockTimeEqEq
 
-foreign import haskell "Prelude.compare"
+foreign import ccall "NotHat.Prelude.compare"
  primClockTimeCompare :: ClockTime -> ClockTime -> Ordering
 
-foreign import haskell "Prelude.<="
+foreign import ccall "NotHat.Prelude.<="
  primClockTimeLeEq :: ClockTime -> ClockTime -> Bool
 
-foreign import haskell "Prelude.=="
+foreign import ccall "NotHat.Prelude.=="
  primClockTimeEqEq :: ClockTime -> ClockTime -> Bool
 
-foreign import haskell "Time.getClockTime"
+foreign import ccall "NotHat.Time.getClockTime"
  getClockTime            :: IO ClockTime
 
-foreign import haskell "Time.addToClockTime"
+foreign import ccall "NotHat.Time.addToClockTime"
  addToClockTime          :: TimeDiff     -> ClockTime -> ClockTime
 
-foreign import haskell "Time.diffClockTimes"
+foreign import ccall "NotHat.Time.diffClockTimes"
  diffClockTimes          :: ClockTime    -> ClockTime -> TimeDiff
 
-foreign import haskell "Time.toCalendarTime"
+foreign import ccall "NotHat.Time.toCalendarTime"
  toCalendarTime          :: ClockTime    -> IO CalendarTime
 
-foreign import haskell "Time.toUTCTime"
+foreign import ccall "NotHat.Time.toUTCTime"
  toUTCTime               :: ClockTime    -> CalendarTime
 
-foreign import haskell "Time.toClockTime"
+foreign import ccall "NotHat.Time.toClockTime"
  toClockTime             :: CalendarTime -> ClockTime
 
-foreign import haskell "Time.calendarTimeToString"
+foreign import ccall "NotHat.Time.calendarTimeToString"
  calendarTimeToString    :: CalendarTime -> String
 
-foreign import haskell "Time.formatCalendarTime"
+foreign import ccall "NotHat.Time.formatCalendarTime"
  formatCalendarTime :: TimeLocale -> String -> CalendarTime -> String
 
 {-
