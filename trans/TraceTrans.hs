@@ -837,7 +837,7 @@ tCaf env scope tracing l name maybeType rhs maybeBinds =
       (UnGuardedRhs l (appN
         [mkExpConstDef tracing
         ,expParent
-        ,Var l (UnQual l (nameTraceInfoVar l scope name))
+        ,Var l (UnQual l (nameTraceInfoVar (ann name) scope name))
         ,Lambda l [patParent] (smartExpLet maybeBinds' rhs')]))
       Nothing]
   ,moduleConstsEnv Local envLocal `moduleConstsUnion` rhsConsts `moduleConstsUnion` bindsConsts)
@@ -948,7 +948,7 @@ tMatches env tracing l ids pVars funName funArity _
   (Match _ _ pats' rhs' decls', matchConsts) =
     tMatch env tracing True funName failCont m
   (matches', matchesDecls, matchesConsts) =
-    tMatches env tracing l (tail ids) pVars funName funArity -- shouldn't contId appear here?
+    tMatches env tracing l (tail ids) pVars contId funArity 
       (neverFailingPats pats) matches
 tMatches env tracing l ids pVars funName funArity _ 
   (m@(Match _ _ pats _ _) : matches) =
