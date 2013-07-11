@@ -464,14 +464,15 @@ matchEnv l tracing (Match _ name pats _ _) =
 matchEnv l tracing (InfixMatch _ pat name pats rhs maybeBinds) =
   matchEnv l tracing (Match l name (pat:pats) rhs maybeBinds)
 
-patsEnv :: SrcSpanInfo -> Bool -> [Pat SrcSpanInfo] -> Environment
+patsEnv :: l -> Bool -> [Pat SrcSpanInfo] -> Environment
 patsEnv l tracing pats = unionRelations (map (patEnv l tracing) pats)
 
 -- All occurring variables are let-bound, because this function is for 
 -- pattern bindings.
-patEnv :: SrcSpanInfo -> Bool -> Pat SrcSpanInfo -> Environment
+-- No good reason to pass location information; use that of variable name anyway.
+patEnv :: l -> Bool -> Pat SrcSpanInfo -> Environment
 patEnv l tracing (PVar _ name) = 
-  singleton (eVar (getId name) l 0 tracing)
+  singleton (eVar (getId name) (ann name) 0 tracing)
 patEnv _ _ (PLit _ _) = emptyRelation
 patEnv l tracing (PNeg _ pat) = patEnv l tracing pat
 patEnv l tracing (PNPlusK l2 name _) = patEnv l tracing (PVar l2 name)
@@ -497,7 +498,7 @@ patEnv _ _ (PExplTypeArg l _ _) = notSupported l "explicit generics style type a
 patEnv _ _ (PQuasiQuote l _ _) = notSupported l "quasi quote pattern"
 patEnv l tracing (PBangPat _ pat) = patEnv l tracing pat
 
-patField :: SrcSpanInfo -> Bool -> PatField SrcSpanInfo -> Environment
+patField :: l -> Bool -> PatField SrcSpanInfo -> Environment
 patField l tracing (PFieldPat _ _ pat) = patEnv l tracing pat
 patField _ _ (PFieldPun l _) = notSupported l "field pun"
 patField _ _ (PFieldWildcard _) = emptyRelation
