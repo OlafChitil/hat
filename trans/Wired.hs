@@ -41,6 +41,14 @@ qNameDeriveSymbol :: String -> l -> QName l
 qNameDeriveSymbol ident l = 
   Qual l (ModuleName l "PreludeBasic") (Symbol l ident)
 
+qNameBuiltinIdent :: String -> l -> QName l
+qNameBuiltinIdent ident l = 
+  Qual l (ModuleName l "PreludeBuiltinTypes") (Ident l ident)
+
+qNameBuiltinSymbol :: String -> l -> QName l
+qNameBuiltinSymbol ident l = 
+  Qual l (ModuleName l "PreludeBuiltinTypes") (Symbol l ident)
+
 qNameHatDeriveIdent :: String -> l -> QName l
 qNameHatDeriveIdent ident l = 
   Qual l (ModuleName l "Hat.PreludeBasic") (Ident l ident)
@@ -270,18 +278,15 @@ qNameDeriveFail = qNameDeriveIdent "fail"
 mkExpDeriveAndAnd :: l -> Exp l
 mkExpDeriveAndAnd l = Var l (qNameDeriveSymbol "&&" l)
 
-
--- transformed same as original; thus easier to transform Prelude
 mkExpDeriveTrue :: l -> Exp l
-mkExpDeriveTrue l = Var l (qNamePreludeTrue l) 
+mkExpDeriveTrue l = Var l (qNameBuiltinIdent "True" l) 
 
--- transformed same as original; thus easier to transform Prelude
 mkExpDeriveFalse :: l -> Exp l
-mkExpDeriveFalse l = Var l (qNamePreludeFalse l)
+mkExpDeriveFalse l = Var l (qNameBuiltinIdent "False" l)
 
 -- Not for desugaring, but for generated code.
 -- Hence not transformed any more.
--- Has to refer to original, untransformed Prelude.
+-- Has to refer to original, untransformed Prelude:
 
 qNamePreludeTrue :: l -> QName l
 qNamePreludeTrue = qNamePreludeIdent "True"

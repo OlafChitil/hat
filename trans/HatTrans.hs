@@ -125,6 +125,9 @@ implicitlyImportPreludeBasic flags
                    then importDecls
                    else ImportDecl{importAnn = l, importModule = ModuleName l "PreludeBasic"
                                   ,importQualified = True, importSrc = False
+                                  ,importPkg = Nothing, importAs = Nothing, importSpecs = Nothing} : 
+                        ImportDecl{importAnn = l, importModule = ModuleName l "PreludeBuiltinTypes"
+                                  ,importQualified = True, importSrc = False
                                   ,importPkg = Nothing, importAs = Nothing, importSpecs = Nothing} : importDecls
 
 {- If first argument is True, then print second and third with formatting -}

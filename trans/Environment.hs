@@ -464,15 +464,15 @@ matchEnv l tracing (Match _ name pats _ _) =
 matchEnv l tracing (InfixMatch _ pat name pats rhs maybeBinds) =
   matchEnv l tracing (Match l name (pat:pats) rhs maybeBinds)
 
-patsEnv :: l -> Bool -> [Pat SrcSpanInfo] -> Environment
+patsEnv :: SrcSpanInfo -> Bool -> [Pat SrcSpanInfo] -> Environment
 patsEnv l tracing pats = unionRelations (map (patEnv l tracing) pats)
 
 -- All occurring variables are let-bound, because this function is for 
 -- pattern bindings.
--- No good reason to pass location information; use that of variable name anyway.
-patEnv :: l -> Bool -> Pat SrcSpanInfo -> Environment
+-- Pass location of the whole definition, because that is recorded in environment.
+patEnv :: SrcSpanInfo -> Bool -> Pat SrcSpanInfo -> Environment
 patEnv l tracing (PVar _ name) = 
-  singleton (eVar (getId name) (ann name) 0 tracing)
+  singleton (eVar (getId name) l 0 tracing)
 patEnv _ _ (PLit _ _) = emptyRelation
 patEnv l tracing (PNeg _ pat) = patEnv l tracing pat
 patEnv l tracing (PNPlusK l2 name _) = patEnv l tracing (PVar l2 name)
@@ -483,7 +483,7 @@ patEnv l tracing (PList _ pats) = unionRelations . map (patEnv l tracing) $ pats
 patEnv l tracing (PParen _ pat) = patEnv l tracing pat
 patEnv l tracing (PRec _ _ patFields) = unionRelations . map (patField l tracing) $ patFields
 patEnv l tracing (PAsPat _ name pat) = 
-  unionRelations [singleton (eVar (getId name) (ann name) 0 tracing), patEnv l tracing pat]
+  unionRelations [singleton (eVar (getId name) l 0 tracing), patEnv l tracing pat]
 patEnv _ _ (PWildCard _) = emptyRelation
 patEnv l tracing (PIrrPat _ pat) = patEnv l tracing pat
 patEnv l tracing (PatTypeSig _ pat _) = patEnv l tracing pat
@@ -498,7 +498,7 @@ patEnv _ _ (PExplTypeArg l _ _) = notSupported l "explicit generics style type a
 patEnv _ _ (PQuasiQuote l _ _) = notSupported l "quasi quote pattern"
 patEnv l tracing (PBangPat _ pat) = patEnv l tracing pat
 
-patField :: l -> Bool -> PatField SrcSpanInfo -> Environment
+patField :: SrcSpanInfo -> Bool -> PatField SrcSpanInfo -> Environment
 patField l tracing (PFieldPat _ _ pat) = patEnv l tracing pat
 patField _ _ (PFieldPun l _) = notSupported l "field pun"
 patField _ _ (PFieldWildcard _) = emptyRelation

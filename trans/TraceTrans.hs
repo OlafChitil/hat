@@ -583,7 +583,7 @@ tDecl env Global tracing d@(DataDecl span dataOrNew maybeContext declHead
   ,derivedConsts `moduleConstsUnion` fieldSelectorConsts `moduleConstsUnion` deriveConsts)
   where
   derivedDecls = derive env d
-  derivedConsts = moduleConstsEnv Global (declsEnv False env derivedDecls)
+  derivedConsts = moduleConstsEnv Local (declsEnv False env derivedDecls)
   (deriveDecls', deriveConsts) = 
     tDecls env Global Trusted derivedDecls
   instDecl = wrapValInstDecl env tracing maybeContext declHead qualConDecls
@@ -619,12 +619,13 @@ tDecl env _ tracing -- class instance with methods
   inst@(InstDecl l maybeContext instHead (Just instDecls)) =
   ([InstDecl l (fmap tContext maybeContext) (tInstHead instHead) 
      (Just instDecls')]
-  ,declsConsts)
+  ,declsConsts `moduleConstsUnion` moduleConstsEnv Local localEnv)
   where
   (instDecls', declsConsts) = tInstDecls env2 tracing instDecls
   -- Add unqualified method names to environment.
   -- Qualfied ones should already be in environment but unqualfied may not.
-  env2 = env `unionLocalRelation` instanceEnv (isTraced tracing) env inst
+  localEnv = instanceEnv (isTraced tracing) env inst
+  env2 = env `unionLocalRelation` localEnv
 
 tDecl _ _ _ (DerivDecl l _ _) =
   notSupported l "standalone deriving declaration"
@@ -727,7 +728,7 @@ tPatBind env scope tracing l pat maybeType rhs maybeBinds =
   --           p' -> (t,y1,..,yn)
   --           _  -> fail noPos parent
   (map (useDef tracing) patNames ++
-   map (projDef scope tracing patTuple 
+   map (projDef scope tracing l patTuple 
           (Var l (UnQual l resultTraceName)) patName resultTraceName) patNames ++
    [PatBind l (PVar l patName) Nothing (UnGuardedRhs l (
      (Case l exp'
@@ -770,9 +771,9 @@ useDef tracing name =
   sr = nameSR name 
 
 -- Caf for one variable in a pattern binding
-projDef :: Scope -> Tracing -> Pat SrcSpanInfo -> Exp SrcSpanInfo -> 
+projDef :: Scope -> Tracing -> SrcSpanInfo -> Pat SrcSpanInfo -> Exp SrcSpanInfo -> 
            Name SrcSpanInfo -> Name SrcSpanInfo -> Name SrcSpanInfo -> Decl SrcSpanInfo
-projDef scope tracing patTuple expVarResultTrace patName resultTraceName name =
+projDef scope tracing l patTuple expVarResultTrace patName resultTraceName name =
   PatBind l (PVar l (nameShare name)) Nothing 
     (UnGuardedRhs l (appN 
       [mkExpConstDef tracing
@@ -785,13 +786,12 @@ projDef scope tracing patTuple expVarResultTrace patName resultTraceName name =
                 then varLambdaName
                 else appN
                        [Var l (qNameProjection l)
-                       ,mkExpSR l tracing
+                       ,mkExpSR (ann name) tracing
                        ,Var l (UnQual l resultTraceName)
                        ,varLambdaName]))
              Nothing])]))
     Nothing
   where
-  l = ann name
   varLambdaName = Var l (UnQual l (nameTransLambdaVar name))
 
 -- Extract all variables from a pattern, left-to-right
@@ -837,7 +837,7 @@ tCaf env scope tracing l name maybeType rhs maybeBinds =
       (UnGuardedRhs l (appN
         [mkExpConstDef tracing
         ,expParent
-        ,Var l (UnQual l (nameTraceInfoVar (ann name) scope name))
+        ,Var l (UnQual l (nameTraceInfoVar l scope name))
         ,Lambda l [patParent] (smartExpLet maybeBinds' rhs')]))
       Nothing]
   ,moduleConstsEnv Local envLocal `moduleConstsUnion` rhsConsts `moduleConstsUnion` bindsConsts)
@@ -1730,7 +1730,7 @@ tExpA env tracing cr (ExpTypeSig l exp ty) ls es =
     (ExpTypeSig l exp' ty', expConsts)
   where
   (exp', expConsts) = tExp env tracing cr exp
-  ty' = tType ty
+  ty' = tConstType ty
 tExpA env tracing cr (VarQuote l _) ls es =
   notSupported l "template Haskell reifying of expressions"
 tExpA env tracing cr (TypQuote l _) ls es =
@@ -2102,7 +2102,7 @@ tPat (PIrrPat l pat) =
   where
   (pat', patNumInfos) = tPat pat
 tPat (PatTypeSig l pat ty) =
-  (PatTypeSig l pat' (tType ty), patNumInfos)
+  (PatTypeSig l pat' (tConstType ty), patNumInfos)
   where
   (pat', patNumInfos) = tPat pat
 tPat (PViewPat l _ _) =
