@@ -1753,6 +1753,12 @@ tExpA env tracing cr (XChildTag l _) ls es =
   notSupported l "children of an xml element"
 tExpA env tracing cr (CorePragma l _ _) ls es =
   notSupported l "CORE pragma" 
+tExpA env tracing cr (SCCPragma _ "" exp@(Lambda _ _ _)) ls es =
+  -- This is a hack: desugaring of do-expressions uses empty SCC marker
+  -- so that here we can say that the lambda is from a do-expression.
+  tExpF env tracing ls es $ (appN [fun,expMkAtomDoLambda,sr,par,lambda], expConsts)
+  where
+  (App l1 (App l2 (App l3 (App l4 fun _) sr) par) lambda, expConsts) = tExp env tracing cr exp
 tExpA env tracing cr (SCCPragma l str exp) ls es =
   tExpF env tracing ls es $
     (SCCPragma l str exp', expConsts)
@@ -1773,10 +1779,11 @@ tExpA env tracing cr (RightArrHighApp l _ _) ls es =
 
 -- At end of transforming expressions possibly add deferred applications.
 -- Lists are ordered from innermost to outermost.
--- Pre-condition: expressions in list not yet transformed.
+-- Pre-condition: expression already transformed,
+-- but expressions in list not yet transformed.
 tExpF :: Environment -> Tracing ->
          [SrcSpanInfo] ->  -- locations of surrounding applications
-         [Exp SrcSpanInfo] ->  -- transformed arguments of surrounding apps
+         [Exp SrcSpanInfo] ->  -- arguments of surrounding apps
          (Exp SrcSpanInfo, ModuleConsts) -> 
          (Exp SrcSpanInfo, ModuleConsts)
 tExpF _ _ [] [] result = result
@@ -2672,6 +2679,9 @@ expMkAtomRational = Var noSpan (qNameMkAtomRational noSpan)
 
 expMkAtomLambda :: Exp SrcSpanInfo
 expMkAtomLambda = Var noSpan (qNameMkAtomLambda noSpan)
+
+expMkAtomDoLambda :: Exp SrcSpanInfo
+expMkAtomDoLambda = Var noSpan (qNameMkAtomDoLambda noSpan)
 
 mkExpConstUse :: Tracing -> Exp SrcSpanInfo
 mkExpConstUse tracing =
