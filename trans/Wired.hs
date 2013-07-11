@@ -279,10 +279,10 @@ mkExpDeriveAndAnd :: l -> Exp l
 mkExpDeriveAndAnd l = Var l (qNameDeriveSymbol "&&" l)
 
 mkExpDeriveTrue :: l -> Exp l
-mkExpDeriveTrue l = Var l (qNameBuiltinIdent "True" l) 
+mkExpDeriveTrue l = Con l (qNameBuiltinIdent "True" l) 
 
 mkExpDeriveFalse :: l -> Exp l
-mkExpDeriveFalse l = Var l (qNameBuiltinIdent "False" l)
+mkExpDeriveFalse l = Con l (qNameBuiltinIdent "False" l)
 
 -- Not for desugaring, but for generated code.
 -- Hence not transformed any more.
