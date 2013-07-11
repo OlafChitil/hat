@@ -2721,22 +2721,6 @@ expFromExpList = Var noSpan (qNameFromExpList noSpan)
 expWrapValFun :: Exp SrcSpanInfo
 expWrapValFun = Var noSpan (UnQual noSpan (nameWrapValFun noSpan))
 
--- names from the Prelude:
-
-expUndefined :: Exp SrcSpanInfo
-expUndefined = Var noSpan (qNameHatPreludeIdent "gundefined" noSpan)
-
--- for integer literals
-expFromInteger :: Exp SrcSpanInfo
-expFromInteger = Var noSpan (qNameHatPreludeIdent "gfromInteger" noSpan)
-
--- for rational literals:
-expConRational :: Exp SrcSpanInfo
-expConRational = Var noSpan (qNameHatPreludeSymbol ":%" noSpan)
-
-expFromRational :: Exp SrcSpanInfo
-expFromRational = Var noSpan (qNameHatPreludeIdent "gfromRational" noSpan)
-
 expTraceIO :: Exp SrcSpanInfo
 expTraceIO = Var noSpan (qNameShortIdent "traceIO" noSpan)
 

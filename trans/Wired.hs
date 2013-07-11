@@ -41,7 +41,13 @@ qNameDeriveSymbol :: String -> l -> QName l
 qNameDeriveSymbol ident l = 
   Qual l (ModuleName l "PreludeBasic") (Symbol l ident)
 
+qNameHatDeriveIdent :: String -> l -> QName l
+qNameHatDeriveIdent ident l = 
+  Qual l (ModuleName l "Hat.PreludeBasic") (Ident l ident)
 
+qNameHatDeriveSymbol :: String -> l -> QName l
+qNameHatDeriveSymbol ident l = 
+  Qual l (ModuleName l "Hat.PreludeBasic") (Symbol l ident)
 
 -- -----------------------------------------------------------------------------
 
@@ -264,6 +270,7 @@ qNameDeriveFail = qNameDeriveIdent "fail"
 mkExpDeriveAndAnd :: l -> Exp l
 mkExpDeriveAndAnd l = Var l (qNameDeriveSymbol "&&" l)
 
+
 -- transformed same as original; thus easier to transform Prelude
 mkExpDeriveTrue :: l -> Exp l
 mkExpDeriveTrue l = Var l (qNamePreludeTrue l) 
@@ -281,4 +288,25 @@ qNamePreludeTrue = qNamePreludeIdent "True"
 
 qNamePreludeFalse :: l -> QName l
 qNamePreludeFalse = qNamePreludeIdent "False"
+
+-- Already transformed, but basically used for desugaring:
+
+expUndefined :: Exp SrcSpanInfo
+expUndefined = Var noSpan (qNameHatDeriveIdent "gundefined" noSpan)
+
+-- for integer literals
+expFromInteger :: Exp SrcSpanInfo
+expFromInteger = Var noSpan (qNameHatDeriveIdent "gfromInteger" noSpan)
+
+-- for rational literals:
+expConRational :: Exp SrcSpanInfo
+expConRational = Var noSpan (qNameHatDeriveSymbol ":%" noSpan)
+
+expFromRational :: Exp SrcSpanInfo
+expFromRational = Var noSpan (qNameHatDeriveIdent "gfromRational" noSpan)
+
+-- -------------------------------------------
+-- bogus span, does not appear in the source
+noSpan :: SrcSpanInfo
+noSpan = noInfoSpan (SrcSpan "" 0 0 0 0)
 
