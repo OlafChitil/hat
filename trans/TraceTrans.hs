@@ -1335,14 +1335,14 @@ splitSynonym env typeDecl@(TypeDecl span declHead ty) =
   go ty@(TyList _ _) [] = [ty]
   go (TyApp l tyL tyR) tys = go tyL (tyR:tys)
   go (TyVar _ _) tys = []
-  go (TyCon l tyCon) tys 
+  go ty@(TyCon l tyCon) tys 
     | isFunTyCon tyCon = case tys of
                            [] -> []
                            [ty] -> [ty]
                            [ty1,ty2] -> ty1 : (go ty2 [])
     | isExpandableTypeSynonym env tyCon 
     = go (expandTypeSynonym env tyCon tys) []  
-    | otherwise = []
+    | otherwise = [tyAppN (ty:tys)]
   go (TyParen l ty) tys = map (TyParen l) (go ty tys)  -- a bit dubious
   go (TyInfix l tyL tyCon tyR) tys =
     if isExpandableTypeSynonym env tyCon
