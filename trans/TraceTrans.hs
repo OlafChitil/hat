@@ -1551,7 +1551,8 @@ tExpA env tracing cr (InfixApp l e1 qop e2) ls es =
 tExpA env tracing cr (App l e1 e2) ls es = 
   tExpA env tracing cr e1 (l:ls) (e2:es)
 tExpA env tracing cr (NegApp l e) ls es =
-  tExpA env tracing cr (App l (Var l (qNameDeriveSymbol "-" l)) e) ls es
+  tExpA env tracing cr (App l (Var l (qNameDeriveIdent "negate" l)) e) ls es
+  -- Use identifier negate, otherwise confusion with binary (-).
 tExpA env tracing cr (Lambda l pats body) ls es =
   tExpF env tracing ls es
     (mkExpFun tracing (mkExpSR l tracing) expMkAtomLambda fun funArity
