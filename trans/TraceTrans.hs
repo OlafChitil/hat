@@ -1512,7 +1512,7 @@ tExpA :: Environment -> Tracing -> Bool -> Exp SrcSpanInfo ->
          [Exp SrcSpanInfo] ->  -- arguments from surrounding applications
          (Exp SrcSpanInfo, ModuleConsts)
 tExpA env tracing cr (Var l qName) ls es 
-  | Just a <- arity env qName, a > 0, a <= length es, a <= 5, 
+  | Just a <- ari, a > 0, a <= length es, a <= 5, 
     let lApp = ls!!(a-1) =
   -- Known arity optimisation that calls worker directly
   tExpF env tracing (drop a ls) (drop a es) $
@@ -1521,9 +1521,9 @@ tExpA env tracing cr (Var l qName) ls es
               a (Var noSpan (nameTraceInfoVar l Global qName)) expWorker es'
        else mkExpUWrapForward (appN (expWorker : es' ++ [expParent]))
     ,moduleConstsSpan l `moduleConstsUnion` moduleConstsSpan lApp `moduleConstsUnion` esConsts)
-    -- ,l `addSpan` (lApp `addSpan` esConsts))
   where
-  (es', esConsts) = tExps env tracing es
+  ari = arity env qName
+  (es', esConsts) = tExps env tracing (take (fromJust ari) es)
   expWorker = Var noSpan (nameWorker qName)
 tExpA env tracing cr (Var l qName) ls es =
   -- Unknown arity.
@@ -2550,13 +2550,10 @@ mkExpFun tracing sr funName fun a =
 mkExpIf :: SrcSpanInfo -> Tracing -> 
            Exp SrcSpanInfo -> Exp SrcSpanInfo -> Exp SrcSpanInfo -> 
            Exp SrcSpanInfo
-mkExpIf l tracing cond e1 e2 =
-  appN [Var noSpan ((if isTraced tracing then qNameIf else qNameUIf) noSpan)
-       ,mkExpSR l tracing
-       ,expParent
-       ,cond
-       ,e1
-       ,e2]
+mkExpIf l Traced cond e1 e2 =
+  appN [Var noSpan (qNameIf noSpan),mkExpSR l Traced,expParent,cond,e1,e2]
+mkExpIf l Trusted cond e1 e2 =
+  appN [Var noSpan (qNameUIf noSpan),expParent,cond,e1,e2]
 
 mkExpCase :: SrcSpanInfo -> Tracing -> Exp SrcSpanInfo -> Exp SrcSpanInfo ->
              Exp SrcSpanInfo
