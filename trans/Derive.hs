@@ -45,7 +45,7 @@ deriveClass ::
   Decl l
 deriveClass env l maybeContext instTy tyVars conDecls className 
   | getId className == "Eq" = deriveEq l maybeContext' instTy conDecls 
-  | getId className == "Ord" = deriveEq l maybeContext' instTy conDecls
+  | getId className == "Ord" = deriveOrd l maybeContext' instTy conDecls
   | getId className == "Bounded" = deriveBounded l maybeContext' instTy conDecls
   | getId className == "Enum" = deriveEnum l maybeContext' instTy conDecls
   | getId className == "Read" = deriveRead env l maybeContext' instTy conDecls
