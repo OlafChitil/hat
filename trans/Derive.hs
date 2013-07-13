@@ -195,24 +195,29 @@ deriveEnum  l maybeContext instTy conDecls =
       ,InsDecl l (FunBind l 
         [Match l (Ident l "enumFrom") [PVar l name1]
           (UnGuardedRhs l
-            (App l (Var l (deriveIdent "enumFromTo" l))
-                   (Con l (UnQual l (conDeclName (last conDecls))))))
+            (appN [Var l (deriveIdent "enumFromTo" l)
+                  ,var1
+                  ,Con l (UnQual l (conDeclName (last conDecls)))]))
           Nothing])
       ,InsDecl l (FunBind l
         [Match l (Ident l "enumFromThen") [PVar l name1,PVar l name2]
           (UnGuardedRhs l
-            (App l (Var l (deriveIdent "enumFromThenTo" l))
-                   (If l (appN
+            (appN [Var l (deriveIdent "enumFromThenTo" l)
+                  ,var1
+                  ,var2
+                  ,If l (appN
                            [Var l (deriveSymbol ">=" l)
                            ,App l (Var l (deriveIdent "fromEnum" l))
-                                  (Var l (UnQual l name1))
+                                  (Var l (UnQual l name2))
                            ,App l (Var l (deriveIdent "fromEnum" l))
-                                  (Var l (UnQual l name2))])
+                                  (Var l (UnQual l name1))])
                          (Con l (UnQual l (conDeclName (last conDecls))))
-                         (Con l (UnQual l (conDeclName (head conDecls)))))))
+                         (Con l (UnQual l (conDeclName (head conDecls))))]))
           Nothing])])  
   where
   name1:name2:_ = newNames l
+  var1 = Var l (UnQual l name1)
+  var2 = Var l (UnQual l name2)
   matchFromEnum conDecl num =
     Match l (Ident l "fromEnum") [PApp l (UnQual l (conDeclName conDecl)) []]
       (UnGuardedRhs l (litInt l num)) Nothing
