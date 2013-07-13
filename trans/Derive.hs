@@ -10,6 +10,7 @@ import SynHelp (Id(getId),appN,tyAppN,litInt,litString,litChar,conDeclName,conDe
                ,instHeadQName,declHeadName,declHeadTyVarBinds,tyVarBind2Type
                ,combineMaybeContexts)
 import Environment (Environment, hasPriority)
+import Debug.Trace
 
 -- ----------------------------------------------------------------------------
 
@@ -313,7 +314,7 @@ deriveShow  env l maybeContext instTy conDecls =
     e1 `composeComma` e2 = e1 `compose` showCharExp ',' `compose` e2
     showField fieldName e =
       showStringExp (getId  fieldName) `compose` showCharExp '=' `compose` showPrec 0 e
-    showPrec d e = appN [Var l (deriveIdent "showsPrec" l), litInt l d]
+    showPrec d e = appN [Var l (deriveIdent "showsPrec" l), litInt l d, e]
 
 
 -- ----------------------------------------------------------------------------
