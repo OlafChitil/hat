@@ -236,6 +236,12 @@ nameMain l = Ident l "main"
 -- So they are transformed and we must ensure they are always in scope.
 -- Hence qualify with PreludeBasic which is always imported qualified.
 
+mkExpDeriveReturn :: l -> Exp l
+mkExpDeriveReturn l = Var l (qNameDeriveIdent "return" l)
+
+mkExpDeriveGuard :: l -> Exp l
+mkExpDeriveGuard l = Var l (qNameDeriveIdent "guard" l)
+
 mkExpDeriveFlip :: l -> Exp l
 mkExpDeriveFlip l = Var l (qNameDeriveIdent "flip" l)
 

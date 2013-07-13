@@ -1938,32 +1938,18 @@ desugarTupleSection l maybeExps =
 desugarListComprehension :: SrcSpanInfo -> Exp SrcSpanInfo -> 
                             [QualStmt SrcSpanInfo] -> 
                             Exp SrcSpanInfo
-desugarListComprehension l exp qualStmts =
-  App noSpan (trans (map unQual qualStmts)) (List noSpan [])
+desugarListComprehension l exp qualStmts = 
+  Do l (map (trans . unQual) qualStmts ++ [Qualifier l (App l (mkExpDeriveReturn l) exp)])
   where
   unQual :: QualStmt SrcSpanInfo -> Stmt SrcSpanInfo
   unQual (QualStmt _ stmt) = stmt
-  unQual qs = notSupported l 
-                "qualifier beyond a statement in list comprehension"
-  trans [] = App l (mkExpCons l) exp
-  trans (LetStmt l binds : stmts) = 
-    Let l binds (trans stmts)
-  trans (Qualifier l exp : stmts) =
-    App l (App l (mkExpDeriveFilter l) exp) (trans stmts)
-  trans (Generator l pat expG : stmts) =
-    App l (App l (mkExpDeriveFoldr l) 
-            (Lambda l [PVar l nameX, PVar l nameY]
-                      (Case l (Var l (UnQual l nameX))
-                        [Alt l pat (UnGuardedAlt l 
-                                      (App l (trans stmts) 
-                                         (Var l (UnQual l nameY)))) 
-                           Nothing
-                        ,Alt l (PWildCard l) (UnGuardedAlt l 
-                                                (Var l (UnQual l nameY))) 
-                           Nothing])))
-       expG
-    where
-    nameX : nameY : _ = namesFromSpan l
+  unQual qs = notSupported l "qualifier beyond a statement in list comprehension"
+  trans :: Stmt SrcSpanInfo -> Stmt SrcSpanInfo
+  trans s@(Generator _ _ _) = s
+  trans (Qualifier l exp ) = Qualifier l (App l (mkExpDeriveGuard l) exp)
+  trans s@(LetStmt _ _) = s
+  trans (RecStmt _ _) = notSupported l "recursive statement for arrows in list comprehension"
+
 
 -- ----------------------------------------------------------------------------
 -- Transform patterns
