@@ -627,7 +627,11 @@ tDecl env _ tracing -- class instance with methods
 tDecl _ _ _ (DerivDecl l _ _) =
   notSupported l "standalone deriving declaration"
 tDecl _ _ _ (InfixDecl l assoc priority ops) =
-  onlyDecl (InfixDecl l assoc priority (map nameTransLetVar ops))
+  ([],moduleConstsEmpty)
+  -- Not needed, because pretty printer produces unambgious output.
+  -- Transforming would require to differentiate between normal 
+  -- functions and data constructors.
+  -- onlyDecl (InfixDecl l assoc priority (map nameTransLetVar ops))
 tDecl env _ _ (DefaultDecl l tys) =
   ([DefaultDecl l []
    ,WarnPragmaDecl l [([], "Defaulting doesn't work in traced programs. Add type annotations to resolve ambiguities.")]]
