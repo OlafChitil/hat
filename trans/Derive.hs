@@ -4,7 +4,7 @@
 module Derive (derive) where
 
 import Language.Haskell.Exts.Annotated 
-import Wired (mkExpDeriveEqualEqual,mkExpDeriveAndAnd,mkExpDeriveTrue,mkExpDeriveFalse)
+import Wired (mkExpDeriveEqualEqual,mkExpDeriveAndAnd,mkExpDeriveTrue,mkExpDeriveFalse,qNameBuiltinIdent)
 import SynHelp (Id(getId),appN,tyAppN,litInt,litString,litChar,conDeclName,conDeclArity
                ,mkQName, fieldDeclNames
                ,instHeadQName,declHeadName,declHeadTyVarBinds,tyVarBind2Type
@@ -142,7 +142,7 @@ deriveOrd l maybeContext instTy conDecls =
   -- matchLocalFromEnum :: ConDecl l -> Int -> Match l
   matchLocalFromEnum conDecl num =
     Match l nameLocalFromEnum [PApp l (UnQual l conName) args] 
-      (UnGuardedRhs l (litInt l num)) Nothing
+      (UnGuardedRhs l (ExpTypeSig l (litInt l num) (TyCon l (qNameBuiltinIdent "Int" l)))) Nothing
     where
     conName = conDeclName conDecl
     args = replicate (conDeclArity conDecl) (PWildCard l)

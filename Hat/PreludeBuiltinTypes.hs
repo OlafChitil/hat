@@ -2,11 +2,12 @@
 -- or are used by functions that are not definable in Haskell
 module Hat.PreludeBuiltinTypes
   (Fun(Fun) -- reexported from Hat
+  ,Int,Char,Integer,Float,Double
   ,Bool(True,False),IOError 
-  ,aTrue,aFalse
-  ,String  -- here for convenience
+  -- ,aTrue,aFalse
+  -- ,String  -- here for convenience
   ,module Hat.PreludeBuiltinTypes
-  ,gerror,gundefined
+  -- ,gerror,gundefined
   ) where
 
 import Hat.Hat as T
@@ -50,12 +51,12 @@ fromBool t b = con0 mkNoSrcPos t b (if b then aTrue else aFalse)
 
 toList :: (RefExp -> R a -> b) -> RefExp -> R (List a) -> [b]
 toList f h (R (Cons x xs) _) = f h x : toList f h xs
-toList f h (R List _) = []
+toList f h (R Nil _) = []
 
 fromList :: (RefExp -> a -> R b) -> RefExp -> [a] -> R (List b)
 fromList f h = fromList'
   where
-  fromList' [] = con0 mkNoSrcPos h List aList
+  fromList' [] = con0 mkNoSrcPos h Nil aNil
   fromList' (x:xs) = 
     con2 mkNoSrcPos h Cons aCons (T.wrapForward h (f h x)) 
       (T.wrapForward h (fromList' xs))
