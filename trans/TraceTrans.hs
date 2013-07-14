@@ -1658,8 +1658,10 @@ tExpA env tracing cr (RightSection l qOp exp) ls es =
 tExpA env tracing cr (RecConstr l qName fieldUpdates) ls es =
   tExpF env tracing ls es $
     (appN [expWrapValFun, mkExpSR l tracing, 
-           RecUpdate l consUndefined fieldUpdates', expParent]
+           Paren l (RecUpdate l (Paren l consUndefined) fieldUpdates'), expParent]
     ,moduleConstsSpan l `moduleConstsUnion` fieldsConsts)
+    -- Add parenthesis to avoid a bug in the pretty printing of
+    -- record updates in the haskell-exts library.
   where
   consUndefined =
     if consArity == 0 
@@ -2704,7 +2706,7 @@ expFromExpList :: Exp SrcSpanInfo
 expFromExpList = Var noSpan (qNameFromExpList noSpan)
 
 expWrapValFun :: Exp SrcSpanInfo
-expWrapValFun = Var noSpan (UnQual noSpan (nameWrapValFun noSpan))
+expWrapValFun = Var noSpan (qNameShortIdent "wrapVal" noSpan)
 
 expTraceIO :: Exp SrcSpanInfo
 expTraceIO = Var noSpan (qNameShortIdent "traceIO" noSpan)
