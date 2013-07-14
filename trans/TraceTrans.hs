@@ -2283,7 +2283,9 @@ tAsst (EqualP l tyL tyR) = EqualP l (tType tyL) (tType tyR)
 -- names referring to traces (or parts thereof) of program fragments:
 
 nameTraceInfoModule :: ModuleName l -> Name l
-nameTraceInfoModule (ModuleName l ident) = Ident l ('t' : ident)
+nameTraceInfoModule (ModuleName l ident) = Ident l ('t' : withoutPrefix)
+  where
+  withoutPrefix = reverse . takeWhile (/= '.') . reverse $ ident
 
 nameTraceInfoVar :: UpdId i => SrcSpanInfo -> Scope -> i -> i
 nameTraceInfoVar span Global = prefixName 'a' '+'
