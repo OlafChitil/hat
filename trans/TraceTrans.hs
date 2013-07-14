@@ -2000,7 +2000,7 @@ tPat :: Pat SrcSpanInfo ->
 tPat (PVar l name) = (PVar l (nameTransLambdaVar name), Nothing)
 tPat (PLit _ lit@(Char l c str)) = 
   (wrapPat (PLit l lit) (PWildCard l), Nothing)
-tPat (PLit _ (String l s str)) =
+tPat (PLit _ (String l s str)) = 
   tPat . mkPatList l . map mkPatChar $ s
   where
   mkPatChar :: Char -> Pat SrcSpanInfo

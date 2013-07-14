@@ -19,7 +19,7 @@ module Environment
 
 import Language.Haskell.Exts.Annotated hiding (Var,Con,Fixity,EVar)
 import qualified Language.Haskell.Exts.Annotated as Syntax (Exp(Var,Con),Fixity(Fixity),ExportSpec(EVar))
-import qualified Language.Haskell.Exts as Short(Assoc(..),QName(..),Name(..))
+import qualified Language.Haskell.Exts as Short(Assoc(..),QName(..),Name(..),SpecialCon(Cons))
 import SynHelp (Id(getId),getQualified,mkQual,qual,isQual,isUnQual,notSupported
                ,tyVarBind2Name,declHeadTyVarBinds,declHeadName,instHeadQName,getArityFromConDecl
                ,getConDeclFromQualConDecl,getConstructorFromConDecl,eqName,mkName,mkQName
@@ -766,15 +766,16 @@ env2Fixities env =
   map makeFixity . filter (\entity -> isExp entity && eFixity entity /= Def) . Set.toAscList . rng $ env
   where
   makeFixity :: Entity -> Syntax.Fixity
-  makeFixity e = Syntax.Fixity (transFixity (eFixity e)) (ePriority e) (Short.UnQual (mkName (eId e)))
+  makeFixity e = Syntax.Fixity (transFixity (eFixity e)) (ePriority e) (mkName (eId e))
     where
     transFixity :: Fixity -> Short.Assoc
     transFixity None = Short.AssocNone
     transFixity L = Short.AssocLeft
     transFixity R = Short.AssocRight
     transFixity _ = error "Environment.env2Fixities: unexpected associativity."
-    mkName :: String -> Short.Name
-    mkName s = if isAlpha (head s) then Short.Ident s else Short.Symbol s
+    mkName :: String -> Short.QName
+    mkName s = Short.UnQual (if isAlpha (head s) then Short.Ident s else Short.Symbol s)
+      -- Intentionally never create a special name, because fixities must be UnQual.
 
 
 -- -------------------------
@@ -788,7 +789,7 @@ wiredEnv = listToRelation $
   ,(Special () (UnitCon ()), eType "()" ["()"] [])
   ,(Special () (ListCon ()), eType "[]" [":","[]"] [])
   ,(Special () (FunCon ()), eType "->" [] [])
-  ,(Special () (Cons ()), eCon ":" noSpan 2 "[]" Data [] False)]
+  ,(Special () (Cons ()), (eCon ":" noSpan 2 "[]" Data [] False) {eFixity=R, ePriority=5})]
   ++ concatMap mkTuple [2..15]
 
 mkTuple :: Int -> [(QName (), Entity)]
