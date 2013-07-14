@@ -69,14 +69,11 @@ traceTrans moduleFilename tracing env
     (declsExported ++
       [PatBind span patParent Nothing 
         (UnGuardedRhs span expRoot) Nothing] ++
-      [defNameMod modName moduleFilename tracing] ++ 
-      -- map (defNameVar env Global Local modTrace) mvars ++ 
-      -- map (defNameVar env Local Local modTrace) vars ++ 
-      map (\f -> f modTrace) defFuns ++ 
+      [defNameMod modName moduleFilename tracing] ++
       (if isTraced tracing then map (defNameSpan modTrace) ls else []))
   where
   modName = getModuleNameFromModule mod
-  declsExported = decls' ++ -- conNameDefs ++ globalVarNameDefs ++
+  declsExported = decls' ++ map (\f -> f modTrace) defFuns ++
                     if isMain modName
                       then [defMain tracing (traceBaseFilename moduleFilename)] 
                       else []
@@ -156,7 +153,7 @@ tMaybeExportSpecList :: String -> -- name of this module
                         [Decl SrcSpanInfo] -> -- new declarations
                         Maybe (ExportSpecList SrcSpanInfo)
 tMaybeExportSpecList _ _ Nothing decls = 
-  Just (ExportSpecList noSpan (concatMap makeExport decls))
+  Just (ExportSpecList noSpan (concatMap makeExport decls)) 
 tMaybeExportSpecList thisModuleId env 
   (Just (ExportSpecList l exportSpecs)) decls =
   Just (ExportSpecList l 
@@ -2284,7 +2281,7 @@ nameTraceInfoModule (ModuleName l ident) = Ident l ('t' : ident)
 
 nameTraceInfoVar :: UpdId i => SrcSpanInfo -> Scope -> i -> i
 nameTraceInfoVar span Global = prefixName 'a' '+'
-nameTraceInfoVar span Local = prefixSpanName 'a' '+' span
+nameTraceInfoVar span Local = prefixSpanName 'c' '+' span
 
 nameTraceInfoGlobalVar :: UpdId i => i -> i
 nameTraceInfoGlobalVar = prefixName 'a' '+'
