@@ -20,7 +20,7 @@ derive env (DataDecl l dataOrNew maybeContext declHead qualConDecls maybeDerivin
   case maybeDeriving of
     Nothing -> []
     Just (Deriving _ instHeads) -> 
-      map (deriveClass env l maybeContext instTy tyVars conDecls . instHeadQName) 
+      map (deriveClass env maybeContext instTy tyVars conDecls . instHeadQName) 
         instHeads
       where
       tyVars = map tyVarBind2Type (declHeadTyVarBinds declHead)
@@ -37,14 +37,14 @@ getConDecl (QualConDecl _ _ _ _) =
 
 -- Produce a class instance.
 deriveClass :: 
-  Environment -> l ->
+  Environment -> 
   Maybe (Context l) -> -- context of the data type (should be empty)
   (Type l) ->          -- type constructor with variable args to be made instance
   [Type l] ->          -- type variables args of above
   [ConDecl l] ->       -- constructor of data type
   QName l ->           -- names of class to derive
   Decl l
-deriveClass env l maybeContext instTy tyVars conDecls className 
+deriveClass env maybeContext instTy tyVars conDecls className 
   | getId className == "Eq" = deriveEq l maybeContext' instTy conDecls 
   | getId className == "Ord" = deriveOrd l maybeContext' instTy conDecls
   | getId className == "Bounded" = deriveBounded l maybeContext' instTy conDecls
@@ -54,6 +54,7 @@ deriveClass env l maybeContext instTy tyVars conDecls className
   | getId className == "Ix" = deriveIx l maybeContext' instTy conDecls
   | otherwise = error "Derive.deriveClass: unknown class"
   where
+  l = ann className
   -- this is a HACK that covers only the common cases
   -- for correct result would need to implement full context reduction
   -- and take the least fixpoint
@@ -332,35 +333,37 @@ deriveIx  l maybeContext instTy conDecls =
   ixEnumeration =
     [FunBind l [Match l (Ident l "range") [PTuple l [PVar l lName, PVar l uName]] (UnGuardedRhs l 
       (appN [Var l (deriveIdent "map" l)
-            ,toEnumVar
+            ,toEnumVar 'r'
             ,appN [Var l (deriveIdent "enumFromTo" l)
-                  ,appN [fromEnumVar, Var l (UnQual l lName)]
-                  ,appN [fromEnumVar, Var l (UnQual l uName)]]]))
-      (Just (BDecls l (declsToEnum ++ declsFromEnum)))]
+                  ,appN [fromEnumVar 'r', Var l (UnQual l lName)]
+                  ,appN [fromEnumVar 'r', Var l (UnQual l uName)]]]))
+      (Just (BDecls l (declsToEnum 'r' ++ declsFromEnum 'r')))]
     ,FunBind l [Match l (Ident l "index") [PTuple l [PVar l lName, PVar l uName], PVar l iName] (UnGuardedRhs l
-      (InfixApp l (appN [fromEnumVar, Var l (UnQual l iName)]) (QVarOp l (deriveSymbol "-" l)) 
-        (appN [fromEnumVar, Var l (UnQual l uName)])))
-      (Just (BDecls l declsFromEnum))]
+      (InfixApp l (appN [fromEnumVar 'i', Var l (UnQual l iName)]) (QVarOp l (deriveSymbol "-" l)) 
+        (appN [fromEnumVar 'i', Var l (UnQual l uName)])))
+      (Just (BDecls l (declsFromEnum 'i')))]
     ,FunBind l [Match l (Ident l "inRange") [PTuple l [PVar l lName, PVar l uName], PVar l iName] (UnGuardedRhs l
       (appN [Var l (deriveIdent "inRange" l)
-            ,Tuple l [appN [fromEnumVar, Var l (UnQual l lName)], appN [fromEnumVar, Var l (UnQual l uName)]]
-            ,appN [fromEnumVar, Var l (UnQual l iName)]]))
-      (Just (BDecls l declsFromEnum))]]
+            ,Tuple l [appN [fromEnumVar 'n', Var l (UnQual l lName)]
+            ,appN [fromEnumVar 'n', Var l (UnQual l uName)]]
+            ,appN [fromEnumVar 'n', Var l (UnQual l iName)]]))
+      (Just (BDecls l (declsFromEnum 'n')))]]
     where
     lName:uName:iName:_ = newNames l
-    fromEnumVar = Var l (deriveIdent "fromEnum" l)
-    toEnumVar = Var l (deriveIdent "toEnum" l)
+    fromEnumVar prefix = Var l (deriveIdent (prefix : "fromEnum") l)
+    toEnumVar prefix = Var l (deriveIdent (prefix : "toEnum") l)
     -- declsFromEnum :: [Decl l]
-    declsFromEnum = 
-      [TypeSig l [(Ident l "fromEnum")] (TyFun l instTy (TyCon l (deriveIdent "Int" l)))
-      ,FunBind l (zipWith matchFromEnum conDecls [0..])]
-    declsToEnum =
-      [TypeSig l [(Ident l "toEnum")] (TyFun l (TyCon l (deriveIdent "Int" l)) instTy)
-      ,FunBind l (zipWith matchToEnum conDecls [0..])]
-    matchFromEnum conDecl num =
-      Match l (Ident l "fromEnum") [PApp l (UnQual l (conDeclName conDecl)) []] (UnGuardedRhs l (litInt l num)) Nothing
-    matchToEnum conDecl num =
-      Match l (Ident l "toEnum") [PLit l (Int l num (show num))] 
+    declsFromEnum prefix = 
+      [TypeSig l [(Ident l (prefix : "fromEnum"))] (TyFun l instTy (TyCon l (deriveIdent "Int" l)))
+      ,FunBind l (zipWith (matchFromEnum prefix) conDecls [0..])]
+    declsToEnum prefix =
+      [TypeSig l [(Ident l (prefix : "toEnum"))] (TyFun l (TyCon l (deriveIdent "Int" l)) instTy)
+      ,FunBind l (zipWith (matchToEnum prefix) conDecls [0..])]
+    matchFromEnum prefix conDecl num =
+      Match l (Ident l (prefix : "fromEnum")) [PApp l (UnQual l (conDeclName conDecl)) []]
+        (UnGuardedRhs l (litInt l num)) Nothing
+    matchToEnum prefix conDecl num =
+      Match l (Ident l (prefix :  "toEnum")) [PLit l (Int l num (show num))] 
         (UnGuardedRhs l (Con l (UnQual l (conDeclName conDecl)))) Nothing
   ixSingleConstructor =
     [FunBind l [Match l  (Ident l "range") [pTupleConLU] (UnGuardedRhs l 

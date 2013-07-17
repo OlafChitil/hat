@@ -1270,8 +1270,13 @@ tClassInstDecl env tracing decl@(PatBind _ _ _ _ _) =
 tClassInstDecl env tracing decl@(TypeSig l names ty) =
   -- For every method type declaration produce an additional type declaration
   -- of the sharing variable.
-  ([TypeSig l (map nameShare names) (tMapType tConstType ty), tySig'], moduleConsts)
+  (tySig' :
+   TypeSig l (map nameShare names) (tMapType tConstType ty) :
+   map (\name -> PatBind l (PVar l (nameShare name)) Nothing 
+                   (UnGuardedRhs l (appN [expUndefined,expSR,expParent])) Nothing) names
+  ,moduleConsts)
   where
+  expSR = mkExpSR l Trusted
   ([tySig'], moduleConsts) = tDecl env Local tracing decl
   -- This should cover all declarations that can occur.
 
