@@ -8,8 +8,8 @@ module Random (
   getStdRandom, getStdGen, setStdGen, newStdGen
   ) where
 
-import PreludeBuiltinTypes
-import RandomBuiltin
+import PreludeBuiltinTypes as NotHat.T
+import RandomBuiltin as NotHat.T
 import qualified NotHat.System.Random as NotHat.Random
 import Char
 

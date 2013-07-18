@@ -21,7 +21,7 @@ module Hat.Hat
   ,Tuple12(Tuple12),aTuple12,Tuple13(Tuple13),aTuple13
   ,Tuple14(Tuple14),aTuple14,Tuple15(Tuple15),aTuple15
   ,toTuple0,fromTuple0,toTuple2,fromTuple2
-  ,List(Cons,List),aCons,aList
+  ,List(Cons,Nil),aCons,aNil
   ,ap1,ap2,ap3,ap4,ap5,ap6,ap7,ap8,ap9,ap10,ap11,ap12,ap13,ap14,ap15
   ,fun1,fun2,fun3,fun4,fun5,fun6,fun7,fun8,fun9,fun10,fun11,fun12,fun13,fun14
   ,fun15
@@ -1882,12 +1882,12 @@ mkAtomRational sr p r =
 
 fromExpList :: RefSrcPos -> RefExp -> [R a] -> R (List a)
 fromExpList sr h xs = 
-  foldr (\y ys -> con2 sr h Cons aCons y ys) (con0 sr h List aList) xs
+  foldr (\y ys -> con2 sr h Cons aCons y ys) (con0 sr h Nil aNil) xs
 
 fromLitString :: RefSrcPos -> RefExp -> Prelude.String -> R (List Char)
 fromLitString sr h xs = 
   foldr (\x xs -> con2 sr h Cons aCons (conChar sr h x) xs) 
-    (con0 sr h List aList) xs
+    (con0 sr h Nil aNil) xs
 
 
 -- Create node directly with result

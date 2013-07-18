@@ -3,9 +3,9 @@ module System (
      getArgs, getProgName, getEnv, system, exitWith, exitFailure
    ) where
 
-import PreludeBuiltinTypes
-import SystemBuiltinTypes
-import SystemBuiltin
+import PreludeBuiltinTypes as NotHat.T
+import SystemBuiltinTypes as NotHat.T
+import SystemBuiltin as NotHat.T
 import qualified NotHat.System.Cmd as NotHat.Cmd
 import qualified NotHat.System.Environment as NotHat.Environment
 import qualified NotHat.System.Exit as NotHat.Exit

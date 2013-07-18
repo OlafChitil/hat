@@ -4,7 +4,7 @@ module System.Exit (
 
 import PreludeBuiltinTypes
 import SystemBuiltinTypes
-import SystemBuiltin
+import SystemBuiltin as NotHat.T
 import qualified NotHat.System.Exit
 
 foreign import ccall "NotHat.System.Exit.exitWith"

@@ -62,4 +62,4 @@ module Data.Char
 (Con Data "GeneralCategory" "UppercaseLetter",Value {args = 0, fixity = Def, priority = 9, letBound = True, traced = False})
 (TypeClass "Char",TyCls (Ty [] []))
 (TypeClass "GeneralCategory",TyCls (Ty ["UppercaseLetter","LowercaseLetter","TitlecaseLetter","ModifierLetter","OtherLetter","NonSpacingMark","SpacingCombiningMark","EnclosingMark","DecimalNumber","LetterNumber","OtherNumber","ConnectorPunctuation","DashPunctuation","OpenPunctuation","ClosePunctuation","InitialQuote","FinalQuote","OtherPunctuation","MathSymbol","CurrencySymbol","ModifierSymbol","OtherSymbol","Space","LineSeparator","ParagraphSeparator","Control","Format","Surrogate","PrivateUse","NotAssigned"] []))
-(TypeClass "String",TyCls (Ty [] []))
+(TypeClass "String",TyCls (Syn 0 THelper))

@@ -3,8 +3,8 @@
 module PreludeBuiltin (
   -- reexport from module PreludeBuiltinTypes   
   -- (->)
-  Bool(True,False),Char,Int,Integer,Float,Double,IOError 
-  -- ,[]((:),[]),IO
+  Bool(True,False),Char,Int,Integer,Float,Double,IOError,IO
+  -- ,[]((:),[])
   -- ,()(())
   -- ,(,)((,)), (,,)((,,)),(,,,)((,,,)),(,,,,)((,,,,)),(,,,,,)((,,,,,))
   -- ,(,,,,,,)((,,,,,,)),(,,,,,,,)((,,,,,,,)),(,,,,,,,,)((,,,,,,,,))
@@ -53,7 +53,7 @@ module PreludeBuiltin (
   ,appendFile,primIOErrorShow{- ,primIOErrorEq -} 
   ) where
 
-import PreludeBuiltinTypes
+import PreludeBuiltinTypes as NotHat.T
 import NotHat.Hat.Hat  -- for some primitive types
 import qualified NotHat.Prelude  -- not to be transformed
 import qualified NotHat.System.IO.Error  -- for catch

@@ -21,4 +21,4 @@ module Char
 (Var "toLower",Value {args = 1, fixity = Def, priority = 9, letBound = True, traced = False})
 (Var "toUpper",Value {args = 1, fixity = Def, priority = 9, letBound = True, traced = False})
 (TypeClass "Char",TyCls (Ty [] []))
-(TypeClass "String",TyCls (Ty [] []))
+(TypeClass "String",TyCls (Syn 0 THelper))

@@ -42,7 +42,7 @@ module Data.Char (
 
 import PreludeBasic
 import Ix
-import PreludeBuiltinTypes  -- (fromBool)
+import PreludeBuiltinTypes as NotHat.T  -- (fromBool)
 import qualified NotHat.Data.Char  -- not to be transformed
 
 foreign import ccall "NotHat.Data.Char.isLetter"

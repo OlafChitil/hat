@@ -6,7 +6,7 @@ module PreludeBasic
   (module PreludeBasic, module PreludeBuiltin) 
   where
 
--- import PreludeBuiltin  -- Contains all `prim' values
+-- import PreludeBuiltin -- Contains all `prim' values
 -- import PreludeList
 -- import PreludeText
 -- import PreludeIO
@@ -14,6 +14,7 @@ module PreludeBasic
 
 import PreludeBuiltinTypes
 import PreludeBuiltin
+import PreludeBuiltin as PreludeBasic -- for PreludeBasic.undefined
 
 infixr 9  .
 infixr 8  ^, ^^, **
@@ -50,6 +51,11 @@ thenLex f xs = lift (\x y t -> if y==xs then [(x,t)] else []) f lex
 
 alt :: ReadS a -> ReadS a -> ReadS a
 alt f g r = f r ++ g r
+
+-- For desugaring list comprehensions:
+
+guard :: Bool -> [()]
+guard p = if p then [()] else []
 
 
 -- Standard types, classes, instances and related functions

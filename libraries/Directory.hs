@@ -10,10 +10,10 @@ module Directory (
      ) where
 
 -- import Time ( ClockTime )
-import PreludeBuiltinTypes
-import DirectoryBuiltinTypes
-import DirectoryBuiltin
-import TimeBuiltin
+import PreludeBuiltinTypes as NotHat.T
+import DirectoryBuiltinTypes as NotHat.T
+import DirectoryBuiltin as NotHat.T
+import TimeBuiltin as NotHat.T
 import qualified NotHat.System.Directory as NotHat.Directory
 
 instance Eq   Permissions where 

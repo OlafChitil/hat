@@ -1,6 +1,6 @@
 
 name:                hat
-version:             2.7.0.12
+version:             2.8.0.0
 synopsis:            The Haskell tracer, generating and viewing Haskell execution traces
 description:
   hat-trans transforms Module.hs into Hat/Module.hs such that when the program is
@@ -8,14 +8,16 @@ description:
   Various tools (hat-trail, hat-observe, hat-explore ...) then allow viewing the 
   trace file in different ways, to locate a bug or understand how a program works.
 
-  This is the first release of Hat under Cabal.
+  Hat 2.8 uses the haskell-src-exts parser and other Hackage libraries to
+  reduce its own size and simplify extensions. Module imports and exports have
+  also been improved to handle nearly all kinds of renaming, hiding, etc.
 
-  It is the least possible update to make Hat work with Cabal.
-  Hat 2.07 works only with ghc for Haskell 98 (plus a few extensions) and
+  Hat 2.8 works only with ghc for Haskell 98 (plus a few extensions) and
   the standard Haskell 98 libraries plus some Haskell 2010 libraries. 
   Although it should build on any operating system,
   most viewing tools use ASCII console escape sequences and they open xterms;
   hence they will only work well under Unix and X11.
+  Tested on MacOS X 10.8.4.
 
   Installation:
 
@@ -41,10 +43,10 @@ description:
 
   There is documentation in the "docs" folder, but much of it is outdated.
   There are a few small programs for exploring tracing in the "examples" folder.
-homepage:            http://olafchitil.github.com/hat/
+homepage:            http://projects.haskell.org/hat/
 license:             OtherLicense
 license-file:        docs/copyright.html
-copyright:	     (c) 2000-2012 Hat team
+copyright:	     (c) 2000-2013 Hat team
 author:              Hat team
 maintainer:          oc@kent.ac.uk
 stability:	     provisional
@@ -70,17 +72,17 @@ library
   includes:	       hat-c.h, art.h, ntohl.h
   include-dirs:	       include, Hat
   c-sources:	       Hat/hat-c.c
-  cc-options:	       -DFILEVERSION="2.07"
+  cc-options:	       -DFILEVERSION="2.08"
 
 executable hat-trans
   main-is:           HatTrans.hs
-  hs-source-dirs:    trans, compiler98
-  other-modules:     TraceTrans, TraceDerive, AuxLabelAST, AuxFixity, AuxFile, AuxTypes, TraceId, Flags, PrettyTraceId, HatTrans, Wrapper, AssocTree, Error, Extra, HbcOnly, Id, IdKind, Info, IntState, Lex, LexLow, LexPre, LexStr, Lexical, MergeSort, MkSyntax, NT, Nice, OsOnly, Parse, Parse2, ParseCore, ParseLex, ParseLib, PrettyLib, PrettySyntax, Reduce, Syntax, SyntaxPos, SyntaxUtil, SysDeps, TokenId, Tree234, Unlit, Paths_hat
-  build-depends:     base >=4.5, bytestring >=0.9, directory >=1.1
+  hs-source-dirs:    trans
+  other-modules:     Wired, SynHelp, Relation, Wrap, Flags, Environment, AuxFile, Derive, TraceTrans, HatTrans
+  build-depends:     base >=4.5, bytestring >=0.9, directory >=1.1, haskell-src-exts >= 1.13, containers >= 0.5.2, filepath >= 1.3
   includes:	     hat-c.h, art.h, ntohl.h
   include-dirs:	     include, Hat
   c-sources:	     Hat/hat-c.c
-  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+  cc-options:        -DFILEVERSION="2.08" -DVERSION="2.08"
 
 executable hat-trail
   main-is:           HatTrail.hs
@@ -91,7 +93,7 @@ executable hat-trail
   includes:          art.h
   include-dirs:      include
   c-sources:         tools/pathutils.c, tools/artutils.c, tools/finitemap.c
-  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+  cc-options:        -DFILEVERSION="2.08" -DVERSION="2.08"
 
 executable hat-observe
   main-is:           HatObserve.hs
@@ -102,7 +104,7 @@ executable hat-observe
   includes:          art.h
   include-dirs:      include
   c-sources:         tools/pathutils.c, tools/artutils.c, tools/finitemap.c, tools/hat-names.c, tools/observeutils.c
-  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+  cc-options:        -DFILEVERSION="2.08" -DVERSION="2.08"
  
 executable hat-stack
   main-is:           HatStackText.hs
@@ -113,7 +115,7 @@ executable hat-stack
   includes:	     art.h
   include-dirs:	     include
   c-sources:	     tools/pathutils.c, tools/artutils.c, tools/finitemap.c
-  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+  cc-options:        -DFILEVERSION="2.08" -DVERSION="2.08"
  
 executable hat-explore
   main-is:           HatExplore.hs
@@ -124,7 +126,7 @@ executable hat-explore
   includes:	     art.h
   include-dirs:	     include
   c-sources:	     tools/parentset.c, tools/detectutils.c, tools/pathutils.c, tools/artutils.c, tools/finitemap.c
-  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+  cc-options:        -DFILEVERSION="2.08" -DVERSION="2.08"
 
 executable hat-detect
   -- currently just calls hat-delta; was a separate tool
@@ -136,7 +138,7 @@ executable hat-detect
   includes:	     art.h, ntohl.h
   include-dirs:	     include
   c-sources:	     tools/detectutils.c, tools/parentset.c, tools/pathutils.c, tools/artutils.c, tools/finitemap.c
-  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+  cc-options:        -DFILEVERSION="2.08" -DVERSION="2.08"
 
 executable hat-check
   main-is:	     HatCheck.hs
@@ -146,7 +148,7 @@ executable hat-check
   includes:	     art.h, ntohl.h
   include-dirs:	     include
   c-sources:	     tools/hat-check.c
-  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+  cc-options:        -DFILEVERSION="2.08" -DVERSION="2.08"
 
 executable hat-view
   main-is:	     SrcRefViewer.hs
@@ -167,7 +169,7 @@ executable hat-cover
   includes:	     art.h, ntohl.h
   include-dirs:	     include
   c-sources:	     tools/pathutils.c, tools/artutils.c, tools/finitemap.c
-  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+  cc-options:        -DFILEVERSION="2.08" -DVERSION="2.08"
 
 executable black-hat
   main-is:	     BlackHat.hs
@@ -178,7 +180,7 @@ executable black-hat
   includes:	     art.h, ntohl.h
   include-dirs:	     include
   c-sources:	     tools/nontermutils.c, tools/pathutils.c, tools/artutils.c, tools/finitemap.c
-  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+  cc-options:        -DFILEVERSION="2.08" -DVERSION="2.08"
 
 executable hat-nonterm
   main-is:	     HatNonTerm.hs
@@ -189,7 +191,7 @@ executable hat-nonterm
   includes:	     art.h, ntohl.h
   include-dirs:	     include
   c-sources:	     tools/nontermutils.c, tools/pathutils.c, tools/artutils.c, tools/finitemap.c
-  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+  cc-options:        -DFILEVERSION="2.08" -DVERSION="2.08"
 
 executable hat-anim
   main-is:	     HatAnim.hs
@@ -200,7 +202,7 @@ executable hat-anim
   includes:	     art.h, ntohl.h
   include-dirs:	     include
   c-sources:	     tools/detectutils.c, tools/parentset.c, tools/pathutils.c, tools/artutils.c, tools/finitemap.c
-  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+  cc-options:        -DFILEVERSION="2.08" -DVERSION="2.08"
 
 executable pretty-hat
   main-is:	     PrettyHat.hs
@@ -211,7 +213,7 @@ executable pretty-hat
   includes:	     art.h, ntohl.h
   include-dirs:	     include
   c-sources:	     tools/detectutils.c, tools/parentset.c, tools/pathutils.c, tools/artutils.c, tools/finitemap.c
-  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+  cc-options:        -DFILEVERSION="2.08" -DVERSION="2.08"
 
 executable hat-delta
   main-is:	     HatDelta.hs
@@ -222,7 +224,7 @@ executable hat-delta
   includes:	     art.h, ntohl.h
   include-dirs:	     include
   c-sources:	     tools/detectutils.c, tools/parentset.c, tools/pathutils.c, tools/artutils.c, tools/finitemap.c
-  cc-options:        -DFILEVERSION="2.07" -DVERSION="2.07"
+  cc-options:        -DFILEVERSION="2.08" -DVERSION="2.08"
 
 executable hat-make
   main-is:	     HatMake.hs

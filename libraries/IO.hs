@@ -23,12 +23,12 @@ module IO (
      ) where
 
 import Ix(Ix(range, index, inRange))
-import PreludeBuiltinTypes
+import PreludeBuiltinTypes as NotHat.T
 import NotHat.System.IO(Handle,HandlePosn)
 import qualified NotHat.System.IO as NotHat.IO
 import qualified NotHat.System.IO.Error as NotHat.Error
 import IOBuiltinTypes
-import IOBuiltin
+import IOBuiltin as NotHat.T
 
 -- data Handle = ... -- implementation-dependent
 

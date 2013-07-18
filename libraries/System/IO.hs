@@ -13,8 +13,8 @@ module System.IO (
   ) where
 
 import IO
-import PreludeBuiltinTypes
-import IOBuiltin
+import PreludeBuiltinTypes as NotHat.T
+import IOBuiltin as NotHat.T
 import qualified NotHat.System.IO
 
 foreign import ccall "NotHat.System.IO.fixIO"

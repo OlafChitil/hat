@@ -17,9 +17,9 @@ import Locale(TimeLocale(TimeLocale,wDays,months,amPm,dateTimeFmt,dateFmt
                         ,timeFmt,time12Fmt)
              ,defaultTimeLocale)
 import Char ( intToDigit )
-import PreludeBuiltinTypes
+import PreludeBuiltinTypes as NotHat.T
 import TimeBuiltinTypes
-import TimeBuiltin
+import TimeBuiltin as NotHat.T
 import qualified NotHat.System.Time as NotHat.Time
 
 -- data ClockTime = ...                    -- Implementation-dependent

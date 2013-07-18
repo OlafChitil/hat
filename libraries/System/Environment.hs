@@ -2,8 +2,8 @@ module System.Environment (
     getArgs,  getProgName,  getEnv  
   ) where
 
-import PreludeBuiltinTypes
-import IOBuiltin
+import PreludeBuiltinTypes as NotHat.T
+import IOBuiltin as NotHat.T
 import qualified NotHat.System.Environment
 
 foreign import ccall "NotHat.System.Environment.getArgs"
