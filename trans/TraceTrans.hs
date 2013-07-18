@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternGuards #-}
 {- ---------------------------------------------------------------------------
 Transform a module for generating a trace.
 
@@ -31,7 +32,7 @@ import Environment (Environment,Scope(..),isLocal
                    ,eArity, eNo, eBody, eCons, eFields
                    ,Entity,isClass, isSyn, isType
                    ,arity,isLambdaBound,isTracedQName
-                   ,fixPriority
+                   ,fixPriority,isUndefinedMethod
                    ,isExpandableTypeSynonym,typeSynonymBody
                    ,nameTransTySynHelper,expandTypeSynonym
                    ,declsEnv,instanceEnv,moduleDefines,maybeBindsEnv,bindsEnv,patsEnv,defineNameEnv
@@ -1273,7 +1274,8 @@ tClassInstDecl env tracing decl@(TypeSig l names ty) =
   (tySig' :
    TypeSig l (map nameShare names) (tMapType tConstType ty) :
    map (\name -> PatBind l (PVar l (nameShare name)) Nothing 
-                   (UnGuardedRhs l (appN [expUndefined,expSR,expParent])) Nothing) names
+                   (UnGuardedRhs l (appN [expUndefined,expSR,expParent])) Nothing)
+     (filter (isUndefinedMethod env) names)
   ,moduleConsts)
   where
   expSR = mkExpSR l Trusted

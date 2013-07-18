@@ -9,7 +9,7 @@ module Environment
   ,Scope(Local,Global),isLocal
   ,globalEnv,moduleDefines,prettyEnv
   ,declsEnv,instanceEnv,maybeBindsEnv,bindsEnv, patsEnv
-  ,arity,isLambdaBound,isTracedQName,fixPriority, hasPriority
+  ,arity,isUndefinedMethod,isLambdaBound,isTracedQName,fixPriority, hasPriority
   ,isExpandableTypeSynonym,typeSynonymBody
   ,nameTransTySynHelper,expandTypeSynonym
   ,imports,exports,hxEnvironmentToList,listToHxEnvironment
@@ -699,6 +699,11 @@ ar _             = 0
     
 arity :: Environment -> QName l -> Maybe Int
 arity env qName = Just (eArity (lookupExpEnv env qName))
+
+isUndefinedMethod :: Environment -> Name l -> Bool
+isUndefinedMethod env name = null (eSrcs entity)
+  where
+  entity = lookupExpEnv env (UnQual undefined name)
 
 typeSynonymBody :: Environment -> QName l -> Maybe TySynBody
 typeSynonymBody env qName = if isSyn entity then Just (eBody entity) else Nothing
