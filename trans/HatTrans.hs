@@ -27,10 +27,13 @@ import Relation(unionRelations)
 import TraceTrans(Tracing(Traced,Trusted),traceTrans)
 import AuxFile(readAuxFiles,writeAuxFile)
 import SynHelp(getId)
+import Paths_hat(getDataDir)
 
 main = do
   args <- getArgs
-  let flags = processArgs args
+  let flagsArgs = processArgs args
+  preludePath <- getDataDir
+  let flags = flagsArgs{sPreludes = preludePath : (sPreludes flagsArgs)}
 
   let pretty = prettyPrintStyleMode (style{lineLength=sShowWidth flags}) defaultMode
 
