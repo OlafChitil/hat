@@ -163,6 +163,10 @@ qOp2Exp :: QOp l -> Exp l
 qOp2Exp (QVarOp l qName) = Var l qName
 qOp2Exp (QConOp l qName) = Con l qName
 
+nameFromOp :: Op l -> Name l
+nameFromOp (VarOp l name) = name
+nameFromOp (ConOp l name) = name
+
 getQualified :: SrcInfo l => QName l -> Name l
 getQualified (UnQual _ name) = name
 getQualified (Qual _ _ name) = name

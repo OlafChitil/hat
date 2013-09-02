@@ -41,7 +41,7 @@ description:
 
   > hat-trail / hat-observe / hat-explore /...   MyProgram
 
-  There is documentation in the "docs" folder, but much of it is outdated.
+  There is documentation in the "docs" folder, but it is partially outdated.
   There are a few small programs for exploring tracing in the "examples" folder.
 homepage:            http://projects.haskell.org/hat/
 license:             OtherLicense
