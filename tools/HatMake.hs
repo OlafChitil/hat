@@ -19,7 +19,8 @@ main = do x <- getArgs
           let opts = init x
           let optStr = concat (intersperse " " opts)
           let y = last x
-          systemTry $ "ghc -M -dep-makefile .depend " ++ y ++ " " ++ optStr
+          systemTry $ "ghc -M -dep-makefile .depend -dep-suffix \"\" " 
+                      ++ y ++ " " ++ optStr
           mak <- readFile ".depend"
           let (files,depends) = parseMakefile mak
           translate hatFolder files depends
