@@ -149,8 +149,9 @@ getArityFromFieldDecl (FieldDecl _ names _) = length names
 
 alt2Match :: Alt l -> Match l
 alt2Match (Alt l pat guardedAlts maybeBinds) = 
-  Match l undefined [pat] (guardedAlts2Rhs guardedAlts) maybeBinds
+  Match l undefined [pat] guardedAlts maybeBinds
 
+{- no longer needed for syntax after June 2014 
 guardedAlts2Rhs :: GuardedAlts l -> Rhs l
 guardedAlts2Rhs (UnGuardedAlt l exp) = UnGuardedRhs l exp
 guardedAlts2Rhs (GuardedAlts l gdAlts) = 
@@ -158,6 +159,7 @@ guardedAlts2Rhs (GuardedAlts l gdAlts) =
 
 guardedAlt2GuardedRhs :: GuardedAlt l -> GuardedRhs l
 guardedAlt2GuardedRhs (GuardedAlt l stmts exp) = GuardedRhs l stmts exp
+-}
 
 qOp2Exp :: QOp l -> Exp l
 qOp2Exp (QVarOp l qName) = Var l qName
@@ -244,23 +246,29 @@ combineMaybeContexts (Just ctx1) (Just ctx2) =
 contextAssertions :: Context l -> [Asst l]
 contextAssertions (CxSingle _ asst) = [asst]
 contextAssertions (CxTuple _ assts) = assts
-contextAssertions (CxParen _ ctx) = contextAssertions ctx
 contextAssertions (CxEmpty _) = []
 
+instRuleQName :: InstRule l -> QName l
+instRuleQName (IRule _ _ _ instHead) = instHeadQName instHead
+instRuleQName (IParen _ instRule) = instRuleQName instRule
+
 instHeadQName :: InstHead l -> QName l
-instHeadQName (IHead _ qname _) = qname
-instHeadQName (IHInfix _ _ qname _) = qname
+instHeadQName (IHCon _ qname) = qname
+instHeadQName (IHInfix _ _ qname) = qname
 instHeadQName (IHParen _ ih) = instHeadQName ih
+instHeadQName (IHApp _ ih _) = instHeadQName ih
 
 declHeadName :: DeclHead l -> Name l
-declHeadName (DHead _ name _) = name
-declHeadName (DHInfix _ _ name _ ) = name
+declHeadName (DHead _ name) = name
+declHeadName (DHInfix _ _ name) = name
 declHeadName (DHParen _ dh) = declHeadName dh
+declHeadName (DHApp _ dh _) = declHeadName dh
 
 declHeadTyVarBinds :: DeclHead l -> [TyVarBind l]
-declHeadTyVarBinds (DHead _ _ tvbs) = tvbs
-declHeadTyVarBinds (DHInfix _ tvbL _ tvbR) = [tvbL,tvbR]
+declHeadTyVarBinds (DHead _ _) = []
+declHeadTyVarBinds (DHInfix _ tvbL _) = [tvbL]
 declHeadTyVarBinds (DHParen _ dh) = declHeadTyVarBinds dh
+declHeadTyVarBinds (DHApp _ dh tvb) = declHeadTyVarBinds dh ++ [tvb]
 
 tyVarBind2Type :: TyVarBind l -> Type l
 tyVarBind2Type (KindedVar l name kind) = TyKind l (TyVar l name) kind

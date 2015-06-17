@@ -41,7 +41,7 @@ module Wrap (wrap) where
 import Language.Haskell.Exts.Annotated
 import System.FilePath(FilePath)
 import SynHelp (nameFromOp,mkQual,declHeadName,declHeadTyVarBinds,getId
-               ,isUnQual,getModuleNameFromModule,tyVarBind2Type)
+               ,isUnQual,getModuleNameFromModule,tyVarBind2Type,notSupported)
 
 wrap :: FilePath -> Module SrcSpanInfo -> Module SrcSpanInfo
 wrap filename mod@(Module l maybeModuleHead modulePragmas importDecls decls) =
@@ -56,18 +56,19 @@ wrap filename mod@(Module l maybeModuleHead modulePragmas importDecls decls) =
 mkImportOriginal :: ModuleName l -> ImportDecl l
 mkImportOriginal modName = 
   ImportDecl {importAnn = ann modName, importModule = modName, importQualified = True, importSrc = False,
-    importPkg = Nothing, importAs = Nothing, importSpecs = Nothing}
+    importSafe = False, importPkg = Nothing, importAs = Nothing, importSpecs = Nothing}
 
 type Exported l = Name l -> Bool
 
-getExported :: Maybe (ModuleHead l) -> Exported l
+getExported :: SrcInfo l => Maybe (ModuleHead l) -> Exported l
 getExported Nothing = const True  -- everything exported
 getExported (Just (ModuleHead l modName maybeWarningText Nothing)) = const True  -- everything exported
 getExported (Just (ModuleHead l modName maybeWarningText (Just (ExportSpecList _ exportSpecs)))) = 
   \name -> (name `within`) `any` exportSpecs
   where
-  within :: Name l1 -> ExportSpec l2 -> Bool
-  name `within` (EVar l qname) = same modName name qname
+  within :: SrcInfo l2 => Name l1 -> ExportSpec l2 -> Bool
+  name `within` (EVar l (NoNamespace _) qname) = same modName name qname
+  name `within` (EVar l (TypeNamespace _) _) = notSupported l "type namespace in export specification"
   name `within` (EAbs l qname) = same modName name qname
   name `within` (EThingAll l qname) = same modName name qname
   name `within` (EThingWith l qname cnames) = same modName name qname
@@ -85,7 +86,7 @@ trans exported modName (DataDecl l dataOrNew maybeContext declHead qualConDecls 
   -- Doesn't handle deriving.
   -- ToDo: general case.
   [DataDecl l (NewType l) Nothing declHead 
-    [QualConDecl l Nothing Nothing (ConDecl l name [UnBangedTy l newType])] Nothing]
+    [QualConDecl l Nothing Nothing (ConDecl l name [newType])] Nothing]
   where
   -- need to get type variable parameters
   name = declHeadName declHead
@@ -100,7 +101,7 @@ trans exported modName (InfixDecl l assoc maybeInt ops) | not (null expOps) =
   where
   expOps = filter (exported . nameFromOp) ops
 trans exported modName (FunBind l matches) = []  -- remove function declaration
-trans exported modName (PatBind l pat maybeTy rhs maybeBinds) = []  -- remove pattern declaration
+trans exported modName (PatBind l pat rhs maybeBinds) = []  -- remove pattern declaration
 trans exported modName (ForImp l callConv maybeSafety maybeString name ty) | exported name =
   [mkForeignHaskell modName ty name]
 trans _ _ _ = []  -- ToDo: check which other declarations do need special treatment

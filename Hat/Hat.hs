@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# OPTIONS -#include "hat-c.h" #-}
 -- ----------------------------------------------------------------------------
 -- Library used by all programs transformed for tracing by Hat.
 -- Combinators in Haskell and interfaces to C-functions.

@@ -18,10 +18,11 @@ module Environment
   ) where
 
 import Language.Haskell.Exts.Annotated hiding (Var,Con,Fixity,EVar)
-import qualified Language.Haskell.Exts.Annotated as Syntax (Exp(Var,Con),Fixity(Fixity),ExportSpec(EVar))
+import qualified Language.Haskell.Exts.Annotated as Syntax (Exp(Var,Con),Fixity(Fixity),ExportSpec(EVar)
+                                                           ,Namespace(NoNamespace,TypeNamespace))
 import qualified Language.Haskell.Exts as Short(Assoc(..),QName(..),Name(..),SpecialCon(Cons))
 import SynHelp (Id(getId),getQualified,mkQual,qual,isQual,isUnQual,notSupported
-               ,tyVarBind2Name,declHeadTyVarBinds,declHeadName,instHeadQName,getArityFromConDecl
+               ,tyVarBind2Name,declHeadTyVarBinds,declHeadName,instRuleQName,getArityFromConDecl
                ,getConDeclFromQualConDecl,getConstructorFromConDecl,eqName,mkName,mkQName
                ,getFieldNamesFromConDecl,decomposeFunType,isFunTyCon,tyAppN,getModuleNameFromModule
                ,UpdId(updateId),dropAnn,noSpan)
@@ -424,7 +425,7 @@ declEnv tracing _ (TypeSig _ names _) =
   fromList [eSig (getId name) | name <- names]
   -- needed for methods in classes
 declEnv tracing _ (FunBind l matches) = matchEnv l tracing (head matches)
-declEnv tracing _ (PatBind l pat _ _ _) = patEnv l tracing pat
+declEnv tracing _ (PatBind l pat _ _) = patEnv l tracing pat
 declEnv tracing _ (ForImp l _ _ _ name ty) =
   -- only for NoHat. import
   singleton (eVar (getId name) l (length tyArgs) tracing)
@@ -436,18 +437,19 @@ declEnv _ _ (DeprPragmaDecl _ _) = emptyRelation
 declEnv _ _ (WarnPragmaDecl _ _) = emptyRelation
 declEnv _ _ (InlineSig _ _ _ _) = emptyRelation
 declEnv _ _ (InlineConlikeSig _ _ _) = emptyRelation
-declEnv _ _ (SpecSig _ _ _) = emptyRelation
+declEnv _ _ (SpecSig _ _ _ _) = emptyRelation
 declEnv _ _ (SpecInlineSig _ _ _ _ _) = emptyRelation
-declEnv _ _ (InstSig _ _ _) = emptyRelation
+declEnv _ _ (InstSig _ _) = emptyRelation
 declEnv _ _ (AnnPragma _ _) = emptyRelation
+declEnv _ _ (MinimalPragma _ _) = emptyRelation
 
 
 -- Produce local environment for a non-empty class instance definition.
 instanceEnv :: Bool -> Environment -> Decl SrcSpanInfo -> Environment
-instanceEnv tracing finalEnv (InstDecl l maybeContext instHead (Just instDecls)) =
+instanceEnv tracing finalEnv (InstDecl l maybeContext instRule (Just instDecls)) =
   var2Method `mapRng` (declsEnv tracing finalEnv (map getDecl instDecls))
   where
-  classId = getId (instHeadQName instHead)
+  classId = getId (instRuleQName instRule)
   var2Method :: Entity -> Entity
   var2Method e | isVar e = eMethod (eId e) [eSrc e] classId tracing
                | otherwise = error "Environment.declEnv: unexpected declaration in instance."
@@ -473,12 +475,11 @@ patsEnv l tracing pats = unionRelations (map (patEnv l tracing) pats)
 patEnv :: SrcSpanInfo -> Bool -> Pat SrcSpanInfo -> Environment
 patEnv l tracing (PVar _ name) = 
   singleton (eVar (getId name) l 0 tracing)
-patEnv _ _ (PLit _ _) = emptyRelation
-patEnv l tracing (PNeg _ pat) = patEnv l tracing pat
+patEnv _ _ (PLit _ _ _) = emptyRelation
 patEnv l tracing (PNPlusK l2 name _) = patEnv l tracing (PVar l2 name)
 patEnv l tracing (PInfixApp _ patl _ patr) = unionRelations [patEnv l tracing patl, patEnv l tracing patr]
 patEnv l tracing (PApp _ _ pats) = unionRelations . map (patEnv l tracing) $ pats
-patEnv l tracing (PTuple _ pats) = unionRelations . map (patEnv l tracing) $ pats
+patEnv l tracing (PTuple _ _ pats) = unionRelations . map (patEnv l tracing) $ pats
 patEnv l tracing (PList _ pats) = unionRelations . map (patEnv l tracing) $ pats
 patEnv l tracing (PParen _ pat) = patEnv l tracing pat
 patEnv l tracing (PRec _ _ patFields) = unionRelations . map (patField l tracing) $ patFields
@@ -494,7 +495,6 @@ patEnv _ _ (PXETag l _ _ _) = notSupported l "XML singleton element pattern"
 patEnv _ _ (PXPcdata l _) = notSupported l "XML PCDATA pattern"
 patEnv _ _ (PXPatTag l _) = notSupported l "XML embedded pattern"
 patEnv _ _ (PXRPats l _) = notSupported l "XML regular list pattern"
-patEnv _ _ (PExplTypeArg l _ _) = notSupported l "explicit generics style type argument"
 patEnv _ _ (PQuasiQuote l _ _) = notSupported l "quasi quote pattern"
 patEnv l tracing (PBangPat _ pat) = patEnv l tracing pat
 
@@ -513,7 +513,7 @@ type HxEnvironment = Relation (Name ()) Entity  -- Note: not HxEntity for simpli
 exports :: Bool -> Module SrcSpanInfo -> Environment -> HxEnvironment
 exports tracing mod@(Module l maybeModuleHead _ _ _) env =
   case maybeModuleHead of
-    Nothing -> exportList [Syntax.EVar l (UnQual l (Ident l "main"))]
+    Nothing -> exportList [Syntax.EVar l (Syntax.NoNamespace l) (UnQual l (Ident l "main"))]
     Just (ModuleHead _ _ _ Nothing) -> getQualified `mapDom` moduleDefines tracing env mod
     Just (ModuleHead _ _ _ (Just (ExportSpecList _ list))) -> exportList list
   where
@@ -522,7 +522,7 @@ exports tracing mod@(Module l maybeModuleHead _ _ _) env =
     exports = filterExportSpec env `map` list 
 
 -- Determine exports for one export specification of the export list
-filterExportSpec :: Environment -> ExportSpec l -> Environment
+filterExportSpec :: Environment -> ExportSpec SrcSpanInfo -> Environment
 filterExportSpec env (EModuleContents _ moduleName) =
   (qual moduleNameT `mapDom` unqs) `intersectRelation` qs
   where
@@ -536,7 +536,8 @@ filterExportSpec env eSpec = unionRelations [mSpec, mSub]
   subs = restrictRng (`isOwned` allOwners) env
   qNameT = dropAnn qName
   (qName,mSub) = case eSpec of
-    Syntax.EVar _ qName -> (qName, emptyRelation)
+    Syntax.EVar _ (Syntax.NoNamespace _) qName -> (qName, emptyRelation) 
+    Syntax.EVar _ (Syntax.TypeNamespace l) _ -> notSupported l "type namespace in export"
     EAbs _ qName -> (qName, emptyRelation)
     EThingAll _ qName -> (qName, subs)
     EThingWith _ qName cNames -> 
@@ -557,7 +558,7 @@ hxEnvironmentToList :: HxEnvironment -> [HxEntity]
 hxEnvironmentToList = map entity2HxEntity . Set.toAscList . Relation.rng
 
 -- Filter with one import declaration from the export environment of the imported module
-imports :: HxEnvironment -> ImportDecl l -> Environment
+imports :: HxEnvironment -> ImportDecl SrcSpanInfo -> Environment
 imports exports importDecl = 
   if importQualified importDecl then qs else unionRelations [unqs, qs]
   where
@@ -575,7 +576,7 @@ importQual :: ImportDecl l -> ModuleName ()
 importQual imDecl = dropAnn (fromMaybe (importModule imDecl) (importAs imDecl))
 
 -- Filter given environment with one import specification from an import list
-filterImportSpec :: Bool -> HxEnvironment -> ImportSpec l -> HxEnvironment
+filterImportSpec :: Bool -> HxEnvironment -> ImportSpec SrcSpanInfo -> HxEnvironment
 filterImportSpec isHiding exports iSpec =
   unionRelations [fSpec,fSub]
   where
@@ -584,7 +585,8 @@ filterImportSpec isHiding exports iSpec =
   subs = restrictRng (`isOwned` allOwners) exports
   nameT = dropAnn name
   (name,fSub,noSubSpec) = case iSpec of
-    IVar _ name -> (name, emptyRelation, True)
+    IVar _ (NoNamespace _) name -> (name, emptyRelation, True)
+    IVar _ (TypeNamespace l) _ -> notSupported l "type name space in import"
     IAbs _ name -> (name, emptyRelation, True)
     IThingAll _ name -> (name, subs, False)
     IThingWith _ name cNames -> 
