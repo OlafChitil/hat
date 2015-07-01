@@ -734,8 +734,8 @@ tPatBind env scope tracing l pat maybeType rhs maybeBinds =
           (Var l (UnQual l resultTraceName)) patName resultTraceName) patNames ++
    [PatBind l (PVar l patName) Nothing (UnGuardedRhs l (
      (Case l exp'
-       [Alt l pat'' (UnGuardedAlt l expTuple) Nothing
-       ,Alt l (PWildCard l) (UnGuardedAlt l (mkFailExp expParent)) Nothing])))
+       [Alt l pat'' (UnGuardedRhs l expTuple) Nothing
+       ,Alt l (PWildCard l) (UnGuardedRhs l (mkFailExp expParent)) Nothing])))
      Nothing]
   ,foldr moduleConstsUnion altConsts (map (moduleConstsSpan . ann) patNames))
   where
@@ -783,7 +783,7 @@ projDef scope tracing l patTuple expVarResultTrace patName resultTraceName name 
       ,Var l (UnQual l (nameTraceInfoVar l scope name))
       ,Lambda l [PWildCard l]
          (Case l (Var l (UnQual l patName))
-           [Alt l patTuple (UnGuardedAlt l 
+           [Alt l patTuple (UnGuardedRhs l 
              (if isLocal scope && tracing == Trusted
                 then varLambdaName
                 else appN
@@ -799,8 +799,7 @@ projDef scope tracing l patTuple expVarResultTrace patName resultTraceName name 
 -- Extract all variables from a pattern, left-to-right
 getPatVars :: Pat SrcSpanInfo -> [Pat SrcSpanInfo]
 getPatVars p@(PVar _ _) = [p]
-getPatVars (PLit _ _) = []
-getPatVars (PNeg _ p) = getPatVars p
+getPatVars (PLit _ _ _) = []
 getPatVars (PNPlusK l _ _) = notSupported l "n+k pattern in pattern binding"
 getPatVars (PInfixApp _ pl _ pr) = getPatVars pl ++ getPatVars pr
 getPatVars (PApp _ _ ps) = concatMap getPatVars ps
@@ -1054,9 +1053,8 @@ matchCanFail (Match _ _ pats rhs _) =
     GuardedRhss _ gdRhss -> gdRhssCanFail gdRhss
 
 numericLitIn :: Pat l -> Bool
-numericLitIn (PLit _ (Int _ _ _)) = True
-numericLitIn (PLit _ (Frac _ _ _)) = True
-numericLitIn (PNeg _ pat) = numericLitIn pat
+numericLitIn (PLit _ _ (Int _ _ _)) = True
+numericLitIn (PLit _ _ (Frac _ _ _)) = True
 numericLitIn (PInfixApp _ pL _ pR) = numericLitIn pL || numericLitIn pR
 numericLitIn (PApp _ _ pats) = any numericLitIn pats
 numericLitIn (PTuple _ pats) = any numericLitIn pats
@@ -1191,11 +1189,15 @@ tForeignImp l foreignName name ty =
 
 -- Process class instances:
 
+tInstRule :: InstRule SrcSpanInfo -> InstRule SrcSpanInfo
+tInstRule (IRule l mTyVars mCtx iHead) = IRule l (fmap (map tTyVarBind) mTyVars) (fmap tContext mCtx) (tInstHead iHead)
+tInstRule (IParen l iRule) = IParen l (tInstRule iRule)
+
 tInstHead :: InstHead SrcSpanInfo -> InstHead SrcSpanInfo
-tInstHead (IHead l qname tys) = IHead l (nameTransCls qname) (map tType tys)
-tInstHead (IHInfix l tyL qname tyR) = 
-  IHInfix l (tType tyL) (nameTransCls qname) (tType tyR)
-tInstHead (IHParen l instHead) = IHParen l (tInstHead instHead)
+tInstHead (IHCon l qname) = IHCon l (nameTransCls qname)  -- or type name?
+tInstHead (IHInfix l ty qname) = IHInfix l (tType ty) (nameTransCls qname)  -- or type name?
+tInstHead (IHParen l iHead) = IHParen l (tInstHead iHead)
+tInstHead (IHApp l iHead ty) = IHApp l (tInstHead iHead) (tType ty)
 
 tInstDecls :: Environment -> Tracing ->
               [InstDecl SrcSpanInfo] ->
@@ -1570,8 +1572,8 @@ tExpA env tracing cr (Lambda l pats body) ls es =
           then Lambda l (pats' ++ [patParent]) body'
           else Lambda l (map (PVar l) nameVars ++ [patParent])
                  (Case l (mkExpTuple (map (Var l . UnQual l) nameVars))
-                    [Alt l (mkPatTuple pats') (UnGuardedAlt l body') Nothing
-                    ,Alt l (PWildCard l) (UnGuardedAlt l expFail) Nothing]
+                    [Alt l (mkPatTuple pats') (UnGuardedRhs l body') Nothing
+                    ,Alt l (PWildCard l) (UnGuardedRhs l expFail) Nothing]
                  )
   (Match _ _ pats' (UnGuardedRhs _ body') _, bodyConsts) =
     tMatch env tracing True undefined failContinuation 
@@ -1877,7 +1879,6 @@ tLiteral env tracing lit =
 -- (safe approximation)
 neverFailingPat :: Pat l -> Bool
 neverFailingPat (PVar _ _) = True
-neverFailingPat (PNeg _ p) = neverFailingPat p
 neverFailingPat (PTuple _ ps) = neverFailingPats ps
 neverFailingPat (PParen _ p) = neverFailingPat p
 neverFailingPat (PAsPat _ _ p) = neverFailingPat p
@@ -1919,9 +1920,9 @@ removeDo (Generator l pat e : stmts) =
           then Lambda l [pat] (removeDo stmts)
           else Lambda l [PVar l newName]
                  (Case l (Var l (UnQual l newName))
-                   [Alt l pat (UnGuardedAlt l (removeDo stmts)) Nothing
+                   [Alt l pat (UnGuardedRhs l (removeDo stmts)) Nothing
                    ,Alt l (PWildCard l)
-                     (UnGuardedAlt l 
+                     (UnGuardedRhs l 
                        (App l (Var l (qNameDeriveFail l)) 
                               (Lit l (String l msg msg))))
                      Nothing])]
@@ -2008,14 +2009,14 @@ tPat :: Pat SrcSpanInfo ->
         ,Maybe (QName SrcSpanInfo, Exp SrcSpanInfo, [Decl SrcSpanInfo]
                ,[Exp SrcSpanInfo], [Pat SrcSpanInfo]))
 tPat (PVar l name) = (PVar l (nameTransLambdaVar name), Nothing)
-tPat (PLit _ lit@(Char l c str)) = 
+tPat (PLit _ (Signless _) lit@(Char l c str)) = 
   (wrapPat (PLit l lit) (PWildCard l), Nothing)
-tPat (PLit _ (String l s str)) = 
+tPat (PLit _ (Signless _) (String l s str)) = 
   tPat . mkPatList l . map mkPatChar $ s
   where
   mkPatChar :: Char -> Pat SrcSpanInfo
   mkPatChar c = PLit l (Char l c (show c)) 
-tPat (PLit _ lit@(Int l int str)) =
+tPat (PLit _ (Signless _) lit@(Int l int str)) =
   (PVar l (nameTransLambdaVar nameNew)
   ,Just (UnQual l nameNew
         ,App l (App l (mkExpDeriveEqualEqual l)
@@ -2024,7 +2025,7 @@ tPat (PLit _ lit@(Int l int str)) =
         ,[],[],[]))
   where
   nameNew = nameFromSpan l
-tPat (PLit _ lit@(Frac l rat str)) =
+tPat (PLit _ (Signless _) lit@(Frac l rat str)) =
   (PVar l (nameTransLambdaVar nameNew)
   ,Just (UnQual l nameNew
         ,App l (App l (mkExpDeriveEqualEqual l) 
@@ -2034,15 +2035,16 @@ tPat (PLit _ lit@(Frac l rat str)) =
   where
   nameNew = nameFromSpan l
 tPat (PLit l lit) =
-  notSupported l "unboxed literal"
-tPat (PNeg l (PLit _ (Int _ int str))) = 
-  -- a negative integer literal is represented as negate int
-  tPat (PLit l (Int l (-int) ('-':str)))
-tPat (PNeg l (PLit _ (Frac _ rat str))) =
+  notSupported l "unsupported literal in pattern"
+tPat (PLit l (Negative _) (Int _ int str)) = 
+  -- a negative integer literal is represented as negate int, so literal can be negative
+  -- differs from ghc where
+  -- f (-k) = v  is sugar for  f z | z == negate (fromInteger k) = v
+  tPat (PLit l (Signless l) (Int l (-int) ('-':str)))
+tPat (PLit l (Negative _) (Frac _ rat str)) =
   -- a negative floating point literal is represented as negate frac
-  tPat (PLit l (Frac l (-rat) ('-':str))) 
-tPat (PNeg l _) =
-  notSupported l "negated pattern"
+  -- same issues as above
+  tPat (PLit l (Signless l) (Frac l (-rat) ('-':str))) 
 tPat (PNPlusK l n k) =
   (PVar l (nameTransLambdaVar nameNew)
   ,Just (UnQual l nameNew

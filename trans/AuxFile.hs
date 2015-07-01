@@ -23,7 +23,7 @@ readAuxFiles flags mod@(Module l maybeModuleHead _ importDecls decls) = do
 notNotHat :: ImportDecl l -> Bool
 notNotHat importDecl = not ("NotHat" `isPrefixOf` getId (importModule importDecl))
 
-importEnv :: Flags -> ImportDecl l -> IO Environment
+importEnv :: Flags -> ImportDecl SrcSpanInfo -> IO Environment
 importEnv flags importDecl = do
   entities <- readAuxFile flags (importModule importDecl)
   return (imports (listToHxEnvironment entities) importDecl)
