@@ -239,6 +239,7 @@ hat_check (int argc, char *argv[])
     if (amode && smode) putchar('\n');
     if (smode) reportstats();
   }
+  return 0;
 }
 
 int
@@ -565,13 +566,15 @@ dopointer (int okzero,
                 break;
     }
   }
-  if (gmode && requireoffset!=0 && *edgelabel != '\0')
-    if (strcmp(edgelabel,"p")==0)
+  if (gmode && requireoffset!=0 && *edgelabel != '\0') {
+    if (strcmp(edgelabel,"p")==0) {
       printf("%d -> %d [style=dashed]\n",
         contextoffset, requireoffset);
-    else
+    } else {
       printf("%d -> %d [label=\"%s\"]\n",
         contextoffset, requireoffset, edgelabel);
+    }
+  }
 }
   
 #define ismarked(b) ((b)&0x80)
@@ -857,7 +860,7 @@ nextnode (void)
           for (i=0; i<arity; i++) {
             dopointer(NONZERO, AtomVariable, readpointer(), k, offset, "");
           }
-	  if (amode) printf(", bindees ",arity);
+	  if (amode) printf(" arity=%u, bindees ",arity);
           for (i=0; i<arity; i++) {
             dopointer(NONZERO, ANYEXP, readpointer(), k, offset, "");
           }

@@ -4,7 +4,7 @@
 module Main where
 
 import System.Environment (getArgs)
-import System.Cmd (system)
+import System.Process (system)
 import System.Exit (ExitCode(..), exitFailure)
 import Data.List (nub, partition, isPrefixOf, intersperse, concat)
 import Data.Char (isSpace)

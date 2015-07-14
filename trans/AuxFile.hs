@@ -15,7 +15,7 @@ import Data.List (isPrefixOf)
 
 -- Create environment for all imports.
 -- Exception if hx-file of an imported module is not found.
-readAuxFiles :: Flags -> Module l -> IO Environment
+readAuxFiles :: Flags -> Module SrcSpanInfo -> IO Environment
 readAuxFiles flags mod@(Module l maybeModuleHead _ importDecls decls) = do
   importEnvs <- mapM (importEnv flags) (filter notNotHat importDecls)
   return (unionRelations importEnvs)

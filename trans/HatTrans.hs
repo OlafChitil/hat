@@ -17,8 +17,9 @@ import Control.Monad(when)
 import Flags(processArgs,Flags,sSourceFile,sParse,sFixities,sPrelude,sPreludes,sIncludes,sDbgTrusted
             ,sWrap,sIBound,sShowWidth,sHatAuxFile,sHatTransFile,sSrcDir)
 import System.FilePath(FilePath(..),splitDirectories,combine)
-import Language.Haskell.Exts.Annotated(ParseMode(..),ParseResult,fromParseResult,parseFileWithMode
-                                      ,Module(..),ImportDecl(..),ModuleName(..),Extension(..),applyFixities)
+import Language.Haskell.Exts.Annotated(ParseMode(..),Extension(..),KnownExtension(..),ParseResult
+         ,fromParseResult,parseFileWithMode
+         ,Module(..),ImportDecl(..),ModuleName(..),applyFixities)
 import Language.Haskell.Exts.Fixity(Fixity)
 import Language.Haskell.Exts.Pretty(prettyPrintStyleMode,Style(..),style,PPHsMode,defaultMode)
 import Wrap(wrap)
@@ -40,7 +41,8 @@ main = do
   {- parse source code -}
   let filePath = sSourceFile flags
   let parseMode = ParseMode {parseFilename = filePath
-                            ,extensions = [ForeignFunctionInterface,NPlusKPatterns]
+                            ,extensions = [EnableExtension ForeignFunctionInterface
+                                          ,EnableExtension NPlusKPatterns]
                             ,ignoreLanguagePragmas = False
                             ,ignoreLinePragmas = True
                             ,fixities = Nothing} 

@@ -65,7 +65,7 @@ openFile (char* base, char* ext)
   FILE* file;
   strcpy(filename,base);
   strcat(filename,ext);
-  if (file = fopen(filename,"rb")) {
+  if ((file = fopen(filename,"rb"))) {
     return file;
   } else {
     fprintf(stderr,"%s: cannot open %s\n",progname,filename);
@@ -1029,6 +1029,9 @@ parentNode (FileOffset fo)
         if (hasSrcPos(c)) { readFO(); }
         return parentNode(readFO());
         break;
+  default:
+    printf("artutils.parentNode of unkown node.\n");
+    exit(-1);
   }
 }
 
@@ -1242,6 +1245,9 @@ getExpArity (FileOffset fo)
     case AtomAbstract:
         return 0;
         break;
+  default:
+    printf("artutils.getExpArity of unkown node.\n");
+    exit(-1);
   }
 }
 
