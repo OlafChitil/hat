@@ -17,7 +17,8 @@ import Control.Monad(when)
 import Flags(processArgs,Flags,sSourceFile,sParse,sFixities,sPrelude,sPreludes,sIncludes,sDbgTrusted
             ,sWrap,sIBound,sShowWidth,sHatAuxFile,sHatTransFile,sSrcDir)
 import System.FilePath(FilePath(..),splitDirectories,combine)
-import Language.Haskell.Exts.Annotated(ParseMode(..),Extension(..),KnownExtension(..),ParseResult
+import Language.Haskell.Exts.Annotated(ParseMode(..),Language(..),Extension(..),KnownExtension(..)
+         ,ParseResult
          ,fromParseResult,parseFileWithMode
          ,Module(..),ImportDecl(..),ModuleName(..),applyFixities)
 import Language.Haskell.Exts.Fixity(Fixity)
@@ -41,6 +42,7 @@ main = do
   {- parse source code -}
   let filePath = sSourceFile flags
   let parseMode = ParseMode {parseFilename = filePath
+                            ,baseLanguage = Haskell2010
                             ,extensions = [EnableExtension ForeignFunctionInterface
                                           ,EnableExtension NPlusKPatterns]
                             ,ignoreLanguagePragmas = False
@@ -115,7 +117,7 @@ implicitlyImportPrelude flags
   importDecls' = if sPrelude flags ||  "Prelude" `elem` map (getId . importModule) importDecls
                    then importDecls
                    else ImportDecl{importAnn = l, importModule = ModuleName l "Prelude"
-                                  ,importQualified = False, importSrc = False
+                                  ,importQualified = False, importSrc = False, importSafe = False
                                   ,importPkg = Nothing, importAs = Nothing, importSpecs = Nothing} : importDecls
 
 -- Add import PreludeBasic if current module is not part of the Prelude.
@@ -129,10 +131,10 @@ implicitlyImportPreludeBasic flags
   importDecls' = if sPrelude flags
                    then importDecls
                    else ImportDecl{importAnn = l, importModule = ModuleName l "PreludeBasic"
-                                  ,importQualified = True, importSrc = False
+                                  ,importQualified = True, importSrc = False, importSafe = False
                                   ,importPkg = Nothing, importAs = Nothing, importSpecs = Nothing} : 
                         ImportDecl{importAnn = l, importModule = ModuleName l "PreludeBuiltinTypes"
-                                  ,importQualified = True, importSrc = False
+                                  ,importQualified = True, importSrc = False, importSafe = False
                                   ,importPkg = Nothing, importAs = Nothing, importSpecs = Nothing} : importDecls
 
 {- If first argument is True, then print second and third with formatting -}
