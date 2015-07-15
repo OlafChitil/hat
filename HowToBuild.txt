@@ -1,0 +1,25 @@
+How to build the Hat Package
+
+Most of the building work is done by the cabal, using the hat.cabal file.
+
+However, the trusted libraries that traced programs use are not generated
+automatically by cabal, but have to be constructed manually.
+There does not seem to be any easy way to let cabal do this work.
+
+The library modules have to be transformed like other traced programs.
+The modules are all in the library folder and its subfolders (hierarchical libray).
+
+Each file is transformed by e.g.
+../trans/HatTrans --trusted --hierarchical -I. Random.hs
+The files starting with Prelude, which form the Prelude, need the --prelude 
+option to prevent cyclic importing of the Prelude itself.
+
+The generated *.hx files stay in the library folder. 
+
+The generated libraries/Hat/..*.hs files have to be copied to the
+Hat folder. That folder contains already a few handwritten files
+that will be linked with the transformed files.
+
+The *.hx files and the transformed *.hs files are in the git repository,
+so rebuilding is only necessary if any of the original library files
+is changed or the transformation changes.

@@ -2,15 +2,15 @@ module System.Environment (
     getArgs,  getProgName,  getEnv  
   ) where
 
-import PreludeBuiltinTypes
-import IOBuiltin
+import PreludeBuiltinTypes as NotHat.T
+import IOBuiltin as NotHat.T
 import qualified NotHat.System.Environment
 
-foreign import haskell "System.Environment.getArgs"
+foreign import ccall "NotHat.System.Environment.getArgs"
   getArgs :: IO [String]
 
-foreign import haskell "System.Environment.getProgName"
+foreign import ccall "NotHat.System.Environment.getProgName"
   getProgName :: IO String
 
-foreign import haskell "System.Environment.getEnv"
+foreign import ccall "NotHat.System.Environment.getEnv"
   getEnv :: String -> IO String

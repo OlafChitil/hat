@@ -17,7 +17,7 @@ import System.IO (hSetBuffering,BufferMode(..),stdin,stdout,stderr,hPutStrLn)
 import Foreign.C.String (withCString)
 import Numeric (showHex)
 import System.IO.Unsafe (unsafePerformIO)
-import System.Cmd (system)
+import System.Process (system)
 import System.Environment (getArgs,getProgName,getEnv)
 import System.Exit (exitWith,ExitCode(..))
 import Data.List (isSuffixOf,sortBy,partition,union)
@@ -652,22 +652,22 @@ loop state1 = do
              then loop state{message = "There is only one module."}
              else loop state{modules = rotateRight (modules state)}
     'o' -> do
-             System.Cmd.system (hatObserve 
+             system (hatObserve 
                (dropHS (filename (cur (modules state))))
                (head (words (removeHighlights  -- crude approximation
                  (prettyEquation2 initialOptions (cur (redexes state)))))))
              loop state{message = "Spawned hat-observe"}
     'l' -> do 
-             System.Cmd.system (hatTrail (dropHS (filename (cur (modules state)))) 
+             system (hatTrail (dropHS (filename (cur (modules state)))) 
                (cur (redexes state)))
              loop state{message = "Spawned hat-trail"}
     'e' -> do 
-             System.Cmd.system (hatDetect
+             system (hatDetect
                (dropHS (filename (cur (modules state))))
                (cur (redexes state)))
              loop state{message = "Spawned hat-detect"}
     'i' -> do 
-             System.Cmd.system (hatAnim (dropHS (filename (cur (modules state)))) 
+             system (hatAnim (dropHS (filename (cur (modules state)))) 
                (cur (redexes state)))
              loop state{message = "Spawned hat-anim"}
     'h' -> help >> loop state

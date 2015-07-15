@@ -13,30 +13,30 @@ module System.IO (
   ) where
 
 import IO
-import PreludeBuiltinTypes
-import IOBuiltin
+import PreludeBuiltinTypes as NotHat.T
+import IOBuiltin as NotHat.T
 import qualified NotHat.System.IO
 
-foreign import haskell "System.IO.fixIO"
+foreign import ccall "NotHat.System.IO.fixIO"
   fixIO :: (a -> IO a) -> IO a
 
-foreign import haskell "System.IO.withFile"
+foreign import ccall "NotHat.System.IO.withFile"
   withFile :: String -> IOMode -> (Handle -> IO r) -> IO r
 
-foreign import haskell "System.IO.hSetFileSize"
+foreign import ccall "NotHat.System.IO.hSetFileSize"
   hSetFileSize :: Handle -> Integer -> IO ()
 
-foreign import haskell "System.IO.hTell"
+foreign import ccall "NotHat.System.IO.hTell"
   hTell :: Handle -> IO Integer
 
-foreign import haskell "System.IO.hIsTerminalDevice"
+foreign import ccall "NotHat.System.IO.hIsTerminalDevice"
   hIsTerminalDevice :: Handle -> IO Bool
 
-foreign import haskell "System.IO.hSetEcho"
+foreign import ccall "NotHat.System.IO.hSetEcho"
   hSetEcho :: Handle -> Bool -> IO ()
 
-foreign import haskell "System.IO.hGetEcho"
+foreign import ccall "NotHat.System.IO.hGetEcho"
   hGetEcho :: Handle -> IO Bool
 
-foreign import haskell "System.IO.hShow"
+foreign import ccall "NotHat.System.IO.hShow"
   hShow :: Handle -> IO String

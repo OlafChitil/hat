@@ -10,10 +10,10 @@ module Directory (
      ) where
 
 -- import Time ( ClockTime )
-import PreludeBuiltinTypes
-import DirectoryBuiltinTypes
-import DirectoryBuiltin
-import TimeBuiltin
+import PreludeBuiltinTypes as NotHat.T
+import DirectoryBuiltinTypes as NotHat.T
+import DirectoryBuiltin as NotHat.T
+import TimeBuiltin as NotHat.T
 import qualified NotHat.System.Directory as NotHat.Directory
 
 instance Eq   Permissions where 
@@ -29,50 +29,50 @@ instance Read Permissions where
 instance Show Permissions where
   showsPrec = primPermissionsShowsPrec
 
-foreign import haskell "Prelude.=="
+foreign import ccall "NotHat.Prelude.=="
  primPermissionsEq :: Permissions -> Permissions -> Bool
 
-foreign import haskell "Prelude.compare"
+foreign import ccall "NotHat.Prelude.compare"
  primPermissionsCompare :: Permissions -> Permissions -> Ordering
 
-foreign import haskell "Prelude.<="
+foreign import ccall "NotHat.Prelude.<="
  primPermissionsLeEq :: Permissions -> Permissions -> Bool
 
-foreign import haskell "Prelude.readsPrec"
+foreign import ccall "NotHat.Prelude.readsPrec"
  primPermissionsReadsPrec :: Int -> String -> [(Permissions,String)]
 
-foreign import haskell "Prelude.showsPrec"
+foreign import ccall "NotHat.Prelude.showsPrec"
  primPermissionsShowsPrec :: Int -> Permissions -> String -> String
 
 
-foreign import haskell "Directory.createDirectory"
+foreign import ccall "NotHat.Directory.createDirectory"
  createDirectory  :: String -> IO ()
-foreign import haskell "Directory.removeDirectory"
+foreign import ccall "NotHat.Directory.removeDirectory"
  removeDirectory  :: String -> IO ()
-foreign import haskell "Directory.removeFile"
+foreign import ccall "NotHat.Directory.removeFile"
  removeFile  :: String -> IO ()
-foreign import haskell "Directory.renameDirectory"
+foreign import ccall "NotHat.Directory.renameDirectory"
  renameDirectory  :: String -> String -> IO ()
-foreign import haskell "Directory.renameFile"
+foreign import ccall "NotHat.Directory.renameFile"
  renameFile  :: String -> String -> IO ()
 
-foreign import haskell "Directory.getDirectoryContents"
+foreign import ccall "NotHat.Directory.getDirectoryContents"
  getDirectoryContents  :: String -> IO [String]
-foreign import haskell "Directory.getCurrentDirectory"
+foreign import ccall "NotHat.Directory.getCurrentDirectory"
  getCurrentDirectory  :: IO String
-foreign import haskell "Directory.setCurrentDirectory"
+foreign import ccall "NotHat.Directory.setCurrentDirectory"
  setCurrentDirectory  :: String -> IO ()
 
-foreign import haskell "Directory.doesFileExist"
+foreign import ccall "NotHat.Directory.doesFileExist"
  doesFileExist :: String -> IO Bool
-foreign import haskell "Directory.doesDirectoryExist"
+foreign import ccall "NotHat.Directory.doesDirectoryExist"
  doesDirectoryExist :: String -> IO Bool
 
-foreign import haskell "Directory.getPermissions"
+foreign import ccall "NotHat.Directory.getPermissions"
  getPermissions :: String -> IO Permissions
-foreign import haskell "Directory.setPermissions"
+foreign import ccall "NotHat.Directory.setPermissions"
  setPermissions :: String -> Permissions -> IO ()
 
 -- Removed, because in base-4.6 this function has a different type.
--- foreign import haskell "Directory.getModificationTime"
+-- foreign import ccall "NotHat.Directory.getModificationTime"
 --  getModificationTime :: String -> IO ClockTime

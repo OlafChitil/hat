@@ -455,9 +455,11 @@ d1 <+> d2 = d1 <> fdelimiter " " <> d2
 (<|>) :: Doc -> Doc -> Doc
 d1 <|> d2 = d1 <> fdelimiter "" <> d2
 
+{- not used
 -- breakable before a comma
-(<*>) :: Doc -> Doc -> Doc
-d1 <*> d2 = d1 <|> text "," <> d2
+(<->) :: Doc -> Doc -> Doc
+d1 <-> d2 = d1 <|> text "," <> d2
+-}
 
 -- breakable before or after a cons
 (<:>) :: Doc -> Doc -> Doc

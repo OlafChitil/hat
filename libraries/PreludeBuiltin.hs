@@ -2,14 +2,15 @@
 -- not (portably) definable in Haskell.
 module PreludeBuiltin (
   -- reexport from module PreludeBuiltinTypes   
-  (->),Bool(True,False),Char,Int,Integer,Float,Double,IOError 
-  ,[]((:),[]),IO
-  ,()(())
-  ,(,)((,)), (,,)((,,)),(,,,)((,,,)),(,,,,)((,,,,)),(,,,,,)((,,,,,))
-  ,(,,,,,,)((,,,,,,)),(,,,,,,,)((,,,,,,,)),(,,,,,,,,)((,,,,,,,,))
-  ,(,,,,,,,,,)((,,,,,,,,,)),(,,,,,,,,,,)((,,,,,,,,,,))
-  ,(,,,,,,,,,,,)((,,,,,,,,,,,)),(,,,,,,,,,,,,)((,,,,,,,,,,,,))
-  ,(,,,,,,,,,,,,,)((,,,,,,,,,,,,,)),(,,,,,,,,,,,,,,)((,,,,,,,,,,,,,,))
+  -- (->)
+  Bool(True,False),Char,Int,Integer,Float,Double,IOError,IO
+  -- ,[]((:),[])
+  -- ,()(())
+  -- ,(,)((,)), (,,)((,,)),(,,,)((,,,)),(,,,,)((,,,,)),(,,,,,)((,,,,,))
+  -- ,(,,,,,,)((,,,,,,)),(,,,,,,,)((,,,,,,,)),(,,,,,,,,)((,,,,,,,,))
+  -- ,(,,,,,,,,,)((,,,,,,,,,)),(,,,,,,,,,,)((,,,,,,,,,,))
+  -- ,(,,,,,,,,,,,)((,,,,,,,,,,,)),(,,,,,,,,,,,,)((,,,,,,,,,,,,))
+  -- ,(,,,,,,,,,,,,,)((,,,,,,,,,,,,,)),(,,,,,,,,,,,,,,)((,,,,,,,,,,,,,,))
   ,String,error,undefined 
   -- general (->) 
   ,seq
@@ -52,7 +53,7 @@ module PreludeBuiltin (
   ,appendFile,primIOErrorShow{- ,primIOErrorEq -} 
   ) where
 
-import PreludeBuiltinTypes
+import PreludeBuiltinTypes as NotHat.T
 import NotHat.Hat.Hat  -- for some primitive types
 import qualified NotHat.Prelude  -- not to be transformed
 import qualified NotHat.System.IO.Error  -- for catch
@@ -65,300 +66,300 @@ import qualified NotHat.Data.Char as NotHat.Char  -- not to be transformed
 
 infixr 0 `seq`
 
-foreign import haskell "Prelude.seq"
+foreign import ccall "NotHat.Prelude.seq"
   seq :: a -> b -> b
 
-foreign import haskell "Char.isAscii"
+foreign import ccall "NotHat.Char.isAscii"
   isAscii :: Char -> Bool
-foreign import haskell "Char.isLatin1"
+foreign import ccall "NotHat.Char.isLatin1"
   isLatin1 :: Char -> Bool
-foreign import haskell "Char.isControl"
+foreign import ccall "NotHat.Char.isControl"
   isControl :: Char -> Bool
-foreign import haskell "Char.isPrint"
+foreign import ccall "NotHat.Char.isPrint"
   isPrint :: Char -> Bool
-foreign import haskell "Char.isSpace"
+foreign import ccall "NotHat.Char.isSpace"
   isSpace :: Char -> Bool
-foreign import haskell "Char.isUpper"
+foreign import ccall "NotHat.Char.isUpper"
   isUpper :: Char -> Bool
-foreign import haskell "Char.isLower"
+foreign import ccall "NotHat.Char.isLower"
   isLower :: Char -> Bool
-foreign import haskell "Char.isAlpha"
+foreign import ccall "NotHat.Char.isAlpha"
   isAlpha :: Char -> Bool
-foreign import haskell "Char.isDigit"
+foreign import ccall "NotHat.Char.isDigit"
   isDigit :: Char -> Bool
-foreign import haskell "Char.isOctDigit"
+foreign import ccall "NotHat.Char.isOctDigit"
   isOctDigit :: Char -> Bool
-foreign import haskell "Char.isHexDigit"
+foreign import ccall "NotHat.Char.isHexDigit"
   isHexDigit :: Char -> Bool
-foreign import haskell "Char.isAlphaNum"
+foreign import ccall "NotHat.Char.isAlphaNum"
   isAlphaNum :: Char -> Bool
 
-foreign import haskell "Char.toUpper"
+foreign import ccall "NotHat.Char.toUpper"
   toUpper :: Char -> Char
-foreign import haskell "Char.toLower"
+foreign import ccall "NotHat.Char.toLower"
   toLower :: Char -> Char
 
 -- Character code functions
-foreign import haskell "Char.ord"
+foreign import ccall "NotHat.Char.ord"
   primCharToInt :: Char -> Int
-foreign import haskell "Char.chr"
+foreign import ccall "NotHat.Char.chr"
   primIntToChar :: Int  -> Char
 
-foreign import haskell "Prelude.maxBound"
+foreign import ccall "NotHat.Prelude.maxBound"
   primUnicodeMaxBound :: Char
 
 
 -- Numerics
 
 -- system dependent
-foreign import haskell "Prelude.minBound"
+foreign import ccall "NotHat.Prelude.minBound"
   primIntMinBound :: Int
-foreign import haskell "Prelude.maxBound"
+foreign import ccall "NotHat.Prelude.maxBound"
   primIntMaxBound :: Int
 
-foreign import haskell "Prelude.=="
+foreign import ccall "NotHat.Prelude.=="
   primIntEq :: Int -> Int -> Bool
-foreign import haskell "Prelude./="
+foreign import ccall "NotHat.Prelude./="
   primIntNe :: Int -> Int -> Bool
-foreign import haskell "Prelude.<"
+foreign import ccall "NotHat.Prelude.<"
   primIntLt :: Int -> Int -> Bool
-foreign import haskell "Prelude.<="
+foreign import ccall "NotHat.Prelude.<="
   primIntLe :: Int -> Int -> Bool
-foreign import haskell "Prelude.>"
+foreign import ccall "NotHat.Prelude.>"
   primIntGt :: Int -> Int -> Bool
-foreign import haskell "Prelude.>="
+foreign import ccall "NotHat.Prelude.>="
   primIntGe :: Int -> Int -> Bool
-foreign import haskell "Prelude.quot"
+foreign import ccall "NotHat.Prelude.quot"
   primIntQuot   :: Int -> Int -> Int
-foreign import haskell "Prelude.rem"
+foreign import ccall "NotHat.Prelude.rem"
   primIntRem    :: Int -> Int -> Int
-foreign import haskell "Prelude.+"
+foreign import ccall "NotHat.Prelude.+"
   primIntPlus   :: Int -> Int -> Int
-foreign import haskell "Prelude.-"
+foreign import ccall "NotHat.Prelude.-"
   primIntMinus  :: Int -> Int -> Int
-foreign import haskell "Prelude.*"
+foreign import ccall "NotHat.Prelude.*"
   primIntTimes  :: Int -> Int -> Int
-foreign import haskell "Prelude.negate"
+foreign import ccall "NotHat.Prelude.negate"
   primIntNegate :: Int -> Int
-foreign import haskell "Prelude.abs"
+foreign import ccall "NotHat.Prelude.abs"
   primIntAbs    :: Int -> Int
-foreign import haskell "Prelude.signum"
+foreign import ccall "NotHat.Prelude.signum"
   primIntSignum :: Int -> Int
 
-foreign import haskell "Prelude.toInteger"
+foreign import ccall "NotHat.Prelude.toInteger"
   primIntegerFromInt :: Int -> Integer
-foreign import haskell "Prelude.fromInteger"
+foreign import ccall "NotHat.Prelude.fromInteger"
   primIntFromInteger :: Integer -> Int
 
-foreign import haskell "Prelude.=="
+foreign import ccall "NotHat.Prelude.=="
   primIntegerEq :: Integer -> Integer -> Bool
-foreign import haskell "Prelude./="
+foreign import ccall "NotHat.Prelude./="
   primIntegerNe :: Integer -> Integer -> Bool
-foreign import haskell "Prelude.<"
+foreign import ccall "NotHat.Prelude.<"
   primIntegerLt :: Integer -> Integer -> Bool
-foreign import haskell "Prelude.<="
+foreign import ccall "NotHat.Prelude.<="
   primIntegerLe :: Integer -> Integer -> Bool
-foreign import haskell "Prelude.>"
+foreign import ccall "NotHat.Prelude.>"
   primIntegerGt :: Integer -> Integer -> Bool
-foreign import haskell "Prelude.>="
+foreign import ccall "NotHat.Prelude.>="
   primIntegerGe :: Integer -> Integer -> Bool
-foreign import haskell "Prelude.quot"
+foreign import ccall "NotHat.Prelude.quot"
   primIntegerQuot    :: Integer -> Integer -> Integer
-foreign import haskell "Prelude.rem"
+foreign import ccall "NotHat.Prelude.rem"
   primIntegerRem     :: Integer -> Integer -> Integer
-foreign import haskell "Prelude.quotRem"
+foreign import ccall "NotHat.Prelude.quotRem"
   primIntegerQuotRem :: Integer -> Integer -> (Integer,Integer)
-foreign import haskell "Prelude.+"
+foreign import ccall "NotHat.Prelude.+"
   primIntegerAdd     :: Integer -> Integer -> Integer
-foreign import haskell "Prelude.-"
+foreign import ccall "NotHat.Prelude.-"
   primIntegerSub     :: Integer -> Integer -> Integer
-foreign import haskell "Prelude.*"
+foreign import ccall "NotHat.Prelude.*"
   primIntegerMul     :: Integer -> Integer -> Integer
-foreign import haskell "Prelude.negate"
+foreign import ccall "NotHat.Prelude.negate"
   primIntegerNeg     :: Integer -> Integer
 
-foreign import haskell "Prelude.fromInteger"
+foreign import ccall "NotHat.Prelude.fromInteger"
   primFloatFromInteger  :: Integer -> Float
-foreign import haskell "Prelude.floatRadix"
+foreign import ccall "NotHat.Prelude.floatRadix"
   primFloatRadix        :: Float -> Integer
-foreign import haskell "Prelude.floatDigits"
+foreign import ccall "NotHat.Prelude.floatDigits"
   primFloatDigits       :: Float -> Int
-foreign import haskell "Prelude.floatRange"
+foreign import ccall "NotHat.Prelude.floatRange"
   primFloatRange        :: Float -> (Int,Int) 
-foreign import haskell "Prelude.decodeFloat"
+foreign import ccall "NotHat.Prelude.decodeFloat"
   primDecodeFloat       :: Float -> (Integer,Int)
-foreign import haskell "Prelude.encodeFloat"
+foreign import ccall "NotHat.Prelude.encodeFloat"
   primEncodeFloat       :: Integer -> Int -> Float
-foreign import haskell "Prelude.isNaN"
+foreign import ccall "NotHat.Prelude.isNaN"
   primFloatIsNaN   :: Float -> Bool
-foreign import haskell "Prelude.isInfinite"
+foreign import ccall "NotHat.Prelude.isInfinite"
   primFloatIsInfinite   :: Float -> Bool
-foreign import haskell "Prelude.isDenormalized"
+foreign import ccall "NotHat.Prelude.isDenormalized"
   primFloatIsDenormalized   :: Float -> Bool
-foreign import haskell "Prelude.isNegativeZero"
+foreign import ccall "NotHat.Prelude.isNegativeZero"
   primFloatIsNegativeZero   :: Float -> Bool
-foreign import haskell "Prelude.isIEEE"
+foreign import ccall "NotHat.Prelude.isIEEE"
   primFloatIsIEEE   :: Float -> Bool
 
-foreign import haskell "Prelude.=="
+foreign import ccall "NotHat.Prelude.=="
   primFloatEq :: Float -> Float -> Bool
-foreign import haskell "Prelude./="
+foreign import ccall "NotHat.Prelude./="
   primFloatNe :: Float -> Float -> Bool
-foreign import haskell "Prelude.<"
+foreign import ccall "NotHat.Prelude.<"
   primFloatLt :: Float -> Float -> Bool
-foreign import haskell "Prelude.<="
+foreign import ccall "NotHat.Prelude.<="
   primFloatLe :: Float -> Float -> Bool
-foreign import haskell "Prelude.>"
+foreign import ccall "NotHat.Prelude.>"
   primFloatGt :: Float -> Float -> Bool
-foreign import haskell "Prelude.>="
+foreign import ccall "NotHat.Prelude.>="
   primFloatGe :: Float -> Float -> Bool
-foreign import haskell "Prelude.pi"
+foreign import ccall "NotHat.Prelude.pi"
   primFloatPi :: Float
-foreign import haskell "Prelude.exp"
+foreign import ccall "NotHat.Prelude.exp"
   primFloatExp  :: Float -> Float
-foreign import haskell "Prelude.log"
+foreign import ccall "NotHat.Prelude.log"
   primFloatLog  :: Float -> Float
-foreign import haskell "Prelude.sqrt"
+foreign import ccall "NotHat.Prelude.sqrt"
   primFloatSqrt :: Float -> Float
-foreign import haskell "Prelude.sin"
+foreign import ccall "NotHat.Prelude.sin"
   primFloatSin  :: Float -> Float
-foreign import haskell "Prelude.cos"
+foreign import ccall "NotHat.Prelude.cos"
   primFloatCos  :: Float -> Float
-foreign import haskell "Prelude.tan"
+foreign import ccall "NotHat.Prelude.tan"
   primFloatTan  :: Float -> Float
-foreign import haskell "Prelude.asin"
+foreign import ccall "NotHat.Prelude.asin"
   primFloatAsin :: Float -> Float
-foreign import haskell "Prelude.acos"
+foreign import ccall "NotHat.Prelude.acos"
   primFloatAcos :: Float -> Float
-foreign import haskell "Prelude.atan"
+foreign import ccall "NotHat.Prelude.atan"
   primFloatAtan :: Float -> Float
-foreign import haskell "Prelude./"
+foreign import ccall "NotHat.Prelude./"
   primFloatDiv  :: Float -> Float -> Float
-foreign import haskell "Prelude.+"
+foreign import ccall "NotHat.Prelude.+"
   primFloatAdd  :: Float -> Float -> Float
-foreign import haskell "Prelude.-"
+foreign import ccall "NotHat.Prelude.-"
   primFloatSub  :: Float -> Float -> Float
-foreign import haskell "Prelude.*"
+foreign import ccall "NotHat.Prelude.*"
   primFloatMul  :: Float -> Float -> Float
-foreign import haskell "Prelude.abs"
+foreign import ccall "NotHat.Prelude.abs"
   primFloatAbs    :: Float -> Float
-foreign import haskell "Prelude.signum"
+foreign import ccall "NotHat.Prelude.signum"
   primFloatSignum :: Float -> Float
 
-foreign import haskell "Prelude.fromInteger"
+foreign import ccall "NotHat.Prelude.fromInteger"
   primDoubleFromInteger :: Integer -> Double
-foreign import haskell "Prelude.floatRadix"
+foreign import ccall "NotHat.Prelude.floatRadix"
   primDoubleRadix   :: Double -> Integer
-foreign import haskell "Prelude.floatDigits"
+foreign import ccall "NotHat.Prelude.floatDigits"
   primDoubleDigits  :: Double -> Int
-foreign import haskell "Prelude.floatRange"
+foreign import ccall "NotHat.Prelude.floatRange"
   primDoubleRange   :: Double -> (Int,Int)
-foreign import haskell "Prelude.decodeFloat"
+foreign import ccall "NotHat.Prelude.decodeFloat"
   primDecodeDouble :: Double -> (Integer,Int)
-foreign import haskell "Prelude.encodeFloat"
+foreign import ccall "NotHat.Prelude.encodeFloat"
   primEncodeDouble :: Integer -> Int -> Double
-foreign import haskell "Prelude.isNaN"
+foreign import ccall "NotHat.Prelude.isNaN"
   primDoubleIsNaN   :: Double -> Bool
-foreign import haskell "Prelude.isInfinite"
+foreign import ccall "NotHat.Prelude.isInfinite"
   primDoubleIsInfinite   :: Double -> Bool
-foreign import haskell "Prelude.isDenormalized"
+foreign import ccall "NotHat.Prelude.isDenormalized"
   primDoubleIsDenormalized   :: Double -> Bool
-foreign import haskell "Prelude.isNegativeZero"
+foreign import ccall "NotHat.Prelude.isNegativeZero"
   primDoubleIsNegativeZero   :: Double -> Bool
-foreign import haskell "Prelude.isIEEE"
+foreign import ccall "NotHat.Prelude.isIEEE"
   primDoubleIsIEEE   :: Double -> Bool
 
-foreign import haskell "Prelude.=="
+foreign import ccall "NotHat.Prelude.=="
   primDoubleEq :: Double -> Double -> Bool
-foreign import haskell "Prelude./="
+foreign import ccall "NotHat.Prelude./="
   primDoubleNe :: Double -> Double -> Bool
-foreign import haskell "Prelude.<"
+foreign import ccall "NotHat.Prelude.<"
   primDoubleLt :: Double -> Double -> Bool
-foreign import haskell "Prelude.<="
+foreign import ccall "NotHat.Prelude.<="
   primDoubleLe :: Double -> Double -> Bool
-foreign import haskell "Prelude.>"
+foreign import ccall "NotHat.Prelude.>"
   primDoubleGt :: Double -> Double -> Bool
-foreign import haskell "Prelude.>="
+foreign import ccall "NotHat.Prelude.>="
   primDoubleGe :: Double -> Double -> Bool
-foreign import haskell "Prelude.pi"
+foreign import ccall "NotHat.Prelude.pi"
   primDoublePi :: Double
-foreign import haskell "Prelude.exp"
+foreign import ccall "NotHat.Prelude.exp"
   primDoubleExp  :: Double -> Double
-foreign import haskell "Prelude.log"
+foreign import ccall "NotHat.Prelude.log"
   primDoubleLog  :: Double -> Double
-foreign import haskell "Prelude.sqrt"
+foreign import ccall "NotHat.Prelude.sqrt"
   primDoubleSqrt :: Double -> Double
-foreign import haskell "Prelude.sin"
+foreign import ccall "NotHat.Prelude.sin"
   primDoubleSin  :: Double -> Double
-foreign import haskell "Prelude.cos"
+foreign import ccall "NotHat.Prelude.cos"
   primDoubleCos  :: Double -> Double
-foreign import haskell "Prelude.tan"
+foreign import ccall "NotHat.Prelude.tan"
   primDoubleTan  :: Double -> Double
-foreign import haskell "Prelude.asin"
+foreign import ccall "NotHat.Prelude.asin"
   primDoubleAsin :: Double -> Double
-foreign import haskell "Prelude.acos"
+foreign import ccall "NotHat.Prelude.acos"
   primDoubleAcos :: Double -> Double
-foreign import haskell "Prelude.atan"
+foreign import ccall "NotHat.Prelude.atan"
   primDoubleAtan :: Double -> Double
-foreign import haskell "Prelude./"
+foreign import ccall "NotHat.Prelude./"
   primDoubleDiv  :: Double -> Double -> Double
-foreign import haskell "Prelude.+"
+foreign import ccall "NotHat.Prelude.+"
   primDoubleAdd  :: Double -> Double -> Double
-foreign import haskell "Prelude.-"
+foreign import ccall "NotHat.Prelude.-"
   primDoubleSub  :: Double -> Double -> Double
-foreign import haskell "Prelude.*"
+foreign import ccall "NotHat.Prelude.*"
   primDoubleMul  :: Double -> Double -> Double
-foreign import haskell "Prelude.abs"
+foreign import ccall "NotHat.Prelude.abs"
   primDoubleAbs    :: Double -> Double
-foreign import haskell "Prelude.signum"
+foreign import ccall "NotHat.Prelude.signum"
   primDoubleSignum :: Double -> Double
 
 
 -- IO
 
-foreign import haskell "Prelude.>>="
+foreign import ccall "NotHat.Prelude.>>="
   primIOBind :: IO a -> (a -> IO b) -> IO b
-foreign import haskell "Prelude.return"
+foreign import ccall "NotHat.Prelude.return"
   primIOReturn :: a -> IO a
 
 
-foreign import haskell "Prelude.show"
+foreign import ccall "NotHat.Prelude.show"
   primIOErrorShow :: IOError -> String
 
 {- currently excluded because instance Eq IOError missing in ghc 5.02
-foreign import haskell "Prelude.=="
+foreign import ccall "NotHat.Prelude.=="
   primIOErrorEq :: IOError -> IOError -> Bool
 -}
 
 
-foreign import haskell "Prelude.ioError"
+foreign import ccall "NotHat.Prelude.ioError"
   ioError ::  IOError -> IO a 
 
-foreign import haskell "Prelude.userError"
+foreign import ccall "NotHat.Prelude.userError"
   userError ::  String -> IOError
 
-foreign import haskell "System.IO.Error.catchIOError"
+foreign import ccall "NotHat.System.IO.Error.catchIOError"
   catch ::  IO a -> (IOError -> IO a) -> IO a 
 
--- foreign import haskell "Prelude.putChar"
+-- foreign import ccall "NotHat.Prelude.putChar"
 --   putChar :: Char -> IO ()
 -- HACK!
-foreign import haskell 
-  "(\\_ c -> T.outputTrace kputChar [c] Prelude.>> Prelude.putChar c) Prelude.True"
+foreign import ccall 
+  "NotHat.(\\_ c -> T.outputTrace kputChar [c] Prelude.>> Prelude.putChar c) Prelude.True"
   putChar :: Char -> IO ()
 
-foreign import haskell "Prelude.getChar"
+foreign import ccall "NotHat.Prelude.getChar"
   getChar          :: IO Char
 
-foreign import haskell "Prelude.getContents"
+foreign import ccall "NotHat.Prelude.getContents"
   getContents      :: IO String
 
-foreign import haskell "Prelude.readFile"
+foreign import ccall "NotHat.Prelude.readFile"
   readFile         :: String -> IO String
 
-foreign import haskell "(\\_ n s -> T.outputTrace kwriteFile s Prelude.>> Prelude.writeFile n s) Prelude.True"
+foreign import ccall "NotHat.(\\_ n s -> T.outputTrace kwriteFile s Prelude.>> Prelude.writeFile n s) Prelude.True"
   writeFile        :: String -> String -> IO ()
 
-foreign import haskell "(\\_ n s -> T.outputTrace kappendFile s Prelude.>> Prelude.appendFile n s) Prelude.True"
+foreign import ccall "NotHat.(\\_ n s -> T.outputTrace kappendFile s Prelude.>> Prelude.appendFile n s) Prelude.True"
   appendFile       :: String -> String -> IO ()
 

@@ -1,184 +1,146 @@
 {- ---------------------------------------------------------------------------
-This `main' function is basically just the front-end of the nhc98
-compiler.  It parses the .hs source file, creates the .hx file, and
+This `main' function calls all passes of Hat.
+It parses the .hs source file, creates the .hx file, and
 then stops immediately after writing a new transformed .hs file.
 -} 
 module Main where
 
-
-import System.IO
+import System.IO(hPutStr,stderr)
+import Data.String(unwords)
+import Data.List(inits)
 import System.Environment(getArgs)
-import System.Exit(exitWith,ExitCode(..))
-import System.IO.Error(isAlreadyExistsError)
-import qualified Control.Exception (catch)
-import Control.Monad(when)
-import Data.List(isPrefixOf,intersperse,inits)
+import System.Exit(exitWith,ExitCode(ExitSuccess))
 import System.Directory(doesDirectoryExist,createDirectory)
+import System.IO.Error(isAlreadyExistsError,ioError)
+import qualified Control.Exception(catch)
+import Control.Monad(when)
+import Flags(processArgs,Flags,sSourceFile,sParse,sFixities,sPrelude,sPreludes,sIncludes,sDbgTrusted
+            ,sWrap,sIBound,sShowWidth,sHatAuxFile,sHatTransFile,sSrcDir)
+import System.FilePath(FilePath(..),splitDirectories,combine)
+import Language.Haskell.Exts.Annotated(ParseMode(..),Extension(..),KnownExtension(..),ParseResult
+         ,fromParseResult,parseFileWithMode
+         ,Module(..),ImportDecl(..),ModuleName(..),applyFixities)
+import Language.Haskell.Exts.Fixity(Fixity)
+import Language.Haskell.Exts.Pretty(prettyPrintStyleMode,Style(..),style,PPHsMode,defaultMode)
+import Wrap(wrap)
+import Environment(Environment,wiredEnv,globalEnv,prettyEnv,env2Fixities)
+import Relation(unionRelations)
+import TraceTrans(Tracing(Traced,Trusted),traceTrans)
+import AuxFile(readAuxFiles,writeAuxFile)
+import SynHelp(getId)
+import Paths_hat(getDataDir)
 
-import Error
-import Syntax
-import Extra (Pos(..),mix,mixSpace,jRight,jLeft,noPos,strPos,showErr,mixLine
-             ,pair,fst3,thd3,trace)
-import AssocTree(listAT) -- for debugging output
-import ParseCore (Parser(..),ParseBad(..),ParseError(..),ParseGood(..)
-                 ,ParseResult(..),parseit)
-import Flags (Flags(..),processArgs,pF,sUnderscore,sRealFile,sSourceFile,sUnlit
-             ,sLex,sParse,sPrelude,sSrcDir,sIBound,sWrap
-             ,sHatFileBase,sHatAuxFile,sTraceFns,sHatTransFile,sDbgTrusted)
-import PrettyTraceId (prettyPrintTokenId,prettyPrintId,prettyPrintTraceId
-                     ,ppModule,ppTopDecls,ppClassCodes)
-
-import TokenId (TokenId(..),getUnqualified
-               ,visible,t_Arrow,t_List,tPrelude,tminus,tnegate,tTrue)
-import IdKind (IdKind(..))
-import Id (Id)
-import Lex (Lex,LexAnnot)  -- need show
-
-import Unlit (unlit)
-import Lexical (PosToken(..),PosTokenPre(..),LexState(..),lexical)
-import Parse (parseProg)
-
-import AuxFile (toAuxFile)
-import AuxLabelAST (auxLabelSyntaxTree)
-import TraceTrans (traceTrans,maybeStripOffQual)
-import Wrapper (prepareWrapping)
-
-import Paths_hat (getDataDir)
-
-
---import NonStdProfile
---beginPhase str = profile str (return ())
-beginPhase str = return ()
-
--- some miscellaneous settings
-primFlags = (False   -- bool is not the same as Word
-	    ,False   -- && || not is not primitive
-	    ,False   -- translate into prim only when strict
-	    )
-
--- some nicer error handling
-catchError :: Either b a -> String -> (b->String) -> IO a
-catchError comp errmsg showErrors = do
-    case comp of
-        Left errs -> do pF True errmsg (showErrors errs)
-                        exit
-        Right a   -> return a
-
--- for Hugs, which cannot read commandline args using System.getArgs:
-gmain cml = main' (words cml)
-
--- for all other compilers:
 main = do
   args <- getArgs
-  main' args
-
-main' args = do
   let flagsArgs = processArgs args
   preludePath <- getDataDir
   let flags = flagsArgs{sPreludes = preludePath : (sPreludes flagsArgs)}
-  let filename = sRealFile flags
 
-
-  {- lex source code -}
-  beginPhase "lex"
-  mainChar	-- :: String
-           <- Control.Exception.catch (readFile filename) (can'tOpen filename) 
-  lexdata	-- :: [PosToken]
-           <- return (lexical (sUnderscore flags) (sSourceFile flags)
-                              (if sUnlit flags 
-                                then unlit (sSourceFile flags) mainChar 
-                                else mainChar))
-  pF (sLex flags) "Lexical" 
-       (mixSpace (map (\ (p,l,_,_) -> strPos p ++ ':':show l) lexdata))
-
+  let pretty = prettyPrintStyleMode (style{lineLength=sShowWidth flags}) defaultMode
 
   {- parse source code -}
-  beginPhase "parse"
-  parsedPrg	-- :: Module TokenId
-            <- catchError (parseit parseProg lexdata)
-                          ("In file: "++sSourceFile flags) showErr
-  pF (sParse flags) "Parse" (prettyPrintTokenId flags ppModule parsedPrg) 
-
+  let filePath = sSourceFile flags
+  let parseMode = ParseMode {parseFilename = filePath
+                            ,extensions = [EnableExtension ForeignFunctionInterface
+                                          ,EnableExtension NPlusKPatterns]
+                            ,ignoreLanguagePragmas = False
+                            ,ignoreLinePragmas = True
+                            ,fixities = Nothing} 
+  parseResult <- parseFileWithMode parseMode filePath
+  let moduleAST = fromParseResult parseResult
+  dumpIntermediate (sParse flags) "Parse" (pretty moduleAST)
+    
   {- Ensure we can write our output files. -}
   let hatDir = sSrcDir flags
   dir <- doesDirectoryExist hatDir
   when (not dir) (createDirectoriesRecursively hatDir)
 
-  {- If wrapping rather than transforming, then prepare the parsed AST.
-  -}
-  parsedPrg <- if sWrap flags then return (prepareWrapping (sSourceFile flags) parsedPrg)
-                              else return parsedPrg
+  {- If wrapping rather than transforming, then prepare the parsed AST. -}
+  let moduleAST2 = if sWrap flags then wrap (sSourceFile flags) moduleAST else moduleAST
   when (sWrap flags)
-       (pF (sParse flags) "Wrap" (prettyPrintTokenId flags ppModule parsedPrg))
+       (dumpIntermediate (sParse flags) "Wrap" (pretty moduleAST2))
 
-  {-
-  -- Read and write auxiliary information files (for tracing).
-  -- Then relabel the syntax tree with the auxiliary information.
-  -- Then the tracing transformation itself is applied.
-  -- The result is written to file (no redirection possible yet)
-  -}
-  let prg = implicitlyImportPrelude flags 
-              (maybeStripOffQual "Prelude" parsedPrg)
-  pF (sParse flags) "post-Prelude" (prettyPrintTokenId flags ppModule parsedPrg)
-  -- hack to make full environment available when writing aux file
-  -- (needed for handling partial expansion of type synonyms)
-  (env,newprog) <- auxLabelSyntaxTree flags prg
-  toAuxFile env flags (sHatAuxFile flags) prg -- waste space: hold on to prg
+  {- Add import of Prelude if not done explicitly, and PreludeBasic. -}
+  let moduleAST3 = implicitlyImportPreludeBasic flags (implicitlyImportPrelude flags moduleAST2)
 
-  when (sIBound flags)
-    (print (listAT (fst env)))
+  {- Read .hx file of every imported module to produce the complete import environment -}
+  importEnv <- readAuxFiles flags moduleAST3
 
-  when (sTraceFns flags)
-       (putStr (prettyPrintTraceId flags ppModule newprog)) -- debug
-  let outputTree = (implicitlyImportPreludeBasic flags 
-                     (maybeStripOffQual "Hat.Prelude"
-                       (traceTrans (not (sDbgTrusted flags)) (sSourceFile flags) 
-                         (sHatFileBase flags) newprog)))
-  writeFile (sHatTransFile flags)
-      (prettyPrintTokenId flags ppModule outputTree)
+  {- Create global environment of this module. -}
+  let env = globalEnv (not (sDbgTrusted flags)) moduleAST3 (unionRelations [importEnv,wiredEnv])
+
+  dumpIntermediate (sIBound flags) "Top-level environment of module" (prettyEnv importEnv)
+
+  {- Write .hx file for current module. -}
+  writeAuxFile flags (sHatAuxFile flags) env moduleAST3
+
+  {- Now correct all fixities of expression identifiers. -}
+  let fixities = env2Fixities env
+
+  dumpIntermediate (sFixities flags) "Fixities in scope" (unlines . map show $ fixities)
+
+  moduleAST4 <- applyFixities fixities moduleAST3
+  
+  dumpIntermediate (sParse flags) "After fixity corrections" (pretty moduleAST4)
+
+  {- Actual tracing transformation. -}
+  let outputAST = traceTrans (sSourceFile flags)
+                    (if sDbgTrusted flags then Trusted else Traced) env moduleAST4
+
+  {- Write result file and finish. -}
+  writeFile (sHatTransFile flags) (pretty outputAST)
+
   putStrLn ("Wrote " ++ sHatTransFile flags)
   exitWith (ExitSuccess)
 
-
--- add implicit Prelude, if it is not imported explicitly and we 
--- are not currently transforming part of the Prelude.
-implicitlyImportPrelude :: Flags -> Module TokenId -> Module TokenId
-implicitlyImportPrelude flags
-  (Module pos modId exports imports fixities decls) =
-  Module pos modId exports imports' fixities decls
-  where 
-  imports' = 
-    if (sPrelude flags && "Prelude" `isPrefixOf` getUnqualified modId) ||
-       (any ((==) tPrelude . importedModule) imports)
-      then imports 
-      else Import (noPos,tPrelude) (Hiding []) : imports
-
--- import implementation of Prelude qualified
--- use this for transformation-introduced Prelude identifiers
--- even some internal identifiers that are not part of the Prelude
--- (e.g. for deriving of instances)
-implicitlyImportPreludeBasic :: Flags -> Module TokenId -> Module TokenId
-implicitlyImportPreludeBasic flags
-  (Module pos modId exports imports fixities decls) =
-  Module pos modId exports imports' fixities decls
-  where 
-  imports' = 
-    if sPrelude flags && "Hat.Prelude" `isPrefixOf` getUnqualified modId
-      then imports 
-      else
-        ImportQ (noPos,visible (reverse "Hat.PreludeBasic")) (Hiding []) 
-        : imports
-
-
+createDirectoriesRecursively :: FilePath -> IO () 
 createDirectoriesRecursively path = do
-    putStrLn ("Creating directories "++unwords paths)
-    mapM_ safeCreate paths
-  where paths = accum (wordsBy '/' path)
-        accum xs = map (concat . intersperse "/") (tail (inits xs))
-        wordsBy c s = let (w,s') = break (==c) s
-                      in w: case s' of [] -> []; (_:s'') -> wordsBy c s''
-        safeCreate path = Control.Exception.catch (createDirectory path)
-                                (\e-> if isAlreadyExistsError e then return ()
-                                      else ioError e)
+  putStrLn ("Creating directories "++unwords paths)
+  mapM_ safeCreate paths
+  where 
+  paths = recursiveDirectories path
+  safeCreate path = Control.Exception.catch (createDirectory path)
+                      (\e-> if isAlreadyExistsError e then return () else ioError e)
+
+recursiveDirectories :: FilePath -> [FilePath]
+recursiveDirectories path = map (foldr1 combine) . tail . inits . splitDirectories $ path
+
+-- Add implicit Prelude, if it is not imported explicitly and we 
+-- are not currently transforming part of the Prelude.
+implicitlyImportPrelude :: Flags -> Module l -> Module l
+implicitlyImportPrelude flags
+  (Module l maybeHead pragmas importDecls decls) =
+  Module l maybeHead pragmas importDecls' decls
+  where
+  importDecls' = if sPrelude flags ||  "Prelude" `elem` map (getId . importModule) importDecls
+                   then importDecls
+                   else ImportDecl{importAnn = l, importModule = ModuleName l "Prelude"
+                                  ,importQualified = False, importSrc = False
+                                  ,importPkg = Nothing, importAs = Nothing, importSpecs = Nothing} : importDecls
+
+-- Add import PreludeBasic if current module is not part of the Prelude.
+-- Module PreludeBasic defines identifiers introduced by the transformation or deriving
+-- and *not* exported by module Prelude.
+implicitlyImportPreludeBasic :: Flags -> Module l -> Module l
+implicitlyImportPreludeBasic flags 
+  (Module l maybeHead pragmas importDecls decls) =
+  Module l maybeHead pragmas importDecls' decls
+  where
+  importDecls' = if sPrelude flags
+                   then importDecls
+                   else ImportDecl{importAnn = l, importModule = ModuleName l "PreludeBasic"
+                                  ,importQualified = True, importSrc = False
+                                  ,importPkg = Nothing, importAs = Nothing, importSpecs = Nothing} : 
+                        ImportDecl{importAnn = l, importModule = ModuleName l "PreludeBuiltinTypes"
+                                  ,importQualified = True, importSrc = False
+                                  ,importPkg = Nothing, importAs = Nothing, importSpecs = Nothing} : importDecls
+
+{- If first argument is True, then print second and third with formatting -}
+dumpIntermediate :: Bool -> String -> String -> IO ()
+dumpIntermediate flag title text =
+  if flag 
+    then hPutStr stderr ( "======\t"++title++":\n"++text++"\n") 
+    else return ()
+
 
 {- End Module Main ----------------------------------------------------------}

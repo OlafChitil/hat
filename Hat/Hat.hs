@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# OPTIONS -#include "hat-c.h" #-}
 -- ----------------------------------------------------------------------------
 -- Library used by all programs transformed for tracing by Hat.
 -- Combinators in Haskell and interfaces to C-functions.
@@ -21,7 +20,7 @@ module Hat.Hat
   ,Tuple12(Tuple12),aTuple12,Tuple13(Tuple13),aTuple13
   ,Tuple14(Tuple14),aTuple14,Tuple15(Tuple15),aTuple15
   ,toTuple0,fromTuple0,toTuple2,fromTuple2
-  ,List(Cons,List),aCons,aList
+  ,List(Cons,Nil),aCons,aNil
   ,ap1,ap2,ap3,ap4,ap5,ap6,ap7,ap8,ap9,ap10,ap11,ap12,ap13,ap14,ap15
   ,fun1,fun2,fun3,fun4,fun5,fun6,fun7,fun8,fun9,fun10,fun11,fun12,fun13,fun14
   ,fun15
@@ -231,11 +230,11 @@ fromTuple2 f g h (x,y) =
     (wrapForward h (f h x)) (wrapForward h (g h y))
 
 
-data List a = Cons (R a) (R (List a)) | List  
-  -- type constructor and empty list constructor need to have same name,
-  -- because transformation doesn't distinguish between the two
+data List a = Cons (R a) (R (List a)) | Nil  
+  -- type constructor and empty list constructor don't need to have same name,
+  -- old transformation didn't distinguish between the two
 aCons = mkConstructor tPrelude 0 0 21 2 ":"
-aList = mkConstructor tPrelude 0 0 3 0 "[]"
+aNil = mkConstructor tPrelude 0 0 3 0 "[]"
 
 -- ----------------------------------------------------------------------------
 -- Main combinator
@@ -1882,12 +1881,12 @@ mkAtomRational sr p r =
 
 fromExpList :: RefSrcPos -> RefExp -> [R a] -> R (List a)
 fromExpList sr h xs = 
-  foldr (\y ys -> con2 sr h Cons aCons y ys) (con0 sr h List aList) xs
+  foldr (\y ys -> con2 sr h Cons aCons y ys) (con0 sr h Nil aNil) xs
 
 fromLitString :: RefSrcPos -> RefExp -> Prelude.String -> R (List Char)
 fromLitString sr h xs = 
   foldr (\x xs -> con2 sr h Cons aCons (conChar sr h x) xs) 
-    (con0 sr h List aList) xs
+    (con0 sr h Nil aNil) xs
 
 
 -- Create node directly with result

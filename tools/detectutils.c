@@ -3,6 +3,7 @@
  */
 #include <stdio.h>
 #include <errno.h>
+#include <string.h>
 
 #ifdef DEBUG
 #define HIDE(x) x

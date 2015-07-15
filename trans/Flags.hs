@@ -5,85 +5,86 @@ a function processArgs to obtain a value of type Flags from the argument list,
 and a simple function pF for printing information demanded by a flag.
 -}
 module Flags
-  (Flags,processArgs,pF
-  ,sUnix
-  ,sUnlit
+  (Flags,processArgs
   ,sSourceFile
-  ,sUnderscore
-  ,sLex
   ,sParse
-  ,sTraceFns
   ,sPrelude
   ,sPreludes
   ,sIncludes
   ,sDbgTrusted
   ,sWrap
-  ,sRealFile
   ,sIBound
   ,sShowWidth
-  ,sShowIndent
-  ,sShowQualified
   ,sHatAuxFile
   ,sHatTransFile
-  ,sHatFileBase
   ,sSrcDir
+  ,sFixities
   ) where
 
-import System.IO
-import OsOnly(fixRootDir,fixTypeFile,fixObjectFile
-             ,fixHatAuxFile,fixHatTransFile,fixHatTransDir,fixHatFileBase)
-import Data.List(isPrefixOf,isSuffixOf)
+import System.Console.GetOpt(getOpt,usageInfo,ArgOrder(..),OptDescr(..),ArgDescr(..))
+import System.FilePath(FilePath(..),splitFileName,replaceExtension,takeExtension,(</>))
 import Data.Char(isDigit)
 
-
 data Flags = FF 
-  {sRealFile   :: String
-  ,sSourceFile :: String
+  {sSourceFile :: String
   ,sHatAuxFile   :: String
   ,sHatTransFile :: String
-  ,sHatFileBase  :: String
   ,sIncludes   :: [String]
   ,sPreludes   :: [String]
   ,sSrcDir     :: String
 
 --v Flags to control compilation
-  ,sUnix       :: Bool	-- either unix or RiscOS
-  ,sUnlit      :: Bool	-- unliterate the source code
   ,sPrelude    :: Bool	-- keep prelude defns in interface file
 
 --v Flags to control compilation for tracing
   ,sDbgTrusted :: Bool	-- trust this module
   ,sWrap       :: Bool	-- wrap original defns rather than transforming
 
---v Flags for machine architecture / configuration
-  ,sUnderscore :: Bool	-- force H'98 underscores
-
 --v debugging flags - show program / import tables (after each compiler phase)
-  ,sLex        :: Bool	-- input	after lexing
   ,sParse      :: Bool	-- ast		after parsing
-  ,sTraceFns   :: Bool	-- ast		after tracing transform (fns)
-  ,sIBound     :: Bool	-- aux tree     after ast annotation
+  ,sIBound     :: Bool	-- environment
+  ,sFixities   :: Bool  -- fixity declarations in top-level scope
 
 --v pretty-printing flags
   ,sShowWidth  :: Int   -- width for showing intermediate program
-  ,sShowIndent :: Int   -- indentation for nesting shown intermediate program
-  ,sShowQualified :: Bool -- show qualified ids as far as possible
   }
   deriving Show
 
-
-
-{- If first argument is True, then print second and third with formatting -}
-pF :: Bool -> [Char] -> [Char] -> IO ()
-pF flag title text =
-  if flag 
-    then hPutStr stderr ( "======\t"++title++":\n"++text++"\n") 
-    else return ()
-
-{- ---------------------------------------------------------------------------
-All the following functions obtain information from the argument list of the
-compiler to set flags appropriately.
--}
+options :: [OptDescr (Flags -> Flags)]
+options =
+  [Option ['i','I'] []
+     (ReqArg (\p flags -> flags{sIncludes = sIncludes flags ++ [p]}) "DIR")
+     "Search path for included (imported) modules."
+  ,Option ['P'] []
+     (ReqArg (\p flags -> flags{sPreludes = sPreludes flags ++ [p]}) "DIR")
+     "Search path for prelude."
+  ,Option [] ["prelude"] 
+     (NoArg (\flags -> flags{sPrelude = True}))
+     "Input module is part of the prelude." -- Needs some special handling of imports.
+  ,Option [] ["hierarchical"]
+     (NoArg (\flags -> let (rootdir,filename) = splitFileName (sSourceFile flags)
+                       in flags{sSrcDir = "Hat" </> rootdir
+                               ,sHatTransFile = "Hat" </> rootdir </> replaceExtension filename "hs"}))
+     "Module belongs in hierarchical library." -- So output in directory Hat/hierachy...
+  ,Option [] ["trusted"]
+     (NoArg (\flags -> flags{sDbgTrusted = True}))
+     "Input module shall be trusted, not traced."
+  ,Option [] ["wrap"]
+     (NoArg (\flags -> flags{sWrap = True}))
+     "Wrap definitions of input module instead of transforming."
+  ,Option [] ["parse"]
+     (NoArg (\flags -> flags{sParse = True}))
+     "Show syntax tree after parsing."
+  ,Option [] ["env"]
+     (NoArg (\flags -> flags{sIBound = True}))
+     "Show environment that is written to .aux file."
+  ,Option [] ["fixities"]
+     (NoArg (\flags -> flags{sFixities = True}))
+     "Show all fixity declarations in scope."
+  ,Option [] ["width"]
+     (ReqArg (\w flags -> flags{sShowWidth = if all isDigit w then read w else 80}) "NAT")
+     "Width for showing intermediate programs (syntax trees)."
+  ]
 
 {-
 The main function for processing the argument list.
@@ -92,103 +93,31 @@ Aborts with error, if the required filenames are not in argument list.
 -}
 
 processArgs :: [String] -> Flags
-
-processArgs xs = flags
- where
- (rootdir,filename) = fixRootDir isUnix sourcefile
- isUnix = sUnix flags
-
- (realfile,sourcefile) =
-   case getFiles xs of
-     [sourcefile] -> (sourcefile,sourcefile)
-     [realfile,sourcefile] -> (realfile,sourcefile)
-     _ -> error ("\nUsage: hat-trans file.[l]hs\n\ 
-\       hat-trans tmpfile.[l]hs origfile.[l]hs\n")  
-
- flags = FF
-  { sRealFile   = realfile	-- filename to open
-  , sSourceFile = sourcefile	-- original name before any preprocessor
-  , sHatAuxFile = fixHatAuxFile isUnix rootdir filename
-  , sHatTransFile = fixHatTransFile isUnix rootdir filename
-  , sHatFileBase  = fixHatFileBase isUnix rootdir filename
-  , sIncludes = getIncludes xs++[rootdir]
-  , sPreludes = getPreludes xs
-  , sSrcDir   = fixHatTransDir isUnix rootdir
-
-  , sUnix = fElem True  "unix" xs          	
-  -- ^ Use unix file names
-  , sUnlit = fElem (".lhs" `isSuffixOf` realfile) "unlit" xs         	
-  -- ^ Unliterate the source code
-  , sPrelude = fElem False "prelude" xs		
-  -- Keep prelude definitions in interface file
-
-  , sDbgTrusted = fElem False "trusted" xs    -- "trusted" module (don't trace)
-  , sWrap       = fElem False "wrap" xs       -- "wrapped" module (don't trace)
-
-  , sUnderscore = fElem True "underscore" xs 
-  -- ^ Enable H'98 underscore-is-lower-case
-
-  , sLex = fElem False "lex" xs         -- show lexical input
-  , sParse  = fElem False "parse" xs    -- show syntax tree  after  parser
-  , sTraceFns = fElem False "tracefns" xs  -- ast after transforming functions
-  , sIBound = fElem False "ibound" xs   -- aux tree after ast annotation
-
-  , sShowWidth = cardFlag 80 "showwidth=" xs  -- set width for showing 
-                                              -- intermediate program
-  , sShowIndent = cardFlag 2 "showindent=" xs -- set indentation for nesting
-  , sShowQualified = fElem True "showqualified" xs  
-  -- ^ show qualified ids as far as possible
-  }
-  
-  
-{- obtain list of filenames from argument list -}
-getFiles :: [String] -> [String]
-getFiles = filter (\xs -> case xs of ('-':_) -> False ; _ -> True)
-
-
-{- obtain list of include paths from argument list -}
-getIncludes :: [String] -> [String]
-getIncludes = map (drop (2::Int)) . 
-              filter (\xs -> case xs of ('-':'I':_) -> True  
-                                        ('-':'i':_) -> True  
-                                        _           -> False)
-
-{- obtain list of prelude paths from argument list -}
-getPreludes :: [String] -> [String]
-getPreludes = map (drop (2::Int)) . 
-              filter (\xs -> case xs of ('-':'P':_) -> True ; _ -> False)
-
-
-{-
-Returns if given option is set or not in argument list.
-If it is neither set nor unset, then default value (first arg.) is returned.
--}
-fElem :: Bool -> [Char] -> [String] -> Bool
-fElem def f flags = if ('-':f) `elem` flags then True
-                    else if ('-':'n':'o':f) `elem` flags then False
-                    else def
-
-
-{-
-Returns the value of an option with a numerical (cardinal) value.
-If the option is not given, then the default value (first arg.) is returned.
-Ignores syntactically incorrect options.
--}
-cardFlag :: Int -> [Char] -> [String] -> Int
-cardFlag def f flags = if null settings then def else read (last settings)
+processArgs argv = 
+  flags {sIncludes = sIncludes flags ++ [fst (splitFileName (sSourceFile flags))]} 
+     -- add rootdir at end
   where
-  settings = filter (all isDigit) . map (drop (length f + 1)) . 
-             filter (isPrefixOf ('-':f)) $ flags
+  flags = case getOpt Permute options argv of
+    (o,[f],[]) | takeExtension f `elem` [".hs",".lhs"] -> foldl (flip id) (defaultFlags f) o
+    (_,_,errs) -> error (concat errs ++ usageInfo header options)
+  header = "Usage: hat-trans [OPTION...] file.[l]hs\n"
 
-
-
-{-
-Returns the value of a "-something=" option with a string value.
-If the option is not given, then the default value (first arg.) is returned.
--}
-stringFlag :: String -> String -> [String] -> String
-stringFlag def f flags = if null settings then def else last settings
+defaultFlags :: String -> Flags
+defaultFlags sourcefile = flags
   where
-  settings = map (drop (length f + 1)) . 
-             filter (isPrefixOf ('-':f)) $ flags
-
+  (rootdir,filename) = splitFileName sourcefile
+  flags = FF
+    {sSourceFile = sourcefile	-- original name 
+    ,sHatAuxFile = rootdir </> replaceExtension filename "hx"
+    ,sHatTransFile = rootdir </> "Hat" </> replaceExtension filename "hs"
+    ,sIncludes = []
+    ,sPreludes = []
+    ,sSrcDir   = rootdir </> "Hat"  -- directory for transformed sources
+    ,sPrelude = False		
+    ,sDbgTrusted = False
+    ,sWrap       = False
+    ,sParse  = False
+    ,sIBound = False
+    ,sFixities = False
+    ,sShowWidth = 80 
+    }

@@ -143,6 +143,32 @@ long getCount(void)
   return nodecount;
 }
 
+/* This function is used by getImmediateExpArg, to follow argument
+ * pointers. It follows ExpConstUse pointers, but nothing else.
+ * Otherwise, it simply returns the pointer value.
+ * I could probably fold this into the getImmediateExpArg function body.
+ */
+
+FileOffset
+getResultRestricted(FileOffset fo)
+{
+  char c;
+  FileOffset ptr;
+  if (fo<=DoLambda) return fixInterrupt(fo);
+  freadAt(fo,&c,sizeof(char),1,HatFileRandom);
+  switch (lower5(c)) {
+    case ExpConstUse:
+        if (hasSrcPos(c)) { readFO(); }		/* skip usage position */
+        readFO();				/* skip parent */
+        ptr = readFO();				/* CAF */
+	return getResultRestricted(ptr);
+        break;
+    default:
+	return fo;
+	break;
+  }
+}
+
 /* This is a modified version of the Hat function getExpArg. The
  * original function takes a filenode, and gets the value of a
  * particular agument. However, it also followed some of the argument
@@ -257,29 +283,7 @@ getImmediateExpArg (FileOffset fo, int n)
   }
 }
 
-/* This function is used by getImmediateExpArg, to follow argument
- * pointers. It follows ExpConstUse pointers, but nothing else.
- * Otherwise, it simply returns the pointer value.
- * I could probably fold this into the getImmediateExpArg function body.
- */
-getResultRestricted(FileOffset fo)
-{
-  char c;
-  FileOffset ptr;
-  if (fo<=DoLambda) return fixInterrupt(fo);
-  freadAt(fo,&c,sizeof(char),1,HatFileRandom);
-  switch (lower5(c)) {
-    case ExpConstUse:
-        if (hasSrcPos(c)) { readFO(); }		/* skip usage position */
-        readFO();				/* skip parent */
-        ptr = readFO();				/* CAF */
-	return getResultRestricted(ptr);
-        break;
-    default:
-	return fo;
-	break;
-  }
-}
+
   
 /* peekResultMod is a modified version of peekResult from Hat, which takes a
  * single step down the result chain. It has been rewritten, to avoid

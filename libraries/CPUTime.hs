@@ -3,8 +3,8 @@ module CPUTime ( getCPUTime, cpuTimePrecision ) where
 import PreludeBuiltinTypes
 import qualified NotHat.System.CPUTime as NotHat.CPUTime
 
-foreign import haskell "CPUTime.getCPUTime"
+foreign import ccall "NotHat.CPUTime.getCPUTime"
  getCPUTime        :: IO Integer
 
-foreign import haskell "CPUTime.cpuTimePrecision"
+foreign import ccall "NotHat.CPUTime.cpuTimePrecision"
  cpuTimePrecision  :: Integer

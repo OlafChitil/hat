@@ -15,7 +15,7 @@ import HighlightStyle     (goto,cls,clearDown,clearUp,cleareol,highlightOff
                           ,highlight,Highlight(..),Colour(..)
                           ,enableScrollRegion,getTerminalSize
                           ,savePosition,restorePosition)
-import System.Cmd         (system)
+import System.Process     (system)
 import System.Environment (getArgs,getProgName,getEnv)
 import System.Exit        (exitWith,ExitCode(..))
 import Data.List          (isPrefixOf,isSuffixOf,group,groupBy)
@@ -54,7 +54,7 @@ main = do
                        _         -> (0,0)
     hSetBuffering stdin NoBuffering
     hSetBuffering stdout NoBuffering
-    System.Cmd.system ("stty -icanon min 1 -echo")
+    system ("stty -icanon min 1 -echo")
     (columns,lines) <- getTerminalSize
     putStr (show start)
     let startExp = (removeNonResultCycles

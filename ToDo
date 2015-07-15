@@ -1,9 +1,40 @@
 Handle whole Haskell syntax plus some extensions:
   haskell-src-exts
 
+Use arbitrary (trusted) libraries:
+  build hat-cabal which transforms a cabal package into a cabal hat-package that
+  wraps the original package (depending on it).
+  build also(?) hat-wrap which given a set of Haskell modules produces a set of
+  hat-modules that wrap the given ones.
+  Wrapping requires type declarations for all exported functions.
+  Wrapping will transform all class and instance definitions.
+  
+A Wrap class
+  single class sufficient of for each type constructor kind?
+  example: fmap :: Functor c => (a -> b) -> (c a -> c b)
+  do we lose polymorphism?
+  e.g. last :: [a] -> a  ==>  glast :: Wrap a => List a -> a
+  Can we avoid repeated wrapping->unwrapping
+  e.g. sequence of IO operations, incl. >>=
+  Idea: second data constructor for R (Wrap exp trace)
+    that basically lazy wrapping
+    all tracing combinators need change; that sufficient?
+
 Tool text user interfaces:
   editable command line: haskeline
   colour and cursor-movements: ansi-terminal System.Console.ANSI
+
+Tool web user interface:
+  use HTML 5 (minimal server and javascript (jquery?))
+  share implementation with text user interface
+
+Support exceptions fully:
+  support both raising and catching of any exception
+  what does the trace look like?
+  does it work with optimisation of keeping trace-file-updates in a stack?
+  is that optimisation worthwhile? big write buffer not easier? 
+    (memory-mapped file)
+  catch-all at main to record exception as starting point in trace
 
 Problem with defaulting:
   XExtendedDefaultRules is insufficient, only for ghci to handle also Show, Eq and Ord

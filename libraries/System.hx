@@ -5,6 +5,6 @@ module System
 (Var "getEnv",Value {args = 1, fixity = Def, priority = 9, letBound = True, traced = False})
 (Var "getProgName",Value {args = 0, fixity = Def, priority = 9, letBound = True, traced = False})
 (Var "system",Value {args = 1, fixity = Def, priority = 9, letBound = True, traced = False})
-(Con Data "ExitCode" "ExitFailure",Value {args = 1, fixity = Def, priority = 9, letBound = True, traced = True})
-(Con Data "ExitCode" "ExitSuccess",Value {args = 0, fixity = Def, priority = 9, letBound = True, traced = True})
+(Con Data "ExitCode" "ExitFailure",Value {args = 1, fixity = Def, priority = 9, letBound = True, traced = False})
+(Con Data "ExitCode" "ExitSuccess",Value {args = 0, fixity = Def, priority = 9, letBound = True, traced = False})
 (TypeClass "ExitCode",TyCls (Ty ["ExitSuccess","ExitFailure"] []))

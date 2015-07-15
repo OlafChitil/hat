@@ -17,7 +17,7 @@ import HighlightStyle	(goto,cls,clearDown,clearUp,cleareol,highlightOff
 			,savePosition,restorePosition)
 import qualified Control.Exception(catch,IOException)
 import Control.Monad	(when,liftM)
-import System.Cmd       (system)
+import System.Process   (system)
 import System.Environment (getArgs,getProgName,getEnv)
 import System.Exit      (exitWith,ExitCode(..))
 import System.Directory	(doesFileExist)
@@ -83,7 +83,7 @@ main = do
                       , options=initialOptions {equations=False} }
     hSetBuffering stdin NoBuffering
     hSetBuffering stdout NoBuffering
-    System.Cmd.system ("stty -icanon min 1 -echo")
+    system ("stty -icanon min 1 -echo")
     case args of
       [f,"-remote",n] -> remote state (read n)
       _ -> begin state errloc errmsg output (map peekTrace bridge)
@@ -162,7 +162,7 @@ resetSystem :: State -> IO ()
 resetSystem state = do
     putStr (enableScrollRegion 1 (height state))
     putStr (goto 1 (height state))
-    System.Cmd.system ("stty icanon echo")
+    system ("stty icanon echo")
     return ()
 
 
@@ -357,32 +357,32 @@ selectSubExpr state stack@((lineno,sctx@(Sctx e _)):_) =
                                       (map (\(i,e)->(i,cut lab e)) ctx')
                     in do repaint state ((lineno,newctx):tail stack)
                           loop (label e) newctx
-          Expand -> let newctx = Sctx (join state lab e)
-                                      (map (\(i,e)->(i,join state lab e)) ctx')
+          Expand -> let newctx = Sctx (joinE state lab e)
+                                      (map (\(i,e)->(i,joinE state lab e)) ctx')
                     in do repaint state ((lineno,newctx):tail stack)
                           loop (label e) newctx
           Revert -> let newctx = Sctx (revert state lab e)
                                       (map (\(i,e)->(i,revert state lab e)) ctx')
                     in do repaint state ((lineno,newctx):tail stack)
                           loop (label e) newctx
-          Detect ->  do System.Cmd.system (hatDetect (file state) node)
+          Detect ->  do system (hatDetect (file state) node)
                         interpret lab ctx extent
-          Trail  ->  do System.Cmd.system (hatTrail (file state) node)
+          Trail  ->  do system (hatTrail (file state) node)
                         interpret lab ctx extent
-          Anim   ->  do System.Cmd.system (hatAnim (file state) node)
+          Anim   ->  do system (hatAnim (file state) node)
                         interpret lab ctx extent
-          Explore ->  do System.Cmd.system (hatExplore (file state) node)
+          Explore ->  do system (hatExplore (file state) node)
                          interpret lab ctx extent
-          ObserveAll -> do System.Cmd.system (hatObserve (file state)
+          ObserveAll -> do system (hatObserve (file state)
                                                      (showQN True (funId e)))
                            interpret lab ctx extent
           ObservePat p ->
-                        do System.Cmd.system (hatObserve (file state) p)
+                        do system (hatObserve (file state) p)
                            interpret lab ctx extent
           ObserveSrc -> do let srcref = expSrcRef e
                            when (srcref /= nil)
                                 (let sr = readSrcRef srcref in
-                                 do System.Cmd.system
+                                 do system
                                         (hatObserve (file state)
                                             (SrcRef.filename sr
                                             ++" "++show (SrcRef.line sr)
@@ -394,7 +394,7 @@ selectSubExpr state stack@((lineno,sctx@(Sctx e _)):_) =
           Resize -> resize state stack
           Source -> do let srcref = expSrcRef e
                        when (srcref /= nil)
-                            (do System.Cmd.system (hatView (readSrcRef srcref))
+                            (do system (hatView (readSrcRef srcref))
                                 showSrcRef e state)
                        interpret lab ctx extent
           Definition -> let defn = getDefnRef (funLabel e)
@@ -411,7 +411,7 @@ selectSubExpr state stack@((lineno,sctx@(Sctx e _)):_) =
                                                    (funId e)
                                            ++": defn not found") state
                               else do
-                                System.Cmd.system (hatView defnSR)
+                                system (hatView defnSR)
                                 statusLine (showQN (showQual (options state))
                                                    (funId e)
                                            ++": definition") state
@@ -461,10 +461,10 @@ cut :: Eq a => a -> SExp a -> SExp a
 cut v exp = let l = label exp in
             if l==v then SCut v
                     else rebuild exp (map (cut v) (children exp))
-join :: State -> Label -> SExp Label -> SExp Label
-join state v exp = let l = label exp in
+joinE :: State -> Label -> SExp Label -> SExp Label
+joinE state v exp = let l = label exp in
                    if l==v then toSExp state False (fst v) (snd v)
-                           else rebuild exp (map (join state v) (children exp))
+                           else rebuild exp (map (joinE state v) (children exp))
 
 -- To revert a subexpression means to display it in its less-than-finally-
 -- evaluated form.  In particular, rather than seeing a lambda expression
@@ -693,7 +693,7 @@ newSetting :: Mode -> State -> IO State
 newSetting mode state =
     do let state' = setState mode state
        statusLine (showState mode state') state'
-       System.Cmd.system ("sleep 1")
+       system ("sleep 1")
        return state'
 
 

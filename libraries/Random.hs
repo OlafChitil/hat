@@ -8,8 +8,8 @@ module Random (
   getStdRandom, getStdGen, setStdGen, newStdGen
   ) where
 
-import PreludeBuiltinTypes
-import RandomBuiltin
+import PreludeBuiltinTypes as NotHat.T
+import RandomBuiltin as NotHat.T
 import qualified NotHat.System.Random as NotHat.Random
 import Char
 
@@ -38,19 +38,19 @@ instance Read StdGen where
 instance Show StdGen where
   showsPrec = primStdGenShowsPrec
 
-foreign import haskell "Random.genRange"
+foreign import ccall "NotHat.Random.genRange"
  primStdGenGenRange :: StdGen -> (Int,Int)
-foreign import haskell "Random.next"
+foreign import ccall "NotHat.Random.next"
  primStdGenNext :: StdGen -> (Int,StdGen)
-foreign import haskell "Random.split"
+foreign import ccall "NotHat.Random.split"
  primStdGenSplit :: StdGen -> (StdGen,StdGen)
-foreign import haskell "Prelude.readsPrec"
+foreign import ccall "NotHat.Prelude.readsPrec"
  primStdGenReadsPrec :: Int -> String -> [(StdGen,String)]
-foreign import haskell "Prelude.showsPrec"
+foreign import ccall "NotHat.Prelude.showsPrec"
  primStdGenShowsPrec :: Int -> StdGen -> String -> String
 
 
-foreign import haskell "Random.mkStdGen"
+foreign import ccall "NotHat.Random.mkStdGen"
  mkStdGen :: Int -> StdGen
 
  ---------------- The Random class ---------------------------
@@ -155,11 +155,11 @@ iLogBase b i = if i < b then 1 else 1 + iLogBase b (i `div` b)
 
 ---------------- The global random generator ----------------
 
-foreign import haskell "Random.newStdGen"
+foreign import ccall "NotHat.Random.newStdGen"
  newStdGen    :: IO StdGen
-foreign import haskell "Random.setStdGen"
+foreign import ccall "NotHat.Random.setStdGen"
  setStdGen    :: StdGen -> IO ()
-foreign import haskell "Random.getStdGen"
+foreign import ccall "NotHat.Random.getStdGen"
  getStdGen    :: IO StdGen 
-foreign import haskell "Random.getStdRandom"
+foreign import ccall "NotHat.Random.getStdRandom"
  getStdRandom :: (StdGen -> (a, StdGen)) -> IO a

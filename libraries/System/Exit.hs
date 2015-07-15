@@ -4,12 +4,12 @@ module System.Exit (
 
 import PreludeBuiltinTypes
 import SystemBuiltinTypes
-import SystemBuiltin
+import SystemBuiltin as NotHat.T
 import qualified NotHat.System.Exit
 
-foreign import haskell "System.Exit.exitWith"
+foreign import ccall "NotHat.System.Exit.exitWith"
  exitWith :: ExitCode -> IO a
-foreign import haskell "System.Exit.exitFailure"
+foreign import ccall "NotHat.System.Exit.exitFailure"
  exitFailure :: IO a
-foreign import haskell "System.Exit.exitSuccess"
+foreign import ccall "NotHat.System.Exit.exitSuccess"
  exitSuccess :: IO a

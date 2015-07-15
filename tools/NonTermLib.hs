@@ -171,7 +171,8 @@ data State = State
 emptyState :: State
 emptyState = State { strSugar=True, listSugar=True, srcrefs=True
                     ,showQual=False, cutoff=10, numFn=3, showRoot=False
-		    ,showNode=False,showSrcRef=False,showCount=False}
+		    ,showNode=False,showSrcRef=False,showCount=False
+                    ,progname="", file="", width=80, height=25}
 
 -- set state options from a list of command-line arguments
 setOptions :: [String] -> State
