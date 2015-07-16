@@ -16,7 +16,7 @@ import CommonUI		(hatObserve,hatTrail,hatAnim,hatView,shortHelpText
 import Data.Maybe
 import System.Environment (getArgs,getProgName)
 import System.Exit      (exitWith,ExitCode(..))
-import System.Cmd    (system)
+import System.Process   (system)
 import Control.Monad    (when)
 import Data.List        (isPrefixOf,isSuffixOf,intersperse)
 import Data.Char        (isDigit,digitToInt,toLower,isSpace)

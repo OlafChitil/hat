@@ -13,7 +13,7 @@ module Delta
   ) where
 
 import Data.Char          (toLower,ord)
-import System.Cmd         (system)
+import System.Process     (system)
 import System.Environment (getArgs,getProgName)
 import System.Exit        (exitWith,ExitCode(..))
 import Control.Monad      (when)

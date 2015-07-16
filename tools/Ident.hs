@@ -69,6 +69,10 @@ getIdentAt n = do
         , i_defnlineend = dle
         , i_defncolend  = dce
 	, i_isTraced = tr
+        , i_caf = error "Ident.getIdentAt i_caf"
+        , i_uses = error "Ident.getIdentAt i_uses"
+        , i_pending = error "Ident.getIdentAt i_pending"
+        , i_thunks = error "Ident.getIdentAt i_thunks"
 	}
 
 ---------------------------------------------------------------------

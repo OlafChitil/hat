@@ -4,7 +4,7 @@ import Data.Maybe
 import Data.List	(sort,isPrefixOf,isSuffixOf,intersperse)
 import Control.Monad	(when,liftM)
 -- import System
-import System.Cmd       (system)
+import System.Process   (system)
 import System.Exit      (ExitCode(..), exitWith)
 import System.Environment (getArgs, getProgName)
 import Data.Char	(isDigit,digitToInt,isUpper,toUpper,isAlphaNum,isSpace)
@@ -274,7 +274,7 @@ doCommand (Source n) state =
      do node <- getEquationNumber n (lastObserved state)
         let sr = getSrcRef (fromJust node)
 	when (isJust node && sr /= LowLevel.nil)
-             (do System.Cmd.system (hatView (readSrcRef sr))
+             (do system (hatView (readSrcRef sr))
                  return ())
 	interactive state
 doCommand (Definition n) state =
@@ -282,7 +282,7 @@ doCommand (Definition n) state =
         let atom = getDefnRef (fromJust node)
 	when (isJust node)
              (do defnSR <- liftM defnSrcRef (getIdentAt atom)
-                 System.Cmd.system (hatView defnSR)
+                 system (hatView defnSR)
                  return ())
 	interactive state
 

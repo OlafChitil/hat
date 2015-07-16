@@ -1,5 +1,3 @@
-Handle whole Haskell syntax plus some extensions:
-  haskell-src-exts
 
 Use arbitrary (trusted) libraries:
   build hat-cabal which transforms a cabal package into a cabal hat-package that
@@ -39,3 +37,9 @@ Support exceptions fully:
 Problem with defaulting:
   XExtendedDefaultRules is insufficient, only for ghci to handle also Show, Eq and Ord
 
+
+DONE:
+
+Handle whole Haskell syntax plus some extensions:
+  haskell-src-exts
+  (Well, the library is used, but for many extensions hat-trans will produce an error.)

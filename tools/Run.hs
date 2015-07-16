@@ -4,7 +4,7 @@ module Run
   ) where
 
 import System.Directory (removeFile)
-import System.Cmd       (system)
+import System.Process   (system)
 import System.Exit      (ExitCode(..))
 import System.IO.Unsafe (unsafePerformIO)
 

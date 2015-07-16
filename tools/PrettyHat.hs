@@ -3,7 +3,7 @@ module Main where
 -- System Imports
 import System.IO     (stdin,stdout,stderr,hPutStrLn)
 import Data.List     (isSuffixOf)
-import System.Cmd    (system)
+import System.Process (system)
 import System.Environment (getArgs,getProgName)
 import System.Exit   (exitWith,ExitCode(..))
 import Foreign.C.String (withCString)

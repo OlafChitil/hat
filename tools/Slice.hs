@@ -67,12 +67,12 @@ compress :: Slice -> Slice
 compress [] = []
 compress [x] = [x]
 compress (x:x1:xs)
-  | x <+ x1   = compress (join x x1 : xs)
+  | x <+ x1   = compress (joinSlices x x1 : xs)
   | x <+> x1  = compress (x : xs)
   | otherwise = x : compress (x1:xs)
 
-join :: PartSlice -> PartSlice -> PartSlice
-join (Part {file=f, start=s, finish=e}) (Part {file=f', start=s', finish=e'})
+joinSlices :: PartSlice -> PartSlice -> PartSlice
+joinSlices (Part {file=f, start=s, finish=e}) (Part {file=f', start=s', finish=e'})
   = Part {file=f, start=s, finish=e'}
 
 makeSlice :: Int -> NodeExp -> Maybe Slice

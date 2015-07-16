@@ -3,7 +3,7 @@ module Main where
 import NonTermLib
 import LowLevel 
 import SExp
-import System.Cmd         (system)
+import System.Process     (system)
 import System.Environment (getArgs,getProgName,getEnv)
 import System.Exit        (exitWith,ExitCode(..))
 import Data.List          (isPrefixOf,isSuffixOf,group,groupBy)

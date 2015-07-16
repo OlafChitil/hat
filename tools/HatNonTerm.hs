@@ -10,7 +10,7 @@ import HighlightStyle     (goto,cls,clearDown,clearUp,cleareol,highlightOff
                           ,enableScrollRegion,getTerminalSize
                           ,savePosition,restorePosition)
 import Control.Monad      (when)
-import System.Cmd         (system)
+import System.Process     (system)
 import System.Environment (getArgs,getProgName,getEnv)
 import System.Exit        (exitWith,ExitCode(..))
 import Data.List          (isPrefixOf,isSuffixOf,group,groupBy)

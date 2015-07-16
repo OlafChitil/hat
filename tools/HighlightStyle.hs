@@ -85,6 +85,7 @@ instance Enum Highlight where
   fromEnum Concealed    = 8
   fromEnum (Foreground c) = 30 + fromEnum c
   fromEnum (Background c) = 40 + fromEnum c
+  toEnum _ = error "HighlightStyle.Highlight.toEnum undefined"
 
 highlight :: [Highlight] -> String -> String
 highlight attrs s = highlightOn attrs ++ s ++ highlightOff

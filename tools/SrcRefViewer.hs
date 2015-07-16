@@ -6,7 +6,7 @@
 module Main where
 
 import System.Environment (getProgName, getArgs)
-import System.Cmd     (system)
+import System.Process (system)
 import System.Exit    (exitWith, ExitCode(..))
 import System.IO      (hSetBuffering,BufferMode(..),stdin,stdout)
 import Data.Char      (isSpace,isDigit)
@@ -57,9 +57,9 @@ display srcfile line column endline endcolumn = do
                 else putStr (goto 1 2 ++ a
                              ++ highlight [Bold, Foreground Magenta] b ++ c
                              ++ goto column (line'+1))
-              System.Cmd.system ("stty -icanon min 1 -echo")
+              system ("stty -icanon min 1 -echo")
               awaitQuit
-              System.Cmd.system ("stty icanon echo")
+              system ("stty icanon echo")
               putStr (goto 1 height)
               return ()
 

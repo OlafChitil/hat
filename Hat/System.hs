@@ -12,7 +12,7 @@ import Hat.Prelude
 import Hat.PreludeBuiltinTypes as T
 import Hat.SystemBuiltinTypes as T
 import Hat.SystemBuiltin as T
-import qualified System.Cmd as Cmd
+import qualified System.Process as Process
 import qualified System.Environment as Environment
 import qualified System.Exit as Exit
  
@@ -48,7 +48,7 @@ gsystem ::
 gsystem psystem p = T.ufun1 asystem psystem p hsystem
 hsystem z1system ksystem
   = T.fromIO T.fromExitCode ksystem
-      (Cmd.system (T.toString ksystem z1system))
+      (Process.system (T.toString ksystem z1system))
  
 gexitWith ::
           T.RefSrcPos ->

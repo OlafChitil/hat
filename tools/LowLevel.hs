@@ -71,6 +71,11 @@ dolambda    = FileNode 5
 
 instance Num FileNode where
   (+) (FileNode x) (FileNode y) = FileNode (x+y)
+  (*) _ _ = error "LowLevel Num FileNode (*) undefined"
+  abs _ = error "LowLevel Num FileNode abs undefined"
+  signum _ = error "LowLevel Num FileNode signum undefined"
+  fromInteger _ = error "LowLevel Num FileNode fromInteger undefined"
+  negate _ = error "LowLevel Num FileNode negate undefined"
 
 -- There are 25 basic types of node, encoded in the lower 5 bits of the tag
 -- They fall into four broad classes: module info, srcpos, expressions, atoms.
@@ -131,6 +136,7 @@ instance Enum NodeType where
   toEnum 28 = AtomAbstract
   toEnum 29 = ListCons
   toEnum n  = error ("NodeType.toEnum "++show n)
+  fromEnum _ = error "LowLevel.NodeType.fromEnum"
 
 -- For most purposes, we don't care about the exact node type, and a
 -- simplified division of nodes into kinds is useful.
