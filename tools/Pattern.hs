@@ -161,9 +161,10 @@ tok t = do
 -- Parser from [Token] to SExp.
 parsePat :: [Token] -> (Either String (SExp ()), Maybe QName)
 parsePat tokens = case runParser context tokens of
-  (Left err, restTokens) -> (Left err, Nothing)
-  (Right (exp,ctx), [])  -> (Right exp, ctx)
-  _                      -> (Left "tokens left for parsing", Nothing)
+  (Left err, restTokens)    -> (Left err, Nothing)
+  (_, [Error s])            -> (Left ("Lexing error: " ++ s), Nothing)
+  (Right (exp,ctx), [End])  -> (Right exp, ctx)
+  _                         -> (Left "tokens left for parsing", Nothing)
  
 {-
 parsePat tokens = case papply context tokens of
