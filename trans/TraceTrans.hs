@@ -1397,19 +1397,21 @@ tTyVarBind (UnkindedVar l name) = UnkindedVar l name
 
 tConDecl :: ConDecl SrcSpanInfo -> ConDecl SrcSpanInfo
 tConDecl (ConDecl l name tys) = 
-  ConDecl l (nameTransCon name) (map tType tys)
+  ConDecl l (nameTransCon name) (map tConstType tys)
 tConDecl (InfixConDecl l tyL name tyR) =
-  InfixConDecl l (tType tyL) (nameTransCon name) (tType tyR)
+  InfixConDecl l (tConstType tyL) (nameTransCon name) (tConstType tyR)
 tConDecl (RecDecl l name fieldDecls) =
   RecDecl l (nameTransCon name) (map tFieldDecl fieldDecls)
 
 tFieldDecl :: FieldDecl SrcSpanInfo -> FieldDecl SrcSpanInfo
 tFieldDecl (FieldDecl l fieldNames ty) =
-  FieldDecl l (map nameTransField fieldNames) (tType ty)
+  FieldDecl l (map nameTransField fieldNames) (tConstType ty)
 
+{- not used
 tBangType :: BangType SrcSpanInfo -> BangType SrcSpanInfo
 tBangType (BangedTy l) = BangedTy l
 tBangType (UnpackedTy l) = UnpackedTy l
+-}
 
 
 
