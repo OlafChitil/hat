@@ -2043,8 +2043,6 @@ tPat (PLit _ (Signless _) lit@(Frac l rat str)) =
         ,[],[],[]))
   where
   nameNew = nameFromSpan l
-tPat (PLit l _ lit) =
-  notSupported l "unsupported literal in pattern"
 tPat (PLit l (Negative _) (Int _ int str)) = 
   -- a negative integer literal is represented as negate int, so literal can be negative
   -- differs from ghc where
@@ -2054,6 +2052,8 @@ tPat (PLit l (Negative _) (Frac _ rat str)) =
   -- a negative floating point literal is represented as negate frac
   -- same issues as above
   tPat (PLit l (Signless l) (Frac l (-rat) ('-':str))) 
+tPat (PLit l _ lit) =
+  notSupported l "unsupported literal in pattern"
 tPat (PNPlusK l n k) =
   (PVar l (nameTransLambdaVar nameNew)
   ,Just (UnQual l nameNew
