@@ -12,7 +12,7 @@ import Prelude hiding (lex)
 import Data.List	(isPrefixOf)
 import Data.Char	(isDigit,isAlphaNum,isSpace,isUpper,isLower)
 import SExp             (SExp(..),SFixity(..),QName(..),showQN)
-import ParseLib
+import Text.ParserCombinators.Poly
 
 
 
@@ -86,7 +86,7 @@ data Token
   | CloseBrace
   | End
   | Error String
-  deriving (Eq)
+  deriving (Eq, Show)
 
 gather :: (Char->Bool) -> (String->Token) -> (String->[Token])
                    -> String -> (String->[Token])
@@ -147,19 +147,37 @@ qname str
         n = tail n'
         c = head n
 
+
+-- The Parser part:
+
+-- Derived combinator used frequently
+tok   :: Token -> Parser Token Token
+tok t = do 
+  x <- next
+  if t==x then return t 
+          else fail ("Parsing failed. Expected " ++ show t ++ " but found " ++ show x)
+
+
 -- Parser from [Token] to SExp.
 parsePat :: [Token] -> (Either String (SExp ()), Maybe QName)
+parsePat tokens = case runParser context tokens of
+  (Left err, restTokens) -> (Left err, Nothing)
+  (Right (exp,ctx), [])  -> (Right exp, ctx)
+  _                      -> (Left "tokens left for parsing", Nothing)
+ 
+{-
 parsePat tokens = case papply context tokens of
                     [((exp,ctx),[End])] -> (Right exp, ctx)
                     [(_,    [Error s])] -> (Left s,  Nothing)
                     _                   -> (Left "ambiguous", Nothing)
+-}
 
 context  :: Parser Token (SExp (), Maybe QName)
 context =
     do eqn <- equation
        ctx <- ( do tok In
-                   Variable ctx  <- item
-                   return (Just ctx) ) +++
+                   Variable ctx  <- next
+                   return (Just ctx) ) <|>
               ( do return Nothing )
        return (eqn,ctx)
             
@@ -168,22 +186,22 @@ equation =
     do lhs <- pattern
        ( ( do tok Equal
               rhs <- pattern
-              return (SEquation () lhs rhs) ) +++
+              return (SEquation () lhs rhs) ) <|>
          ( do return lhs ) )
 
 pattern :: Parser Token (SExp ())
 pattern =
   ( do tok OpenParen
        tok CloseParen
-       return (SId () (Plain "()") SInfixDefault) ) +++
+       return (SId () (Plain "()") SInfixDefault) ) <|>
   ( do tok OpenParen
        (SId () v (SInfix 0)) <- atom
        tok CloseParen
-       return (SId () v SInfixDefault) ) +++
+       return (SId () v SInfixDefault) ) <|>
   ( do tok OpenParen
        p <- pattern
        tok CloseParen
-       return p ) +++
+       return p ) <|>
   ( do ps <- many1 atom
        ( let reorder xs =
                  case xs of
@@ -195,45 +213,45 @@ pattern =
   
 atom :: Parser Token (SExp ())
 atom =
-  ( do String s <- item
-       return (mkList (SLiteral () . show) s) ) +++
+  ( do String s <- next
+       return (mkList (SLiteral () . show) s) ) <|>
   ( do tok Underscore
-       return (SUnevaluated ()) ) +++
-  ( do Char c <- item
-       return (SLiteral () ('\'':c++"'")) ) +++
-  ( do Numeric n <- item
-       return (SLiteral () n) ) +++
-  ( do Constructor c <- item
+       return (SUnevaluated ()) ) <|>
+  ( do Char c <- next
+       return (SLiteral () ('\'':c++"'")) ) <|>
+  ( do Numeric n <- next
+       return (SLiteral () n) ) <|>
+  ( do Constructor c <- next
        tok OpenBrace
-       fields <- (do Variable name <- item
+       fields <- (do Variable name <- next
                      tok Equal
                      pat <- pattern
-                     return (showQN False name,pat)) `sepby1` (tok Comma)
+                     return (showQN False name,pat)) `sepBy1` (tok Comma)
        tok CloseBrace
        let (names,exps) = unzip fields
-       return (SFieldExpr () (SId () c SInfixDefault) names exps) ) +++
-  ( do Constructor c <- item
+       return (SFieldExpr () (SId () c SInfixDefault) names exps) ) <|>
+  ( do Constructor c <- next
        many ( do { tok OpenBrace; tok CloseBrace } )
-       return (SId () c SInfixDefault) ) +++
-  ( do Variable v <- item
-       return (SId () v SInfixDefault) ) +++
-  ( do InfixConstructor v <- item
-       return (SId () v (SInfix 0)) ) +++
-  ( do InfixVariable v <- item
-       return (SId () v (SInfix 0)) ) +++
+       return (SId () c SInfixDefault) ) <|>
+  ( do Variable v <- next
+       return (SId () v SInfixDefault) ) <|>
+  ( do InfixConstructor v <- next
+       return (SId () v (SInfix 0)) ) <|>
+  ( do InfixVariable v <- next
+       return (SId () v (SInfix 0)) ) <|>
   ( do tok OpenParen
-       ps <- pattern `sepby1` (tok Comma)
+       ps <- pattern `sepBy1` (tok Comma)
        tok CloseParen
        case length ps of
          1 -> return (head ps)
          _ -> let tuple = Plain (replicate (length ps - 1) ',')
-              in return (SApp () (SId () tuple SInfixDefault: ps)) ) +++
+              in return (SApp () (SId () tuple SInfixDefault: ps)) ) <|>
   ( do tok OpenParen
        ps <- many1 atom
        tok CloseParen
-       return (SApp () ps) ) +++
+       return (SApp () ps) ) <|>
   ( do tok OpenBracket
-       elems <- pattern `sepby` (tok Comma)
+       elems <- pattern `sepBy` (tok Comma)
        tok CloseBracket
        return (mkList id elems) )
 
