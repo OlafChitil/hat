@@ -2,6 +2,7 @@
 #if defined(WIN32)
 
 /* Windows does not have ntohl, so define it here */
+#include <stdint.h>
 #define htonl(x) ntohl(x)
 uint32_t ntohl(uint32_t x);
 
