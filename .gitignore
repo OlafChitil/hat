@@ -3,3 +3,5 @@ libraries/Hat
 *~
 *.[oa]
 *.hi
+.cabal-sandbox/
+cabal.sandbox.config
