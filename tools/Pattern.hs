@@ -9,8 +9,8 @@ module Pattern
   ) where
 
 import Prelude hiding (lex)
-import Data.List	(isPrefixOf)
-import Data.Char	(isDigit,isAlphaNum,isSpace,isUpper,isLower)
+import Data.List        (isPrefixOf)
+import Data.Char        (isDigit,isAlphaNum,isSpace,isUpper,isLower)
 import SExp             (SExp(..),SFixity(..),QName(..),showQN)
 import Text.ParserCombinators.Poly
 
@@ -35,7 +35,7 @@ matchPat (SFieldExpr _ e fs vs) (SFieldExpr _ e' f's v's) = matchPat e e'
                                                                (zip f's v's)
 matchPat (SFieldExpr _ e fs vs) (SApp _ (a:as)) = matchPat e a
                                                 && and (zipWith matchPat vs as)
-	-- above is only correct if applied field order matches pattern order
+        -- above is only correct if applied field order matches pattern order
 matchPat (SFieldExpr _ e fs vs) b@(SId _ _ _)= matchPat e b
 matchPat _                 _                 = False
 
@@ -115,7 +115,7 @@ lexPat (x:xs)
                = In:           lexPat (drop 2 xs)
   | isSpace x  = lexPat xs
   | isDigit x  = gather (not.isNumeric) Numeric lexPat [x] xs
-  | isLower x || x=='_'		-- already checked for wildcard above
+  | isLower x || x=='_'         -- already checked for wildcard above
                = gather (not.isVariable) (plain Variable) lexPat [x] xs
   | isUpper x  = gather (not.isQVariable) qname lexPat [x] xs
   | isSymbol x = gather (not.isSymbol) (plain InfixVariable) lexPat [x] xs

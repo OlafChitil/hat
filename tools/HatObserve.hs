@@ -1,64 +1,64 @@
 -- hat-observe Main
 
 import Data.Maybe
-import Data.List	(sort,isPrefixOf,isSuffixOf,intersperse)
-import Control.Monad	(when,liftM)
+import Data.List        (sort,isPrefixOf,isSuffixOf,intersperse)
+import Control.Monad    (when,liftM)
 -- import System
 import System.Process   (system)
 import System.Exit      (ExitCode(..), exitWith)
 import System.Environment (getArgs, getProgName)
-import Data.Char	(isDigit,digitToInt,isUpper,toUpper,isAlphaNum,isSpace)
-import System.IO	(hFlush,stdout,hSetBuffering,BufferMode(..))
-import Foreign.C.String	(withCString)
+import Data.Char        (isDigit,digitToInt,isUpper,toUpper,isAlphaNum,isSpace)
+import System.IO        (hFlush,stdout,hSetBuffering,BufferMode(..))
+import Foreign.C.String (withCString)
 
-import Observe		(ObserveResult(..)
-			,isFound,isNotFound,isInterrupted,fromFound
-			,newObservation,newObservationSrc)
-import Ident		(Ident(..),getIdentAt)
-import Idents		(collateIdents,getAllIdents,sortIdents,showInfo)
-import LowLevel		(FileNode(..),nil,openHatFile,getResult,hatVersionNumber
-			,getSrcRef,getDefnRef)
-import SrcRef		(SrcRef(..),readSrcRef,defnSrcRef)
-import SExp		(SExp(..),Label,prettyEquation,prettyExpression
-			,fileNode2SExp,funId,label,QName(..))
-import HighlightStyle	(cursorUp,cleareol,highlight,Highlight(..),Colour(..)
-			,getTerminalSize, hasEscapes)
-import Trie		(Trie,Search(..),emptyTrie,match)
-import TExp		(linearise)
-import Pattern		(topMatchPat,parsePat,lexPat)
-import CmdLine		(initialize,cmdline)
-import CommonUI		(hatObserve,hatTrail,hatAnim,hatDetect,hatExplore
+import Observe          (ObserveResult(..)
+                        ,isFound,isNotFound,isInterrupted,fromFound
+                        ,newObservation,newObservationSrc)
+import Ident            (Ident(..),getIdentAt)
+import Idents           (collateIdents,getAllIdents,sortIdents,showInfo)
+import LowLevel         (FileNode(..),nil,openHatFile,getResult,hatVersionNumber
+                        ,getSrcRef,getDefnRef)
+import SrcRef           (SrcRef(..),readSrcRef,defnSrcRef)
+import SExp             (SExp(..),Label,prettyEquation,prettyExpression
+                        ,fileNode2SExp,funId,label,QName(..))
+import HighlightStyle   (cursorUp,cleareol,highlight,Highlight(..),Colour(..)
+                        ,getTerminalSize, hasEscapes)
+import Trie             (Trie,Search(..),emptyTrie,match)
+import TExp             (linearise)
+import Pattern          (topMatchPat,parsePat,lexPat)
+import CmdLine          (initialize,cmdline)
+import CommonUI         (hatObserve,hatTrail,hatAnim,hatDetect,hatExplore
                         ,hatView
-			,shortHelpText
-			,Keep(..),Options(..),initialOptions
-			,OptionCmd(..),optionCmd,onOff,number,safeReadInt
-			,optionsUpdate,showOption)
+                        ,shortHelpText
+                        ,Keep(..),Options(..),initialOptions
+                        ,OptionCmd(..),optionCmd,onOff,number,safeReadInt
+                        ,optionsUpdate,showOption)
 
 ----
 data InteractiveState =
     State
-	{ lastObserved	:: [FileNode]
-	, more		:: Bool
-	, equationsPerPage :: Int
-	, hatFile       :: String
-	, currentPos	:: Int
-	, showRHS	:: Bool
-	, options	:: Options
-	, screenWidth   :: Int
-	, symbolTable   :: ([Ident],[Ident],[Ident])
-	}
+        { lastObserved  :: [FileNode]
+        , more          :: Bool
+        , equationsPerPage :: Int
+        , hatFile       :: String
+        , currentPos    :: Int
+        , showRHS       :: Bool
+        , options       :: Options
+        , screenWidth   :: Int
+        , symbolTable   :: ([Ident],[Ident],[Ident])
+        }
 initialState :: FilePath -> Int -> InteractiveState
 initialState file width = State
-	{ lastObserved = []
-	, more = False
-	, equationsPerPage = 10
-	, hatFile = file
-	, currentPos = 0
-	, showRHS = True
-	, options = initialOptions
-	, screenWidth = width
-	, symbolTable = ([],[],[])
-	}
+        { lastObserved = []
+        , more = False
+        , equationsPerPage = 10
+        , hatFile = file
+        , currentPos = 0
+        , showRHS = True
+        , options = initialOptions
+        , screenWidth = width
+        , symbolTable = ([],[],[])
+        }
 ----
 
 -----------------------------------------------------------------------
@@ -75,7 +75,7 @@ main = do
     putStrLn ("\n        hat-observe "++hatVersionNumber
               ++"    ("++shortHelpText++")\n")
     (width,_) <- getTerminalSize
-    CmdLine.initialize	-- for readline functionality
+    CmdLine.initialize  -- for readline functionality
     let hatFile = rectify (arguments!!0)
         state   = initialState hatFile width
     prog <- System.Environment.getProgName
@@ -84,7 +84,7 @@ main = do
     collateIdents
     syms <- getAllIdents
     let state' = state { symbolTable = syms }
-    putStr clearLine	-- delayed until next output appears
+    putStr clearLine    -- delayed until next output appears
     case numArgs of
       1 -> interactive state'
       2 -> doCommand (Pattern (arguments!!1)) state'
@@ -107,9 +107,9 @@ showObservation state@(State{options=opts}) i node = do
 
 
 -- arguments to showObservationList are:
---   i     :: Int		numbered equation
---   max   :: Int		how many equations to show at once
---   exprs :: [FileNode]	roots of equations
+--   i     :: Int               numbered equation
+--   max   :: Int               how many equations to show at once
+--   exprs :: [FileNode]        roots of equations
 -- result is number of equations that have been shown
 showObservationList :: InteractiveState -> Int -> Int -> [FileNode] -> IO Int
 showObservationList state _ _ [] = do putStr clearLine; return 0
@@ -181,7 +181,7 @@ showSomeMore state =
   in do
     beginSearching
     count <- showObservationList state (currentPos state + 1)
-	                         (equationsPerPage state) showNowList
+                                 (equationsPerPage state) showNowList
     return (count + currentPos state, hasMore)
 
 beginSearching :: IO ()
@@ -206,8 +206,8 @@ getEquationNumber n lastObserved =
   let nodes = drop (n-1) lastObserved in
   if n>0 then
        if null nodes then do -- This test may take a while!
-	    putStrLn "No equation with this number"
-	    return Nothing
+            putStrLn "No equation with this number"
+            return Nothing
        else return (Just (head nodes))
   else return Nothing
 
@@ -234,27 +234,27 @@ doCommand More state =
     if more state then do
         putStr clearLine
         (newPos,newMore) <- showSomeMore state
-	interactive (state {more=newMore,currentPos=newPos})
+        interactive (state {more=newMore,currentPos=newPos})
     else do
         when (currentPos state>0) (putStrLn "No more applications observed.")
         interactive state
 doCommand (Info mod) state =
      do let (glob,_,_) = symbolTable state
         putStr (showInfo mod (sortIdents glob) "")
-	interactive state
+        interactive state
 doCommand (InfoC mod) state =
      do let (_,_,constrs) = symbolTable state
         putStr (showInfo mod (sortIdents constrs) "")
-	interactive state
+        interactive state
 doCommand Resize state =
      do (width,_) <- getTerminalSize
         interactive (state{screenWidth=width})
 doCommand Count state =
      do when (more state)
              (putStrLn "One moment, this may take a while...")
-	putStrLn ("Number of (all,unique) matching applications: "
-		  ++(show (length (lastObserved state))))
-	interactive state
+        putStrLn ("Number of (all,unique) matching applications: "
+                  ++(show (length (lastObserved state))))
+        interactive state
 
 doCommand Status state =
      do mapM_ (\m-> putStrLn (showState m state))
@@ -269,22 +269,22 @@ doCommand (Set mode) state =
 
 doCommand (StartTool tool) state =
      do startExternalTool tool state
-	interactive state
+        interactive state
 doCommand (Source n) state =
      do node <- getEquationNumber n (lastObserved state)
         let sr = getSrcRef (fromJust node)
-	when (isJust node && sr /= LowLevel.nil)
+        when (isJust node && sr /= LowLevel.nil)
              (do system (hatView (readSrcRef sr))
                  return ())
-	interactive state
+        interactive state
 doCommand (Definition n) state =
      do node <- getEquationNumber n (lastObserved state)
         let atom = getDefnRef (fromJust node)
-	when (isJust node)
+        when (isJust node)
              (do defnSR <- liftM defnSrcRef (getIdentAt atom)
                  system (hatView defnSR)
                  return ())
-	interactive state
+        interactive state
 
 doCommand (Pattern s) state =
     let (pat, ctx) = parsePat (lexPat s) in
@@ -303,12 +303,12 @@ doCommand (Pattern s) state =
           then do
             putStrLn (clearLine ++ "no match found")
             interactive state
-	  else do
+          else do
             putStr clearLine
             (newPos,newMore) <- showSomeMore
                                    (state { currentPos=0
                                           , showRHS=not (isCon fun)
-	 			          , lastObserved=fromFound newObserved})
+                                          , lastObserved=fromFound newObserved})
             interactive (state { lastObserved=fromFound newObserved
                                , more=newMore
                                , showRHS=not (isCon fun)
@@ -326,7 +326,7 @@ doCommand (Location ss) state =
            (newPos,newMore) <- showSomeMore
                                   (state { currentPos=0
                                          , showRHS=True
-	 			         , lastObserved=fromFound newObserved})
+                                         , lastObserved=fromFound newObserved})
            interactive (state {lastObserved=fromFound newObserved
                               ,more=newMore
                               ,showRHS=True
@@ -523,15 +523,15 @@ getCommand prompt = do
               | cmd `isPrefixOf` "help" -> return (Help (unwords ss))
               | cmd `isPrefixOf` "location" -> return (Location ss)
               | cmd `isPrefixOf` "detect"   ->
-				return (number (StartTool . Detect) ss 0)
+                                return (number (StartTool . Detect) ss 0)
               | cmd `isPrefixOf` "explore"   ->
-				return (number (StartTool . Explore) ss 0)
+                                return (number (StartTool . Explore) ss 0)
               | cmd `isPrefixOf` "trail"    ->
-				return (number (StartTool . Trail) ss 0)
+                                return (number (StartTool . Trail) ss 0)
               | cmd `isPrefixOf` "animate"    ->
-				return (number (StartTool . Anim) ss 0)
+                                return (number (StartTool . Anim) ss 0)
               | cmd `isPrefixOf` "observe"  ->
-				return (StartTool (Observe (unwords ss)))
+                                return (StartTool (Observe (unwords ss)))
               | cmd `isPrefixOf` "source"   -> return (number Source ss 0)
               | cmd `isPrefixOf` "Source"   -> return (number Definition ss 0)
               | cmd `isPrefixOf` "info"     -> return (Info (unwords ss))

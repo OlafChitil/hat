@@ -1,60 +1,60 @@
 {-# LANGUAGE EmptyDataDecls #-}
 
 module LowLevel
-  ( openHatFile		-- :: CString -> CString -> IO ()
+  ( openHatFile         -- :: CString -> CString -> IO ()
   , closeHatFile  -- :: IO ()
-  , getBridgeValue	-- :: IO FileNode
-  , getErrorLoc		-- :: IO FileNode
-  , getErrorMessage	-- :: IO CString
-  , hatVersionNumber	-- :: String
+  , getBridgeValue      -- :: IO FileNode
+  , getErrorLoc         -- :: IO FileNode
+  , getErrorMessage     -- :: IO CString
+  , hatVersionNumber    -- :: String
 
   , FileNode(..)
-  , nil			-- :: FileNode
-  , unevaluated		-- :: FileNode
-  , entered		-- :: FileNode
-  , interrupted		-- :: FileNode
-  , lambda		-- :: FileNode
-  , dolambda		-- :: FileNode
+  , nil                 -- :: FileNode
+  , unevaluated         -- :: FileNode
+  , entered             -- :: FileNode
+  , interrupted         -- :: FileNode
+  , lambda              -- :: FileNode
+  , dolambda            -- :: FileNode
 
   , NodeType(..)
-  , nodeType		-- :: FileNode -> NodeType
+  , nodeType            -- :: FileNode -> NodeType
   , SimpleNodeType(..)
-  , simpleNodeType	-- :: FileNode -> SimpleNodeType
+  , simpleNodeType      -- :: FileNode -> SimpleNodeType
 
-  , getParentNode	-- :: FileNode -> FileNode
-  , getResult		-- :: FileNode -> Bool -> FileNode
-  , peekResult		-- :: FileNode -> FileNode
+  , getParentNode       -- :: FileNode -> FileNode
+  , getResult           -- :: FileNode -> Bool -> FileNode
+  , peekResult          -- :: FileNode -> FileNode
 
-  , getValue		-- :: FileNode -> String
-  , getValueMod		-- :: FileNode -> String
-  , getFixity		-- :: FileNode -> Int
-  , isLiteral		-- :: FileNode -> Bool
-  , isConstructor	-- :: FileNode -> Bool
-  , isConstrFields	-- :: FileNode -> Bool
-  , isLambda		-- :: FileNode -> Bool
-  , isDoLambda		-- :: FileNode -> Bool
+  , getValue            -- :: FileNode -> String
+  , getValueMod         -- :: FileNode -> String
+  , getFixity           -- :: FileNode -> Int
+  , isLiteral           -- :: FileNode -> Bool
+  , isConstructor       -- :: FileNode -> Bool
+  , isConstrFields      -- :: FileNode -> Bool
+  , isLambda            -- :: FileNode -> Bool
+  , isDoLambda          -- :: FileNode -> Bool
 
-  , getAtom		-- :: FileNode -> String
-  , getAtomMod		-- :: FileNode -> String
-  , getAtomFixity	-- :: FileNode -> Int
+  , getAtom             -- :: FileNode -> String
+  , getAtomMod          -- :: FileNode -> String
+  , getAtomFixity       -- :: FileNode -> Int
 
-  , getSubExprs		-- :: FileNode -> [FileNode]
+  , getSubExprs         -- :: FileNode -> [FileNode]
   , peekSubExprs        -- :: FileNode -> [FileNode]
   , peekExpArg          -- :: FileNode -> Int -> FileNode
-  , getFieldLabels	-- :: FileNode -> [String]
+  , getFieldLabels      -- :: FileNode -> [String]
 
-  , getSrcRef		-- :: FileNode -> FileNode
-  , getDefnRef		-- :: FileNode -> FileNode
+  , getSrcRef           -- :: FileNode -> FileNode
+  , getDefnRef          -- :: FileNode -> FileNode
 
-  , peekTrace		-- :: FileNode -> FileNode
+  , peekTrace           -- :: FileNode -> FileNode
 
-  , nodeSequence	-- :: IO [(FileNode,NodeType)]
+  , nodeSequence        -- :: IO [(FileNode,NodeType)]
 
   , hiddenChildren      -- :: FileNode -> [FileNode]
   ) where
 
 import Foreign.Ptr      (Ptr)
-import Foreign.C.String	(CString, peekCString)
+import Foreign.C.String (CString, peekCString)
 import System.IO.Unsafe (unsafePerformIO)
 import Numeric (showHex)
 
@@ -141,16 +141,16 @@ instance Enum NodeType where
 -- For most purposes, we don't care about the exact node type, and a
 -- simplified division of nodes into kinds is useful.
 data SimpleNodeType
-  = NodeModule		-- Module
-  | NodeSrcPos		-- SrcPos
-  | NodeApplication	-- ExpApp, ExpValueApp
-  | NodeBasicValue	-- ExpChar, ExpInt, ..., ExpDouble
-  | NodeIdentifier	-- ExpValueUse
-  | NodeCAF		-- ExpConstUse, ExpConstDef
-  | NodeConditional	-- ExpGuard, ExpCase, ExpIf
-  | NodeSugar		-- ExpFieldUpdate, ExpDoStmt
-  | NodeSpecial		-- ExpProjection, ExpHidden, ExpForward
-  | NodeAtom		-- AtomVariable, AtomConstructor, AtomAbstract
+  = NodeModule          -- Module
+  | NodeSrcPos          -- SrcPos
+  | NodeApplication     -- ExpApp, ExpValueApp
+  | NodeBasicValue      -- ExpChar, ExpInt, ..., ExpDouble
+  | NodeIdentifier      -- ExpValueUse
+  | NodeCAF             -- ExpConstUse, ExpConstDef
+  | NodeConditional     -- ExpGuard, ExpCase, ExpIf
+  | NodeSugar           -- ExpFieldUpdate, ExpDoStmt
+  | NodeSpecial         -- ExpProjection, ExpHidden, ExpForward
+  | NodeAtom            -- AtomVariable, AtomConstructor, AtomAbstract
   | NodeList            -- ListCons
   deriving (Eq)
 
@@ -288,7 +288,7 @@ nodeSequence = do q_init; list '0'
                     c' <- q_peek
                     c  <- q_tag
                     q_skipNode c' 
-                    if c=='\31' then return []	-- end of file
+                    if c=='\31' then return []  -- end of file
                       else return ((FileNode n, toEnum (fromEnum c))
                                   : unsafePerformIO (list c))
 foreign import ccall "artutils.h" q_init         :: IO ()

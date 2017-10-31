@@ -35,7 +35,7 @@ import ADT      (ADT(..))
 import NodeExp  (NodeExp(..),fullEval,flatEval,getNode,nodeExp2SExp
                 ,removeResultCycles,nodeExpForNode,removeNonResultCycles
                 ,fullEvalText,flatEvalText,children,finalResult,children)
-import SrcRef	(readSrcRef)
+import SrcRef   (readSrcRef)
 import Slice    (Slice(..),sliceStartLine,sliceEndLine,sliceFile,offsetSlice
                 ,highlightSlice,makeSlice,srcRef2Slice,RangeOrd(..))
 
@@ -332,7 +332,7 @@ edtNextChild ps = do
   candidate ps = do
     c <- nextChild ps
  -- putStrLn ("edtNextChild: "++showHex (int c) "")
-    if c==LowLevel.unevaluated	-- actually EOF
+    if c==LowLevel.unevaluated  -- actually EOF
       then return LowLevel.nil
       else if c==LowLevel.nil
       then candidate ps

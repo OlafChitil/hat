@@ -1,0 +1,302 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en" dir="ltr">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+				<meta name="keywords" content="Random Processes,Probabilistic Functional Programming" />
+		<link rel="shortcut icon" href="/favicon.ico" />
+		<link rel="search" type="application/opensearchdescription+xml" href="/haskellwiki/opensearch_desc.php" title="HaskellWiki (English)" />
+		<link title="Creative Commons" type="application/rdf+xml" href="/haskellwiki/index.php?title=Random_Processes&amp;action=creativecommons" rel="meta" />
+		<link rel="copyright" href="/haskellwiki/HaskellWiki:Copyrights" />
+<link rel="alternate" type="application/rss+xml" title="HaskellWiki RSS Feed" href="http://www.haskell.org/haskellwiki/index.php?title=Special:Recentchanges&amp;feed=rss" />
+<link rel="alternate" type="application/atom+xml" title="HaskellWiki Atom Feed" href="http://www.haskell.org/haskellwiki/index.php?title=Special:Recentchanges&amp;feed=atom" />
+		<title>Random Processes - HaskellWiki</title>
+		<style type="text/css" media="screen, projection">/*<![CDATA[*/
+			@import "/wikistatic/skins//common/shared.css?116";
+			@import "/wikistatic/skins//hawiki/main.css?116";
+		/*]]>*/</style>
+		<link rel="stylesheet" type="text/css" media="print" href="/wikistatic/skins//common/commonPrint.css?116" />
+		<!--[if lt IE 5.5000]><style type="text/css">@import "/wikistatic/skins//hawiki/IE50Fixes.css?116";</style><![endif]-->
+		<!--[if IE 5.5000]><style type="text/css">@import "/wikistatic/skins//hawiki/IE55Fixes.css?116";</style><![endif]-->
+		<!--[if IE 6]><style type="text/css">@import "/wikistatic/skins//hawiki/IE60Fixes.css?116";</style><![endif]-->
+		<!--[if IE 7]><style type="text/css">@import "/wikistatic/skins//hawiki/IE70Fixes.css?116";</style><![endif]-->
+		<!--[if lte IE 7]><script type="text/javascript" src="/wikistatic/skins//hawiki/IEFixes.js?116"></script>
+		<meta http-equiv="imagetoolbar" content="no" /><![endif]-->
+                                                <script type="text/javascript">
+                        var isMSIE55 = (window.showModalDialog && window.clipboardData && window.createPopup); /*alert("test: " + isMSIE55);*/</script>
+
+		<script type= "text/javascript">/*<![CDATA[*/
+var skin = "hawiki";
+var stylepath = "/wikistatic/skins/";
+var wgArticlePath = "/haskellwiki/$1";
+var wgScriptPath = "/haskellwiki";
+var wgScript = "/haskellwiki/index.php";
+var wgServer = "http://www.haskell.org";
+var wgCanonicalNamespace = "";
+var wgCanonicalSpecialPageName = false;
+var wgNamespaceNumber = 0;
+var wgPageName = "Random_Processes";
+var wgTitle = "Random Processes";
+var wgAction = "view";
+var wgRestrictionEdit = [];
+var wgRestrictionMove = [];
+var wgArticleId = "6926";
+var wgIsArticle = true;
+var wgUserName = null;
+var wgUserGroups = null;
+var wgUserLanguage = "en";
+var wgContentLanguage = "en";
+var wgBreakFrames = false;
+var wgCurRevisionId = "40682";
+var wgVersion = "1.12.0";
+var wgEnableAPI = true;
+var wgEnableWriteAPI = false;
+/*]]>*/</script>
+
+		<script type="text/javascript" src="/wikistatic/skins//common/wikibits.js?116"><!-- wikibits js --></script>
+		<!-- Head Scripts -->
+		<script type="text/javascript" src="/wikistatic/skins//common/ajax.js?116"></script>
+		<script type="text/javascript" src="/haskellwiki/index.php?title=-&amp;action=raw&amp;gen=js&amp;useskin=hawiki"><!-- site js --></script>
+		<style type="text/css">/*<![CDATA[*/
+@import "/haskellwiki/index.php?title=MediaWiki:Common.css&usemsgcache=yes&action=raw&ctype=text/css&smaxage=18000";
+@import "/haskellwiki/index.php?title=MediaWiki:Hawiki.css&usemsgcache=yes&action=raw&ctype=text/css&smaxage=18000";
+@import "/haskellwiki/index.php?title=-&action=raw&gen=css&maxage=18000&useskin=hawiki";
+/*]]>*/</style>
+	</head>
+<body class="mediawiki ltr page-Random_Processes ">
+   <div id="topbar" class="noprint">
+	<div class="portlet noprint" id="p-personal">
+		<h5>Personal tools</h5>
+		<div class="pBody">
+			<ul><li><a class="homebutton" href="/haskellwiki/Haskell">Home</a></li>
+				<li id="pt-login"><a href="/haskellwiki/index.php?title=Special:Userlogin&amp;returnto=Random_Processes" title="You are encouraged to log in, it is not mandatory however. [o]" accesskey="o">Log in / create account</a></li>
+			</ul>
+		</div>
+	</div>
+        	  <div id="p-search">
+	    <div id="searchBody" class="pBody">
+	       <form action="/haskellwiki/index.php" id="searchform"><div>
+	          <input type='hidden' name="title" value=""/>
+	          <input id="searchInput" name="search" type="text" title="Search HaskellWiki [f]" accesskey="f" value="" />
+				<input type='submit' name="go" class="searchButton" id="searchGoButton"	value="Go" title="Go to a page with this exact name if exists" />&nbsp;
+				<input type='submit' name="fulltext" class="searchButton" id="mw-searchButton" value="Search" title="Search the pages for this text" />
+
+	         </div></form>
+	    </div>
+	  </div>
+   </div>
+	<div id="globalWrapper">
+	<div class="portlet" id="p-logo">
+		<a style="background-image: url(/wikistatic/haskellwiki_logo.png);" href="/haskellwiki/Haskell" title="Main Page"></a>
+	</div>
+	<div id="column-content">
+        <div id="notice-area" class="noprint">
+        <!-- ?php $this->data['sitenotice'] = 'This is a test instance.  Do not edit, your changes will be lost.'; ? -->
+			        </div>
+        <div id="content-wrapper">
+	<div id="p-cactions" class="portlet noprint">
+		<h5>Views</h5>
+		<div class="pBody">
+			<ul>
+	
+				 <li id="ca-nstab-main" class="selected"><a href="/haskellwiki/Random_Processes" title="View the content page [c]" accesskey="c">Page</a></li>
+				 <li id="ca-talk" class="new"><a href="/haskellwiki/index.php?title=Talk:Random_Processes&amp;action=edit" title="Discussion about the content page [t]" accesskey="t">Discussion</a></li>
+				 <li id="ca-viewsource"><a href="/haskellwiki/index.php?title=Random_Processes&amp;action=edit" title="This page is protected. You can view its source. [e]" accesskey="e">View source</a></li>
+				 <li id="ca-history"><a href="/haskellwiki/index.php?title=Random_Processes&amp;action=history" title="Past versions of this page. [h]" accesskey="h">History</a></li>			</ul>
+		</div>
+	</div>
+                        <div id="content">
+		<a name="top" id="top"></a>
+                        <h1 id="firstHeading" class="firstHeading">Random Processes</h1>
+		<div id="bodyContent">
+			<h3 id="siteSub">From HaskellWiki</h3>
+			<div id="contentSub"></div>
+			<div id="jump-to-nav">Jump to: <a href="#column-one">navigation</a>, <a href="#searchInput">search</a></div>			<!-- start content -->
+			<p><a href="http://hackage.haskell.org/package/randproc" class="external text" title="http://hackage.haskell.org/package/randproc" rel="nofollow">RandProc</a> is a Haskell library, which defines and supports certain data structures that are convenient when working with random processes in a mathematically rigorous fashion.
+</p><p>The concepts embedded in RandProc come from the text I used in my graduate stochastic processes course:
+</p><p>Robert M. Gray, Lee D. Davisson; <i>Random Processes - a Mathematical Approach for Engineers</i>; Prentice-Hall Information and System Sciences Series, Thomas Kailath, Series Editor.
+</p><p><i>Authors: <a href="mailto:dbanas@banasfamily.net" class="external text" title="mailto:dbanas@banasfamily.net" rel="nofollow">David Banas</a></i>
+</p>
+<table id="toc" class="toc" summary="Contents"><tr><td><div id="toctitle"><h2>Contents</h2></div>
+<ul>
+<li class="toclevel-1"><a href="#Installation"><span class="tocnumber">1</span> <span class="toctext">Installation</span></a></li>
+<li class="toclevel-1"><a href="#Description"><span class="tocnumber">2</span> <span class="toctext">Description</span></a>
+<ul>
+<li class="toclevel-2"><a href="#Underlying_concepts"><span class="tocnumber">2.1</span> <span class="toctext">Underlying concepts</span></a></li>
+<li class="toclevel-2"><a href="#Public_interface"><span class="tocnumber">2.2</span> <span class="toctext">Public interface</span></a>
+<ul>
+<li class="toclevel-3"><a href="#New_data_types"><span class="tocnumber">2.2.1</span> <span class="toctext">New data types</span></a></li>
+<li class="toclevel-3"><a href="#Supporting_functions"><span class="tocnumber">2.2.2</span> <span class="toctext">Supporting functions</span></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toclevel-1"><a href="#Usage"><span class="tocnumber">3</span> <span class="toctext">Usage</span></a>
+<ul>
+<li class="toclevel-2"><a href="#Construction_of_a_probability_space_representing_a_fair_coin"><span class="tocnumber">3.1</span> <span class="toctext">Construction of a probability space representing a fair coin</span></a></li>
+<li class="toclevel-2"><a href="#Testing_the_probability_space_defined.2C_above"><span class="tocnumber">3.2</span> <span class="toctext">Testing the probability space defined, above</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1"><a href="#Documentation"><span class="tocnumber">4</span> <span class="toctext">Documentation</span></a></li>
+<li class="toclevel-1"><a href="#Related_work"><span class="tocnumber">5</span> <span class="toctext">Related work</span></a></li>
+<li class="toclevel-1"><a href="#Community"><span class="tocnumber">6</span> <span class="toctext">Community</span></a></li>
+</ul>
+</td></tr></table><script type="text/javascript"> if (window.showTocToggle) { var tocShowText = "show"; var tocHideText = "hide"; showTocToggle(); } </script>
+<a name="Installation"></a><h2> <span class="mw-headline">1  Installation </span></h2>
+<p>Download the `randproc` package:
+</p>
+<pre>$ cabal install randproc
+</pre>
+<p>and import it:
+</p>
+<pre>import Data.RandProc
+</pre>
+<a name="Description"></a><h2> <span class="mw-headline">2  Description </span></h2>
+<a name="Underlying_concepts"></a><h3> <span class="mw-headline">2.1  Underlying concepts </span></h3>
+<p>As per the reference text, a <i>probability space</i> is taken to be composed of:
+</p>
+<ul><li> an <b>abstract space</b> of samples,
+</li><li> an <b>event space</b>, which must be a sigma field over the abstract sample space, and
+</li><li> a <b>probability measure</b> over the event space.
+</li></ul>
+<p>In the code, the <i>event space</i> and <i>probability measure</i> are combined, in order to keep the code concise.
+</p>
+<a name="Public_interface"></a><h3> <span class="mw-headline">2.2  Public interface </span></h3>
+<a name="New_data_types"></a><h4> <span class="mw-headline">2.2.1  New data types </span></h4>
+<p>The code defines an abstract data type, <i>Sample</i>, as follows:
+</p>
+<pre>data Sample  = Point Double
+             | Range (Double, Double)
+             | Empty
+             | Full
+   deriving (Eq, Show)
+</pre>
+<p>However, this type is not exported in the public interface of the `RandProc` module. Instead, helper functions <i>point</i> and <i>range</i> are provided, as alternatives, in order to protect against future implementation changes.
+</p><p><i>Note) There is, currently, a single exception to the above. The </i>Empty<i> value constructor </i>is<i> exported, as it is currently necessary. However, this is really just a hack designed to put off the task of making the support functions more intelligent, with regards to their handling of empty sample sets.</i>
+</p><p>An event is defined in the code as simply an alias for a list of samples:
+</p>
+<pre>type Event = [Sample]
+</pre>
+<p>And a measure just attaches a probability of occurrence to an event:
+</p>
+<pre>data Measure = Measure {
+   event&nbsp;:: Event
+   ,prob&nbsp;:: Double
+}
+   deriving (Eq, Ord, Show)
+</pre>
+<a name="Supporting_functions"></a><h4> <span class="mw-headline">2.2.2  Supporting functions </span></h4>
+<p>Several supporting functions are provided for working with the new data types described, above. A few of the more interesting examples are given, below. For a complete list, refer to the documentation.
+</p>
+<dl><dt> checkProbMeas
+</dt><dd> Checks a value of type 'ProbSpace' for correctness, and returns a value of type 'TestResult'.
+</dd></dl>
+<dl><dt> checkSigma
+</dt><dd> Checks whether event space is actually a Sigma field over the sample space.
+</dd></dl>
+<dl><dt> smplSetUnion
+</dt><dd> Collapses a list of samples down to the maximally reduced set, which still composes a proper union of the input.
+</dd></dl>
+<dl><dt> smplSetInt
+</dt><dd> Reduces a list of samples to a single sample representing their intersection.
+</dd></dl>
+<a name="Usage"></a><h2> <span class="mw-headline">3  Usage </span></h2>
+<p>For more extensive usage examples, see the `test/Test.hs` file.
+</p>
+<a name="Construction_of_a_probability_space_representing_a_fair_coin"></a><h3> <span class="mw-headline">3.1  Construction of a probability space representing a fair coin </span></h3>
+<pre>fairCoin = ProbSpace
+   [point 0.0, point 1.0]
+   [Measure ( [Empty]) 0, Measure ( [point 0]) 0.5
+   , Measure ( [point 1]) 0.5, Measure ( [point 0, point 1]) 1.0]
+</pre>
+<a name="Testing_the_probability_space_defined.2C_above"></a><h3> <span class="mw-headline">3.2  Testing the probability space defined, above </span></h3>
+<pre>checkProbMeas fairCoin
+</pre>
+<a name="Documentation"></a><h2> <span class="mw-headline">4  Documentation </span></h2>
+<p>The documentation for this library is generated, via Haddock.
+</p>
+<a name="Related_work"></a><h2> <span class="mw-headline">5  Related work </span></h2>
+<dl><dt><a href="/haskellwiki/Probabilistic_Functional_Programming" title="Probabilistic Functional Programming"> Probabilistic Functional Programming</a>
+</dt><dd>I suspect a potential symbiosis between this library and `RandProc`
+</dd></dl>
+<a name="Community"></a><h2> <span class="mw-headline">6  Community </span></h2>
+<dl><dt><a href="http://randprocnotes.wordpress.com/" class="external text" title="http://randprocnotes.wordpress.com/" rel="nofollow">RandProcNotes</a>
+</dt><dd>Blog dedicated to the `RandProc` Haskell library
+</dd><dt><a href="http://trac.haskell.org/RandProc/" class="external text" title="http://trac.haskell.org/RandProc/" rel="nofollow">Bug Tracker</a>
+</dt><dd>Bug tracker for the `RandProc` Haskell library
+</dd><dt><a href="mailto:RandProc@projects.haskell.org" class="external text" title="mailto:RandProc@projects.haskell.org" rel="nofollow">Mailing List</a>
+</dt><dd>Mailing list for `RandProc` users and developers
+</dd><dt><a href="http://code.haskell.org/RandProc/" class="external text" title="http://code.haskell.org/RandProc/" rel="nofollow">Source Code Tree</a>
+</dt><dd>Browsable source tree
+</dd><dt>Darcs repository
+</dt><dd><code>darcs get <a href="http://code.haskell.org/RandProc/" class="external free" title="http://code.haskell.org/RandProc/" rel="nofollow">http://code.haskell.org/RandProc/</a></code>
+</dd></dl>
+
+<!-- 
+NewPP limit report
+Preprocessor node count: 14/1000000
+Post-expand include size: 0/2097152 bytes
+Template argument size: 0/2097152 bytes
+-->
+
+<!-- Saved in parser cache with key wikidb:pcache:idhash:6926-0!1!0!1!en!2!edit=0 and timestamp 20130322113213 -->
+<div class="printfooter">
+Retrieved from "<a href="http://www.haskell.org/haskellwiki/Random_Processes">http://www.haskell.org/haskellwiki/Random_Processes</a>"</div>
+			<p class='catlinks'><a href="/haskellwiki/Special:Categories" title="Special:Categories">Categories</a>: <span dir='ltr'><a href="/haskellwiki/Category:Libraries" title="Category:Libraries">Libraries</a></span> | <span dir='ltr'><a href="/haskellwiki/Category:Packages" title="Category:Packages">Packages</a></span> | <span dir='ltr'><a href="/haskellwiki/Category:Mathematics" title="Category:Mathematics">Mathematics</a></span></p>			<!-- end content -->
+						<div class="visualClear"></div>
+		</div>
+	</div>
+		</div></div>
+		<div id="column-one">
+	<script type="text/javascript"> if (window.isMSIE55) fixalpha(); </script>
+	<div class='generated-sidebar portlet' id='p-navigation'>
+		<h5>Navigation</h5>
+		<div class='pBody'>
+			<ul>
+				<li id="n-mainpage"><a href="/haskellwiki/Haskell" title="Visit the Main Page [z]" accesskey="z">Haskell</a></li>
+				<li id="n-portal"><a href="/haskellwiki/HaskellWiki:Community" title="About the project, what you can do, where to find things">Wiki community</a></li>
+				<li id="n-recentchanges"><a href="/haskellwiki/Special:Recentchanges" title="The list of recent changes in the wiki. [r]" accesskey="r">Recent changes</a></li>
+				<li id="n-randompage"><a href="/haskellwiki/Special:Random" title="Load a random page [x]" accesskey="x">Random page</a></li>
+			</ul>
+		</div>
+	</div>
+	<div class="portlet" id="p-tb">
+		<h5>Toolbox</h5>
+		<div class="pBody">
+			<ul>
+				<li id="t-whatlinkshere"><a href="/haskellwiki/Special:Whatlinkshere/Random_Processes" title="List of all wiki pages that link here [j]" accesskey="j">What links here</a></li>
+				<li id="t-recentchangeslinked"><a href="/haskellwiki/Special:Recentchangeslinked/Random_Processes" title="Recent changes in pages linked from this page [k]" accesskey="k">Related changes</a></li>
+<li id="t-upload"><a href="/haskellwiki/Special:Upload" title="Upload files [u]" accesskey="u">Upload file</a></li>
+<li id="t-specialpages"><a href="/haskellwiki/Special:Specialpages" title="List of all special pages [q]" accesskey="q">Special pages</a></li>
+				<li id="t-print"><a href="/haskellwiki/index.php?title=Random_Processes&amp;printable=yes" rel="alternate" title="Printable version of this page [p]" accesskey="p">Printable version</a></li>				<li id="t-permalink"><a href="/haskellwiki/index.php?title=Random_Processes&amp;oldid=40682" title="Permanent link to this version of the page">Permanent link</a></li>			</ul>
+		</div>
+	</div>
+		</div><!-- end of the left (by default at least) column -->
+			<div class="visualClear"></div>
+			<div id="footer">
+				<div id="f-poweredbyico"><a href="http://www.mediawiki.org/"><img src="/wikistatic/skins//common/images/poweredby_mediawiki_88x31.png" alt="Powered by MediaWiki" /></a></div>
+			<ul id="f-list">
+					<li id="lastmod"> This page was last modified 00:10, 28 June 2011.</li>
+					<li id="viewcount">This page has been accessed 1,996 times.</li>
+					<li id="copyright">Recent content is available under <a href="/haskellwiki/HaskellWiki:Copyrights" title="HaskellWiki:Copyrights">a simple permissive license</a>.</li>
+					<li id="privacy"><a href="/haskellwiki/HaskellWiki:Privacy_policy" title="HaskellWiki:Privacy policy">Privacy policy</a></li>
+					<li id="about"><a href="/haskellwiki/HaskellWiki:About" title="HaskellWiki:About">About HaskellWiki</a></li>
+					<li id="disclaimer"><a href="/haskellwiki/HaskellWiki:General_disclaimer" title="HaskellWiki:General disclaimer">Disclaimers</a></li>
+			</ul>
+		</div>
+</div>
+
+		<script type="text/javascript">if (window.runOnloadHook) runOnloadHook();</script>
+<!-- Served in 0.207 secs. --><script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-15375175-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</body></html>

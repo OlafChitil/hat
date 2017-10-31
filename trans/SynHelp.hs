@@ -4,7 +4,7 @@
 
 module SynHelp (module SynHelp, noSpan) where
 
-import Language.Haskell.Exts.Annotated 
+import Language.Haskell.Exts
 import Wired (nameTransModule,tracingModuleNameShort,Arity(..),noSpan)
 import Data.Char (isAlpha)
 import Data.List (stripPrefix)

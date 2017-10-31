@@ -1,51 +1,51 @@
-module Main where	-- HatTrail main program
+module Main where       -- HatTrail main program
 
-import LowLevel		(openHatFile,getBridgeValue,hatVersionNumber
-			,FileNode(..),nil,peekTrace,getResult,getParentNode
-			,getErrorLoc,getErrorMessage
-			,getSrcRef,getDefnRef)
-import SrcRef		(SrcRef(..),readSrcRef,defnSrcRef)
-import Ident		(Ident,getIdentAt)
-import SExp		(SExp(..),Label,fileNode2SExp,sExp2Doc,arity,child
-			,label,rebuild,children,parent,prune,funId,funLabel
-			,QName(..),showQN)
+import LowLevel         (openHatFile,getBridgeValue,hatVersionNumber
+                        ,FileNode(..),nil,peekTrace,getResult,getParentNode
+                        ,getErrorLoc,getErrorMessage
+                        ,getSrcRef,getDefnRef)
+import SrcRef           (SrcRef(..),readSrcRef,defnSrcRef)
+import Ident            (Ident,getIdentAt)
+import SExp             (SExp(..),Label,fileNode2SExp,sExp2Doc,arity,child
+                        ,label,rebuild,children,parent,prune,funId,funLabel
+                        ,QName(..),showQN)
 import PrettyLibHighlight (Doc,pretty,nest,text,(<>))
 import qualified PrettyLibHighlight as Pretty (highlight)
-import HighlightStyle	(goto,cls,clearDown,clearUp,cleareol,highlightOff
-			,highlight,Highlight(..),Colour(..)
-			,enableScrollRegion,getTerminalSize
-			,savePosition,restorePosition)
+import HighlightStyle   (goto,cls,clearDown,clearUp,cleareol,highlightOff
+                        ,highlight,Highlight(..),Colour(..)
+                        ,enableScrollRegion,getTerminalSize
+                        ,savePosition,restorePosition)
 import qualified Control.Exception(catch,IOException)
-import Control.Monad	(when,liftM)
+import Control.Monad    (when,liftM)
 import System.Process   (system)
 import System.Environment (getArgs,getProgName,getEnv)
 import System.Exit      (exitWith,ExitCode(..))
-import System.Directory	(doesFileExist)
-import Data.List	(isPrefixOf,isSuffixOf,group,groupBy)
-import System.IO	(hSetBuffering,BufferMode(..),stdin,stdout,stderr
-			,hPutStrLn,hFlush)
-import Numeric	        (showHex)
+import System.Directory (doesFileExist)
+import Data.List        (isPrefixOf,isSuffixOf,group,groupBy)
+import System.IO        (hSetBuffering,BufferMode(..),stdin,stdout,stderr
+                        ,hPutStrLn,hFlush)
+import Numeric          (showHex)
 import Foreign.C.String (withCString)
-import CommonUI		(hatTrail,hatObserve,hatDetect,hatAnim,hatView
+import CommonUI         (hatTrail,hatObserve,hatDetect,hatAnim,hatView
                         ,hatExplore
-			,Options(..),initialOptions
-			,OptionCmd(..),optionCmd,onOff,number
-			,optionsUpdate,showOption,showOnOff)
+                        ,Options(..),initialOptions
+                        ,OptionCmd(..),optionCmd,onOff,number
+                        ,optionsUpdate,showOption,showOnOff)
 
 
 -- The recurring state within the main loop of the program contains
 -- the .hat filename, the terminal width and height, preferred
 -- highlighting styles, etc.
 data State = State
-	{ file      :: FilePath		-- .hat filename
-	, width     :: Int		-- terminal screen size
-	, height    :: Int		-- terminal screen size
-	, startLine :: Int		-- first line of the trail pane
-        , styleNew  :: [Highlight]	-- highlight for current subexpr
-        , styleOld  :: [Highlight]	-- highlight for previous subexprs
-	, srcrefs   :: Bool		-- always show src references?
-	, options   :: Options		-- common configurable display options
-	}
+        { file      :: FilePath         -- .hat filename
+        , width     :: Int              -- terminal screen size
+        , height    :: Int              -- terminal screen size
+        , startLine :: Int              -- first line of the trail pane
+        , styleNew  :: [Highlight]      -- highlight for current subexpr
+        , styleOld  :: [Highlight]      -- highlight for previous subexprs
+        , srcrefs   :: Bool             -- always show src references?
+        , options   :: Options          -- common configurable display options
+        }
 
 setState :: Mode -> State -> State
 setState (O o)       state = state {options=optionsUpdate o (options state)}
@@ -79,7 +79,7 @@ main = do
                                           , [Bold,Foreground Magenta] ))
     (columns,lines) <- getTerminalSize
     let state = State { file=hatfile, width=columns, height=lines, startLine=0
-	              , srcrefs=True, styleOld=style0, styleNew=style1
+                      , srcrefs=True, styleOld=style0, styleNew=style1
                       , options=initialOptions {equations=False} }
     hSetBuffering stdin NoBuffering
     hSetBuffering stdout NoBuffering
@@ -244,7 +244,7 @@ chooseFromOutput state errloc errmsg output bridge =
             size | isError && i<=chunkSize = lenError+chunkSize
                  | otherwise               = chunkSize
         in
-        concatMap (\n-> goto 1 n ++ cleareol)	-- clean output window
+        concatMap (\n-> goto 1 n ++ cleareol)   -- clean output window
                   [2+lenError .. startLine-2]
         ++ goto 1 2
         -- previously had   safeUnlines (width state) ...
@@ -540,9 +540,9 @@ moveSelection ListRight ctx | otherwise = ctx
 -- Paint a single stack element (Int,Sctx) to a String.  While we're
 -- at it, most callers want to know how many lines are used by the string.
 paintOne :: State
-            -> (State -> Label -> Label -> Doc -> Doc)	-- subexpr highlighter
-            -> Sctx					-- abstract expression
-            -> (Int,String,SExp Label)	-- (length, text, squashed expr)
+            -> (State -> Label -> Label -> Doc -> Doc)  -- subexpr highlighter
+            -> Sctx                                     -- abstract expression
+            -> (Int,String,SExp Label)  -- (length, text, squashed expr)
 paintOne state high ctx@(Sctx node _) =
     -- Find the root of the S-expr, then make it fit on the screen
     (squash state (high state (label node)) (cutoffDepth (options state))
@@ -555,10 +555,10 @@ paintOne state high ctx@(Sctx node _) =
     squash state high cut s =
         let       -- cut-down the expression to size
             exp = prune cut s
-    	      -- paint SExp as a Doc, highlighting current subtree node
+              -- paint SExp as a Doc, highlighting current subtree node
             doc = sExp2Doc False (listSugar (options state))
                            (showQual (options state)) high exp
-    	      -- and then pretty-print it, with introductory marker
+              -- and then pretty-print it, with introductory marker
             str = pretty (width state - 2) (text "<- " <> nest 3 doc)
             len = length (lines str)
         in        -- now does it fit?
@@ -593,7 +593,7 @@ repaint state [] =
 repaint state ((expBegin,exp):stack) =
     do putStr (goto 1 start ++ clearDown)
        putStr (goto 1 (expBegin-(offset`max`0)) ++ str)
-       if offset <= 0			-- everything fits on screen?
+       if offset <= 0                   -- everything fits on screen?
          then do putStr (goto 1 expBegin ++ str)
                  mapM_ paintAll stack
          else do putStr (goto 1 (expBegin-offset) ++ str)
@@ -602,7 +602,7 @@ repaint state ((expBegin,exp):stack) =
   where
     start = startLine state
     extent = expBegin + len
-    offset = extent - height state	-- reduce absolute linenums to fit
+    offset = extent - height state      -- reduce absolute linenums to fit
     (len,str,_) = paintOne state highlightNewSelection exp -- most recent item
 
     paintAll i@(lineno,exp) =
@@ -616,9 +616,9 @@ repaint state ((expBegin,exp):stack) =
     partial [] = ""
     partial ((lineno,exp):rest) =
         let adjusted = lineno - offset in
-        if adjusted > start then partial rest	-- keep looking
-        else if adjusted == start then ""	-- no partial trail
-        else ( unlines				-- partial trail
+        if adjusted > start then partial rest   -- keep looking
+        else if adjusted == start then ""       -- no partial trail
+        else ( unlines                          -- partial trail
              . drop (start - adjusted)
              . lines
              . (\(_,x,_)->x)
@@ -643,8 +643,8 @@ resize state stack =
             extent = lineno + len
         in do
         if (extent < height state)
-          then putStrLn (goto 1 lineno ++ str)	-- either careful placement
-          else putStrLn str		-- or allow bottom of screen to scroll
+          then putStrLn (goto 1 lineno ++ str)  -- either careful placement
+          else putStrLn str             -- or allow bottom of screen to scroll
         paint state extent ((lineno,ctx):acc) stack
 
 
@@ -724,8 +724,8 @@ getCommand state = do
       '='    -> return Result
       '<'    -> return (Movement JumpL)
       '>'    -> return (Movement JumpR)
-      ','    -> return (Movement JumpL)	-- unshifted <
-      '.'    -> return (Movement JumpR)	-- unshifted >
+      ','    -> return (Movement JumpL) -- unshifted <
+      '.'    -> return (Movement JumpR) -- unshifted >
       '['    -> return (Movement JumpL)
       ']'    -> return (Movement JumpR)
    -- '['    -> return (Movement ListLeft)

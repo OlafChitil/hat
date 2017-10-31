@@ -86,8 +86,8 @@ hatCover hatfile moduleNames = do
     let srs = [ convert sr |
                 (fn,nt) <- nodes, isCover nt,
                 let srn = getSrcRef fn, srn /= FileNode 0,
-		let sr = readSrcRef srn, line sr /= 0,
-		null moduleNames || filename sr `elem` moduleNames ]
+                let sr = readSrcRef srn, line sr /= 0,
+                null moduleNames || filename sr `elem` moduleNames ]
     return [(a, flatten b) | (a,b) <- addAll srs []]
 
 

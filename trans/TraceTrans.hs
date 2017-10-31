@@ -17,7 +17,7 @@ of the result tuples are the synthetic attributes.
 
 module TraceTrans (traceTrans, Tracing(..)) where
 
-import Language.Haskell.Exts.Annotated
+import Language.Haskell.Exts
 import System.FilePath (FilePath,takeBaseName)
 import Data.Maybe (fromMaybe,isNothing,isJust,fromJust)
 import Data.List (stripPrefix,nubBy,partition)
@@ -164,23 +164,23 @@ tExportSpec :: Environment -> [Decl SrcSpanInfo] ->
                String ->  -- name of *this* module, being transformed
                ExportSpec SrcSpanInfo ->
                [ExportSpec SrcSpanInfo]
-tExportSpec env _ _ (EVar span nameSpace qname) = 
-  map (EVar span nameSpace) (tEntityVar env qname)
-tExportSpec env _ _ (EAbs span qname) =
-  map (EAbs span) qnames'
+tExportSpec env _ _ (EVar span qname) = 
+  map (EVar span) (tEntityVar env qname)
+tExportSpec env _ _ (EAbs span namespace qname) =
+  map (EAbs span namespace) qnames'
   where
   qnames' = tEntityAbs env qname
-tExportSpec env decls thisModule (EThingAll span qName) 
-  | isClass e = [EThingAll span (nameTransCls qName)]
-  | isType e = tExportSpec env decls thisModule 
-                 (EThingWith span qName (map conName (eCons e) ++ map fieldName (eFields e)))
-  | otherwise = error "TraceTrans.tExportSpec: type synonym with (..)."
-  where
-  e = lookupTypeEnv env qName
-  conName str = ConName span (Symbol span str)
-  fieldName str = VarName span (Ident span str)
-tExportSpec env _ _ (EThingWith span qname cnames) =
-  EThingWith span qname' cnames' : map (EVar span (NoNamespace span)) qnames'
+-- tExportSpec env decls thisModule (EThingAll span qName) 
+--   | isClass e = [EThingAll span (nameTransCls qName)]
+--   | isType e = tExportSpec env decls thisModule 
+--                  (EThingWith span qName (map conName (eCons e) ++ map fieldName (eFields e)))
+--   | otherwise = error "TraceTrans.tExportSpec: type synonym with (..)."
+--   where
+--   e = lookupTypeEnv env qName
+--   conName str = ConName span (Symbol span str)
+--   fieldName str = VarName span (Ident span str)
+tExportSpec env _ _ (EThingWith span wildcard qname cnames) =
+  EThingWith span wildcard qname' cnames' : map (EVar span) qnames'
   where
   (qname', cnames', qnames') = tEntityThingWith env qname cnames
 tExportSpec env decls thisModuleId 
@@ -193,21 +193,21 @@ tExportSpec env decls thisModuleId
 -- These are all entities defined in this module and meant for export.
 makeExport :: Decl SrcSpanInfo -> [ExportSpec SrcSpanInfo]
 makeExport (TypeDecl l declHead _) = 
-  [EAbs l (UnQual l (getDeclHeadName declHead))]
-makeExport (TypeFamDecl l declHead _) = 
-  [EAbs l (UnQual l (getDeclHeadName declHead))]
+  [EVar l (UnQual l (getDeclHeadName declHead))]
+makeExport (TypeFamDecl l declHead _ _) = 
+  [EVar l (UnQual l (getDeclHeadName declHead))]
 makeExport (DataDecl l _ _ declHead _ _) =
-  [EThingAll l (UnQual l (getDeclHeadName declHead))]
+  [EThingWith l (EWildcard l 0) (UnQual l (getDeclHeadName declHead)) []]
 makeExport (GDataDecl l _ _ declHead _ _ _) =
-  [EThingAll l (UnQual l (getDeclHeadName declHead))]
+  [EThingWith l (EWildcard l 0) (UnQual l (getDeclHeadName declHead)) []]
 makeExport (ClassDecl l _ declHead _ _) =
-  [EThingAll l (UnQual l (getDeclHeadName declHead))]
+  [EThingWith l (EWildcard l 0) (UnQual l (getDeclHeadName declHead)) []]
 makeExport (FunBind l matches) =
-  if exportedTransName name then [EVar l (NoNamespace l) (UnQual l name)] else []
+  if exportedTransName name then [EVar l (UnQual l name)] else []
   where
   name = getMatchName (head matches)
 makeExport (PatBind l (PVar l' name) _ _) =
-  if exportedTransName name then [EVar l (NoNamespace l) (UnQual l name)] else []
+  if exportedTransName name then [EVar l (UnQual l name)] else []
 makeExport _ = []
 
 -- Checks whether this is the name of a function that should be exported 
@@ -285,12 +285,12 @@ tImportSpecList env (ImportSpecList l hiding importSpecs) =
       
 -- Nearly identical with tExportSpec except for the types.  
 tImportSpec :: Environment -> ImportSpec SrcSpanInfo -> [ImportSpec SrcSpanInfo] 
-tImportSpec env (IVar span nameSpace name) = 
-  map (IVar span nameSpace . qName2Name) qnames'
+tImportSpec env (IVar span name) = 
+  map (IVar span . qName2Name) qnames'
   where
   qnames' = tEntityVar env (UnQual (ann name) name)
-tImportSpec env (IAbs span name) =
-  map (IAbs span . qName2Name) qnames'
+tImportSpec env (IAbs span namespace name) =
+  map (IAbs span namespace . qName2Name) qnames'
   where
   qnames' = tEntityAbs env (UnQual (ann name) name)
 tImportSpec env (IThingAll span name) 
@@ -304,7 +304,7 @@ tImportSpec env (IThingAll span name)
   fieldName str = VarName span (mkName span str)
 tImportSpec env (IThingWith span name cnames) =
   IThingWith span (qName2Name qname') cnames' : 
-    map (IVar span (NoNamespace span) . qName2Name) qnames'
+    map (IVar span . qName2Name) qnames'
   where
   (qname', cnames', qnames') = 
     tEntityThingWith env (UnQual (ann name) name) cnames
@@ -573,7 +573,7 @@ tDecl env _ _ synDecl@(TypeDecl span declHead ty) =
   tTypeSynonym :: Decl SrcSpanInfo -> Decl SrcSpanInfo
   tTypeSynonym (TypeDecl span declHead ty) =
     TypeDecl span (declHead) (tType ty)
-tDecl _ _ _ (TypeFamDecl l _ _) =
+tDecl _ _ _ (TypeFamDecl l _ _ _) =
   notSupported l "type family declaration"
 tDecl env Global tracing d@(DataDecl span dataOrNew maybeContext declHead 
                                qualConDecls maybeDeriving) =
@@ -1246,9 +1246,9 @@ tClassDecl env tracing (ClsDecl l decl) =
   (decls', moduleConsts) = tClassInstDecl env tracing decl
 tClassDecl env tracing (ClsDataFam l _ _ _) = 
   notSupported l "declaration of an associated data type"
-tClassDecl env tracing (ClsTyFam l _ _) =
+tClassDecl env tracing (ClsTyFam l _ _ _) =
   notSupported l "declaration of an associated type synonym"
-tClassDecl env tracing (ClsTyDef l _ _) =
+tClassDecl env tracing (ClsTyDef l _) =
   notSupported l "default choice for an associated type synonym"
 
 -- Transform a standard declaration inside a class or instance declaration.

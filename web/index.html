@@ -1,0 +1,303 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta name="keywords" content="" />
+        <meta name="description" content="" />
+        <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+		<title>The Haskell Tracer Hat</title>
+        <link href="http://fonts.googleapis.com/css?family=Bitter" rel="stylesheet" type="text/css" />
+		<link rel="stylesheet" type="text/css" href="style.css" />
+    </head>
+    <body>
+<div id="bg">
+<div id="outer">
+ <div id="header">
+ <div id="logo">
+        <h1>Hat - generating and viewing traces</h1>
+ </div>
+ </div>
+<div id="main">
+<div id="content">
+
+<img class="left" src="HaskellLogo.png" alt="Haskell Logo" />
+
+<p>Hat is a source-level tracer for the programming language <a href="http://www.haskell.org">Haskell</a>. Hat gives access to detailed, otherwise invisible information about a computation.</p>
+
+<p>Hat helps locating errors in programs. Furthermore, it is useful for understanding how a (correct) program works, especially for teaching and program maintenance. Hat is not a time or space profiler. Hat can be used for programs that terminate normally, that terminate with an error message or that terminate when interrupted by the programmer.</p>
+
+<h1>How do I use it?</h1>
+
+<p>Tracing a program with Hat consists of two phases: </p>
+
+<p>First you run your program such that it additionally writes a trace to file. 
+To do so you use <em>hat-trans</em> to translate all the source modules <em>Module</em> of your Haskell program into tracing versions <em>Hat.Module</em>. You compile these and when run the program does exactly the same as the original program except for additionally writing a trace to file.</p>
+
+<p>Second, after the program has terminated, you view the trace with a browsing tool. The trace consists of high-level information about the computation. It describes each reduction, that is, the replacements of an instance of a left-hand side of an equation by an instance of its right-hand side, and the relation of the reduction to other reductions. Because the trace describes the whole computation, it is huge. Hat comes with several tools to selectively view the fragments of the trace that are of interest. Each tool shows fragments of the computation in a particular way, highlighting a specific aspect.</p>
+
+<h1>How can I view a trace?</h1>
+
+<p>All tools show function arguments in evaluated form, more precisely: as
+far evaluated as the arguments are at the end of the computation. For
+example, although in a computation the unevaluated expression <kbd>(map
+(+5) [1,2])</kbd> might be passed to the function <kbd>length</kbd>,
+the tools will show the function application as <kbd>length
+[1+5,2+5]</kbd> or <kbd>length [_,_]</kbd>.</p>
+
+<p></p><p>
+For example, the computation of the faulty program</p>
+
+<pre>
+main = let xs :: [Int]
+           xs = [4*2,5 `div` 0,5+6]
+       in  print (head xs,last' xs)
+
+last' (x:xs) = last' xs
+last' [x] = x
+</pre>
+
+<p>gives the result</p>
+
+<pre>
+(8, No match in pattern.
+</pre>
+
+<p>and the Hat viewing tools can be used to explore its behaviour as follows:</p>
+
+<h2>Hat-observe (inspired by <a href="http://www.ittc.ku.edu/csdl/fpg/Tools/Hood">Hood</a>)</h2>
+
+<p>Hat-observe is an interactive tool that shows how top-level functions
+are used.  That is, for a given top-level function name it shows
+all the arguments with which it is called during the computation,
+together with the respective results.</p>
+
+<pre>
+$ hat-observe Example
+
+                hat-observe 2.04    (:h for help, :q to quit)
+
+hat-observe&gt; main
+1  main = IO (print (8,_|_))
+hat-observe&gt; print
+1  print (8,_|_) = IO (print (8,_|_))
+hat-observe&gt; last'
+1  last' [8,_,_] = _|_
+2  last' [_,_] = _|_
+3  last' [_] = _|_
+4  last' [] = _|_
+hat-observe&gt; :quit
+$
+</pre>
+
+<p></p><p></p>
+
+<h2>Hat-trail</h2>
+
+<p>Hat-trail is an interactive tool that enables exploring a computation
+<em>backwards</em>, starting at the program output or an error message
+(with which the computation aborted).  This is particularly useful
+for locating an error.  You start at the observed faulty behaviour
+and work backwards towards the source of the error.</p>
+
+<p></p><p>
+Every reduction replaces an instance of the left-hand side of a program
+equation by an instance of its right-hand side. The instance of the
+left-hand side ``creates'' the instance of the right-hand side and is
+therefore called its <em>parent</em>. With hat-trail you can obtain
+the parent of any expression.</p>
+
+<p></p><p>
+Each line of the trail is the parent of the highlighted
+subexpression directly above it.</p>
+
+<pre>
+<strong>Error: -------------------------------------------------------</strong>
+No match in pattern.
+<strong>Output: ------------------------------------------------------</strong>
+(8,
+<strong>Trail: ---------------------- </strong>Example.hs line: 2 col: 12<strong> -----</strong>
+&lt;- last' []
+&lt;- last' [_]
+&lt;- last' [_,_]
+&lt;- last' [8,_,_]
+&lt;- 4 * 2
+&lt;- <strong>xs</strong>
+</pre>
+
+<p></p><p>
+Here, the error message is chosen as the starting point, rather
+than any of the output.  The first trail is therefore
+<kbd>last' []</kbd>, because its evaluation caused the error message.
+The parent of <kbd>last' []</kbd> is
+<kbd>last' [_]</kbd>.  The parent of <kbd>last' [_]</kbd>
+is <kbd>last' [_,_])</kbd>, etc. The parent of the
+subexpression <kbd>8</kbd> is <kbd>4*2</kbd> whose parent is
+<kbd>xs</kbd>.
+</p><p></p>
+
+<h2>Hat-explore</h2>
+
+<p>Hat-explore allows you to step through a computation. Like a conventional debugger hat-explore highlights your current position in the computation in the program source and shows a stack backtrace of function calls. In contrast to conventional debuggers you are free of the actual evaluation order when stepping through the computation. From any function call you can go down to any further function called by it, to a function call in the same function definition, or upwards to the caller of the current function call. 
+</p><p>
+Because arguments and the result are shown for each function call, it is easier to determine which function is incorrect. You can also mark reductions as correct/incorrect which enables the tool to pinpoint the bug to a smaller and smaller slice of the program.
+
+<pre>
+<strong>==== Hat-Explore 2.04 ==== Press h for help. ===================</strong>
+ 1. main = {IO}
+ 2. last' [8,_,_] = _|_
+ 3. last' [_,_] = _|_
+ 4. last' [_] = _|_
+ 5. last' [] = _|_
+<strong>---- Last.hs ---- lines 1 to 7 ---------------------------------</strong>
+
+main = let xs :: [Int]
+           xs = [4*2,5 `div` 0,5+6]
+       in  print (head xs,last' xs)
+
+last' (x:xs) = last' xs
+last' [x] = x
+</pre>
+</p>
+
+<h2>Hat-detect (inspired by Freja)</h2>
+
+<p>Hat-detect is an interactive tool that enables the semi-automatic
+location of an error in a program by answering a sequence of yes/no
+questions.  Each question asked by hat-detect concerns the reduction
+of a redex - that is, a function application - to a value.  You have to
+answer <em>yes</em>, if the reduction is correct with respect to your
+intentions, and <em>no</em> otherwise.  After a number of questions
+hat-detect states which reduction is the cause of the observed faulty
+behaviour - that is, which function definition is incorrect.</p>
+
+<p></p><p>
+Example session (y/n answers are given by the user):</p>
+
+<pre>
+$ hat-detect Example
+
+                hat-detect 2.0x    (:h for help, :q to quit)
+
+1  main = IO (print [3,3,3])   ? n
+2  sort [3,2,1] = [3,3,3]   ? n
+3  insert 1 [] = [1]     ? y
+4  insert 2 [1] = [2,2]     ? n
+5  insert 2 [] = [2]     ? y
+
+Error located!
+Bug found in reduction:   insert 2 [1] = [2,2]
+</pre>
+
+<p></p><p></p>
+
+<h2>Hat-stack</h2>
+
+<p>For aborted computations, that is computations that terminated
+with an error message or were interrupted, hat-stack shows in which
+function call the computation was aborted.  It does so by showing a
+<em>virtual</em> stack of function calls (redexes).  Thus, every function
+call shown on the stack caused the function call above it. The evaluation
+of the top stack element caused the error (or during its evaluation
+the computation was interrupted).  The stack shown is <em>virtual</em>,
+because it does not correspond to the actual runtime stack.  The actual
+runtime stack enables lazy evaluation whereas the <em>virtual</em>
+stack corresponds to a stack that would be used for eager (strict)
+evaluation.</p>
+
+<p></p><p>
+Using the same example program as above, hat-stack shows</p>
+
+<pre>
+$ hat-stack Example
+Program terminated with error:
+        No match in pattern.
+Virtual stack trace:
+(Last.hs:6)     last' []
+(Last.hs:6)     last' [_]
+(Last.hs:6)     last' [_,_]
+(Last.hs:4)     last' [8,_,_]
+(unknown)       main
+$
+</pre>
+
+<p></p><p></p>
+
+<h1>Language Coverage</h1>
+
+<p>Originally Hat was built to trace programs written in Haskell 98, using the Haskell 98 standard libraries. Hat now also supports most of Haskell 2010 (only part of the foreign function interface) plus some language extensions, such as multi-parameter type classes and functional dependencies.</p>
+
+<h1>Documentation</h1>
+
+<p>In the distribution there is documentation in the "docs" folder. Some of it is outdated (installation!), but the tools are basically described correctly.
+There are a few small programs for exploring tracing in the "examples" folder.</p>
+
+<ul><li>
+<a href="http://projects.haskell.org/hat/docs">Documentation in the
+  "docs" folder</a>
+</li></ul>
+
+<h1>Development</h1>
+
+<p>The <a href="https://github.com/OlafChitil/hat">code repository for
+Hat</a> is on Github. There are usually several branches, some of
+which may not compile.</p>
+
+<p>The following work is ongoing or planned:</p>
+
+<ul>
+<li>The source-to-source transformation of hat-trans is being rewritten to use the haskell-src-exts parser. Thus small bugs of the current parser will disappear and in the future it will be easier to cover more Haskell language extensions.
+</li>
+<li>When a traced program uses any libraries besides the standard Haskell 98 / 2010 ones, these libraries currently have to be manually transformed (in trusted mode). A new tool will be built to easily wrap any existing libraries such that they can be used by a traced program (without tracing the computations inside the libraries).
+</li>
+<li>All viewing tools use a textual interface; however, many tools use some Unix-specific features and thus run on Unix / Linux / OS X, but not on Windows. The tools will be modified to use only libraries for their user interfaces that work also on Windows.
+</li>
+</ul>
+
+<h1>Download &amp; Installation</h1>
+
+<p>Don't download from Git. Hat is available as a package from <a href="http://hackage.haskell.org/package/hat">Hackage</a>.
+Ensure that you have the Glasgow Haskell compiler <a href="http://www.haskell.org/ghc">ghc</a> and the package manager <a href="http://www.haskell.org/cabal">cabal</a>. You can get both easily by installing the <a href="http://www.haskell.org/platform">Haskell Platform</a>. Then execute</p>
+
+<pre>
+$ cabal install hat -v
+</pre>
+
+<p>Flag -v allows you to see what is going on. Building takes a long time 
+(one module has 25.000 lines of code). Don't worry about numerous warning messages.</p>
+
+<p>Use:
+<pre>
+$ hat-make MyProgram.hs
+</pre>
+to transform and compile all modules of your program and produce the tracing
+version Hat/MyProgram.</p>
+
+<p>Run your program
+<pre>
+Hat/MyProgram
+</pre>
+which will produce the trace files MyProgram.hat*</p>
+
+<p>Use the viewing tools to explore the trace:
+<pre>
+$ hat-trail / hat-observe / hat-explore /...   MyProgram
+</pre>
+</p>
+
+<h1>Comments and Suggestions</h1>
+
+<p>Please leave your comments and suggestions on the <a
+href="http://github.com/OlafChitil/hat/wiki">Hat Wiki</a>.
+
+						<br class="clear" />
+					</div>
+					<br class="clear" />
+				</div>
+			</div>
+			<div id="copyright">
+				&copy; 2013 Hat Team | Design by <a href="http://www.freecsstemplates.org/">FCT</a>
+			</div>
+		</div>
+    </body>
+</html>

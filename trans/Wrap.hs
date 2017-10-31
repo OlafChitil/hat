@@ -38,7 +38,7 @@ Should also consider it as an alternative, writing the wapper .hs file.
 --------------------------------------------------------------------------- -}
 module Wrap (wrap) where
 
-import Language.Haskell.Exts.Annotated
+import Language.Haskell.Exts
 import System.FilePath(FilePath)
 import SynHelp (nameFromOp,mkQual,declHeadName,declHeadTyVarBinds,getId
                ,isUnQual,getModuleNameFromModule,tyVarBind2Type,notSupported)
@@ -67,11 +67,11 @@ getExported (Just (ModuleHead l modName maybeWarningText (Just (ExportSpecList _
   \name -> (name `within`) `any` exportSpecs
   where
   within :: SrcInfo l2 => Name l1 -> ExportSpec l2 -> Bool
-  name `within` (EVar l (NoNamespace _) qname) = same modName name qname
-  name `within` (EVar l (TypeNamespace _) _) = notSupported l "type namespace in export specification"
-  name `within` (EAbs l qname) = same modName name qname
-  name `within` (EThingAll l qname) = same modName name qname
-  name `within` (EThingWith l qname cnames) = same modName name qname
+  name `within` (EVar l qname) = same modName name qname
+  name `within` (EAbs l (NoNamespace _) qname) = same modName name qname
+  name `within` (EAbs l _ qname) = notSupported l "type or pattern namespace in export specification"
+  name `within` (EThingWith l (NoWildcard _) qname cnames) = same modName name qname
+  name `within` (EThingWith l _ qname cnames) = notSupported l "wildcard in export specification"
   name `within` (EModuleContents l eModName) = getId modName == getId eModName
   same :: ModuleName l1 -> Name l2 -> QName l3 -> Bool
   same mod n q = getId n == getId q && (isUnQual q || (\(Qual _ qm qn) -> getId qm == getId mod) q)

@@ -115,7 +115,7 @@ data Doc = NIL | Doc :<> Doc
 
 data Token = Text String Int 
            | Delimiter String Int Int | FDelimiter String Int Int | Line Int 
-           | Open | Close		-- doc grouping
+           | Open | Close               -- doc grouping
            | StartHiLite [Highlight] | EndHiLite [Highlight]
            deriving Show
 

@@ -55,38 +55,38 @@ showQN _ (Plain n)           = showString n ""
 showQN False (Qualified q n) = showString n ""
 showQN True  (Qualified q n) = (showString q . showChar '.' . showString n) ""
 
-type Label = (String,FileNode)	-- The label on an SExp contains two components,
-				-- a unique string, and the file pointer.
-				-- The former enables unique highlighting, and
-				-- the latter enables highlighting of sharing.
+type Label = (String,FileNode)  -- The label on an SExp contains two components,
+                                -- a unique string, and the file pointer.
+                                -- The former enables unique highlighting, and
+                                -- the latter enables highlighting of sharing.
 
 data SExp a
-  = SApp a [SExp a]		-- n-ary application of at least 2 expressions
-  | SId a QName SFixity		-- an identifier (variable or constructor)
-  | SLiteral a String		-- any other kind of basic value
-  | SString a String Ellipsis	-- character strings have special sugar
-  | SWithin a [SExp a]		-- chains of if/case/guard inside an expression
-  | SLambda a			-- a lambda expression
-  | SDoLambda a			-- (internal) the lambda binding in a do stmt
+  = SApp a [SExp a]             -- n-ary application of at least 2 expressions
+  | SId a QName SFixity         -- an identifier (variable or constructor)
+  | SLiteral a String           -- any other kind of basic value
+  | SString a String Ellipsis   -- character strings have special sugar
+  | SWithin a [SExp a]          -- chains of if/case/guard inside an expression
+  | SLambda a                   -- a lambda expression
+  | SDoLambda a                 -- (internal) the lambda binding in a do stmt
   | SDoStmt a a (SExp a) (SExp a) -- do { val <- stmt }
-  | SIf a (SExp a) (Maybe (SExp a))	-- possibly contains result
+  | SIf a (SExp a) (Maybe (SExp a))     -- possibly contains result
   | SCase a (SExp a) (Maybe (SExp a))
   | SGuard a (SExp a) (Maybe (SExp a))
   | SFieldExpr a (SExp a) [String] [SExp a]
-				-- constructor value, or update
-  | SCut a			-- cut off subexpression (to limit depth)
-  | SUnevaluated a		-- underscore
-  | SInterrupted a		--  ^C  (expr entered but never completed)
-  | SBottom a			-- _|_  (expr entered but never completed)
-  | SCycle a String (SExp a)	-- cyclic expression shown as `id where id = ..'
+                                -- constructor value, or update
+  | SCut a                      -- cut off subexpression (to limit depth)
+  | SUnevaluated a              -- underscore
+  | SInterrupted a              --  ^C  (expr entered but never completed)
+  | SBottom a                   -- _|_  (expr entered but never completed)
+  | SCycle a String (SExp a)    -- cyclic expression shown as `id where id = ..'
   | SEquation a (SExp a) (SExp a)
-			-- an equation only makes sense as the root of an SExp
-  | SParens a (SExp a) Int	-- parenthesised expr
+                        -- an equation only makes sense as the root of an SExp
+  | SParens a (SExp a) Int      -- parenthesised expr
   | SInfinite a
   | SFiniteMap a [([SExp a],SExp a)]
-   deriving Show		-- only for testing/debugging
+   deriving Show                -- only for testing/debugging
 
-type Ellipsis = Bool		-- is a character string truncated?
+type Ellipsis = Bool            -- is a character string truncated?
 
 data SFixity = 
   SInfix Int | SInfixL Int | SInfixR Int | SAssoc Int String | SInfixDefault
@@ -245,7 +245,7 @@ fileNode2SExp cutoff uneval strings toplevelLHS labl =
   case go cutoff uneval strings toplevelLHS [] labl of (e,_,_) -> e  
   where
   simple e = (e,[],[])
-  go :: Int	            -- cutoff depth
+  go :: Int                 -- cutoff depth
      -> Bool                -- show unevaluated args in full?
      -> Bool                -- sugar character strings?
      -> Bool                -- top-level LHS? (implies uneval to one level)
@@ -305,9 +305,9 @@ fileNode2SExp cutoff uneval strings toplevelLHS labl =
             lbl c n = (c:lab, n)
             -- To do strings right, need to peek one level inside a cons.
             z1 = go 1 uneval strings False newNodesAbove
-                 ('1':lab, subExps!!1)	-- only used in string cutoff case
+                 ('1':lab, subExps!!1)  -- only used in string cutoff case
             z2 = go 3 uneval strings False newNodesAbove
-                 ('2':lab, subExps!!2)	-- only used in string cutoff case
+                 ('2':lab, subExps!!2)  -- only used in string cutoff case
 
             sexp = case fun of
               -- convert the representation of constructors with fields
@@ -323,7 +323,7 @@ fileNode2SExp cutoff uneval strings toplevelLHS labl =
                                     -> SString labl (init (tail c)) False
                       SString _ s d -> SString labl (init (tail c)++s) d
                       _             -> SApp labl (fun:args)
-                  SCut _ ->	-- peek beyond the cut
+                  SCut _ ->     -- peek beyond the cut
                     case fst3 z1 of
                       SLiteral _ c | not (null c) && head c == '\'' ->
                         case fst3 z2 of
@@ -402,7 +402,7 @@ fileNode2SExp cutoff uneval strings toplevelLHS labl =
               within :: Label -> (SExp Label->Maybe (SExp Label)->SExp Label)
                         -> SExp Label -> SExp Label -> SExp Label
               within labl kind parent exp =
-                case parent of	-- eliminate chains of SWithin
+                case parent of  -- eliminate chains of SWithin
                     SWithin _ ps -> SWithin labl (ps++[kind exp Nothing])
                     _            -> SWithin labl [parent,kind exp Nothing]
           in simple $
@@ -470,7 +470,7 @@ indentation = 2
 
 
 isOpSym :: String -> Bool
-isOpSym ""  = True	-- representation of the unit value ()
+isOpSym ""  = True      -- representation of the unit value ()
 isOpSym sym = let c = head sym in
               not (isAlpha c || c `elem` "[_{" || sym == "(\\..)") 
 
@@ -719,7 +719,7 @@ sExp2Doc colour sugar qual high = goDoc (SInfix (-1)) ARight
           ambiguous (SInterrupted _)    = True
           ambiguous (SInfinite _)       = True
           ambiguous (SBottom _)         = True
-          ambiguous _                   = True	-- shouldn't happen!
+          ambiguous _                   = True  -- shouldn't happen!
   -- Sets
   goDoc surFixity aPos ((SApp va [SId vf (Qualified "Data.Set" "MkSet") ownFixity,s]))
     = high va $ setDoc qual high surFixity aPos s

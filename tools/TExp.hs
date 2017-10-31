@@ -33,7 +33,7 @@ data TExp
 -- pre-order traversal
 linearise :: SExp a -> [TExp]
 linearise (SEquation x lhs rhs) = TEquation: linearise lhs
-					++ TRHS: linearise rhs
+                                        ++ TRHS: linearise rhs
 linearise (SApp _ es)      = TOpen: TApp: concatMap linearise es ++ [TClose]
 linearise (SId _ s _)      = [TId s]
 linearise (SLiteral _ s)   = [TLiteral s]

@@ -3,7 +3,7 @@
 -- produce all the instances demanded.
 module Derive (derive) where
 
-import Language.Haskell.Exts.Annotated 
+import Language.Haskell.Exts
 import Wired (mkExpDeriveEqualEqual,mkExpDeriveAndAnd,mkExpDeriveTrue,mkExpDeriveFalse,qNameBuiltinIdent)
 import SynHelp (Id(getId),appN,tyAppN,litInt,litString,litChar,conDeclName,conDeclArity
                ,mkQName, fieldDeclNames

@@ -8,11 +8,11 @@ module CommonUI
   , optionsUpdate, showOption, showOnOff
   ) where
 
-import Data.List	(isPrefixOf,isSuffixOf,intersperse)
-import Data.Char	(isDigit,digitToInt)
-import Numeric	        (readDec)
-import LowLevel	        (FileNode(..))
-import HighlightStyle	(highlight,Highlight(..))
+import Data.List        (isPrefixOf,isSuffixOf,intersperse)
+import Data.Char        (isDigit,digitToInt)
+import Numeric          (readDec)
+import LowLevel         (FileNode(..))
+import HighlightStyle   (highlight,Highlight(..))
 import SrcRef           (SrcRef(..))
 
 -- Links to other hat-tools
@@ -61,33 +61,33 @@ instance Show Keep where
 -- User-changeable display options
 data Options =
     Options
-	{ cutoffDepth   :: Int		-- expression auto-cutoff depth
-	, unevalMode    :: Bool		-- show unevaluated stuff in full?
-	, stringSugar   :: Bool		-- show strings with sugar?
-	, listSugar     :: Bool		-- show lists with sugar?
-	, recursiveMode	:: Bool		--
-	, colourBracks  :: Bool
-	, equations	    :: Bool		-- always show equations?
-	, showQual	    :: Bool		-- show identifiers qualified?
-	, filterMode	:: Keep		-- show duplicate equations?
-	}
+        { cutoffDepth   :: Int          -- expression auto-cutoff depth
+        , unevalMode    :: Bool         -- show unevaluated stuff in full?
+        , stringSugar   :: Bool         -- show strings with sugar?
+        , listSugar     :: Bool         -- show lists with sugar?
+        , recursiveMode :: Bool         --
+        , colourBracks  :: Bool
+        , equations         :: Bool             -- always show equations?
+        , showQual          :: Bool             -- show identifiers qualified?
+        , filterMode    :: Keep         -- show duplicate equations?
+        }
 initialOptions = Options
-	{ cutoffDepth	= 10
-	, unevalMode	= False
-	, stringSugar	= True
-	, listSugar	= True
-	, recursiveMode	= True
-	, colourBracks = False
-	, equations	= True
-	, showQual	= False
-	, filterMode	= Unique
-	}
+        { cutoffDepth   = 10
+        , unevalMode    = False
+        , stringSugar   = True
+        , listSugar     = True
+        , recursiveMode = True
+        , colourBracks = False
+        , equations     = True
+        , showQual      = False
+        , filterMode    = Unique
+        }
 
 -- Command interpreter for setting display options
 data OptionCmd
-	= Uneval Bool | Strings Bool | Lists Bool | Recursive Bool
-	| CutOff Int  | Deeper Int   | Shallower Int | Qualify Bool
-	| Filter Keep | Equations Bool
+        = Uneval Bool | Strings Bool | Lists Bool | Recursive Bool
+        | CutOff Int  | Deeper Int   | Shallower Int | Qualify Bool
+        | Filter Keep | Equations Bool
 
 optionCmd :: [String] -> Maybe OptionCmd
 optionCmd (s:ss)
@@ -134,7 +134,7 @@ optionsUpdate (Recursive b) opts  =  opts { recursiveMode = b }
 optionsUpdate (CutOff n)    opts  =  opts { cutoffDepth = n }
 optionsUpdate (Deeper n)    opts  =  opts { cutoffDepth = cutoffDepth opts + n }
 optionsUpdate (Shallower n) opts  =  opts { cutoffDepth =
-						 max (cutoffDepth opts - n) 1 }
+                                                 max (cutoffDepth opts - n) 1 }
 optionsUpdate (Qualify b)   opts  =  opts { showQual = b }
 optionsUpdate (Filter k)    opts  =  opts { filterMode = k }
 optionsUpdate (Equations b) opts  =  opts { equations = b }

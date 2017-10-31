@@ -1,4 +1,4 @@
-module Main where	-- HatAnim main program
+module Main where       -- HatAnim main program
 
 import Data.Char          (toLower)
 import LowLevel           (openHatFile,getBridgeValue,hatVersionNumber

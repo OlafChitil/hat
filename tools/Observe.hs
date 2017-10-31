@@ -4,10 +4,10 @@ module Observe
   ,   isNotFound
   ,   isInterrupted
   ,   fromFound
-  , newObservation	-- :: QName -> Maybe QName -> Bool -> Int
-			--      -> ObserveResult
-  , newObservationSrc	-- :: String -> Int -> Int -> ObserveResult
--- , observableInfo	-- :: Int -> IO ()
+  , newObservation      -- :: QName -> Maybe QName -> Bool -> Int
+                        --      -> ObserveResult
+  , newObservationSrc   -- :: String -> Int -> Int -> ObserveResult
+-- , observableInfo     -- :: Int -> IO ()
   ) where
 
 import LowLevel

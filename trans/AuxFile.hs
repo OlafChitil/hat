@@ -3,7 +3,7 @@ module AuxFile (readAuxFiles,writeAuxFile) where
 import Flags(Flags,sIncludes,sPreludes,sDbgTrusted)
 import Environment(Environment,Entity,HxEntity,exports,imports,hxEnvironmentToList,listToHxEnvironment)
 import Relation(unionRelations)
-import Language.Haskell.Exts.Annotated
+import Language.Haskell.Exts
   (Module(..),ModuleHead(..),ExportSpecList(..),ExportSpec(..)
   ,ImportDecl(..),ModuleName(..),QName(..),SrcSpanInfo)
 import SynHelp (mkQName,Id(getId),getModuleNameFromModule)

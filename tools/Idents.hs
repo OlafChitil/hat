@@ -2,19 +2,19 @@
 
 module Idents
   ( Ident(..)
-  , collateIdents	-- :: IO ()
-  , getAllIdents	-- :: IO ([Ident],[Ident],[Ident])
-  , AllInfo		-- type AllInfo = [(String,[(String,Ident)])]
-  , sortIdents		-- :: [Ident] -> AllInfo
-  , showInfo		-- :: String -> AllInfo -> ShowS
+  , collateIdents       -- :: IO ()
+  , getAllIdents        -- :: IO ([Ident],[Ident],[Ident])
+  , AllInfo             -- type AllInfo = [(String,[(String,Ident)])]
+  , sortIdents          -- :: [Ident] -> AllInfo
+  , showInfo            -- :: String -> AllInfo -> ShowS
   ) where
 
-import LowLevel		(FileNode(..))
+import LowLevel         (FileNode(..))
 import Foreign.Ptr      (Ptr)
 import Foreign.C.String (CString, peekCString)
 import System.IO.Unsafe (unsafePerformIO)
 import Foreign.Marshal.Alloc (free)
-import Ident		(Ident(..),getIdentAt)
+import Ident            (Ident(..),getIdentAt)
 import Data.List
 import HighlightStyle
 
@@ -22,7 +22,7 @@ import HighlightStyle
 data Item
 
 foreign import ccall "hat-names.h" getItemPtr  :: Ptr (Ptr Item) -> Int
-							 -> IO (Ptr Item)
+                                                         -> IO (Ptr Item)
 foreign import ccall "hat-names.h" itemIdent   :: Ptr Item -> IO FileNode
 foreign import ccall "hat-names.h" itemArity   :: Ptr Item -> IO Int
 foreign import ccall "hat-names.h" itemUses    :: Ptr Item -> IO Int
@@ -40,11 +40,11 @@ getOneIdent a n = do
   ident <- getIdentAt atom
   free p
   return ident
-	{ i_caf  = arity==0
-	, i_uses = uses
-	, i_pending = pend
-	, i_thunks = th
-	}
+        { i_caf  = arity==0
+        , i_uses = uses
+        , i_pending = pend
+        , i_thunks = th
+        }
 
 foreign import ccall "hat-names.h" collateIdents :: IO ()
 
@@ -82,14 +82,14 @@ data InfoCmd
 -}
 
 --
---		[(modulename, [(idname,identifier info)])]
+--              [(modulename, [(idname,identifier info)])]
 type AllInfo = [(String,[(String,Ident)])]
 
 sortIdents :: [Ident] -> AllInfo
 sortIdents is = foldr insMod [] is
   where
     insMod i []
-	-- exclude identifiers with zero counts
+        -- exclude identifiers with zero counts
         | (i_uses i == 0) && (i_pending i == 0) = []
         | otherwise = [(i_modname i, [(i_name i, i)])]
     insMod i xs@(o@(x,ys):rest)

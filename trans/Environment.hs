@@ -17,10 +17,12 @@ module Environment
   ,wiredEnv
   ) where
 
-import Language.Haskell.Exts.Annotated hiding (Var,Con,Fixity,EVar)
-import qualified Language.Haskell.Exts.Annotated as Syntax (Exp(Var,Con),Fixity(Fixity),ExportSpec(EVar)
-                                                           ,Namespace(NoNamespace,TypeNamespace))
-import qualified Language.Haskell.Exts as Short(Assoc(..),QName(..),Name(..),SpecialCon(Cons))
+import Language.Haskell.Exts hiding (Var,Con,Fixity,EVar,TApp)
+import qualified Language.Haskell.Exts as
+  Syntax (Exp(Var,Con),Fixity(Fixity),ExportSpec(EVar)
+         ,Namespace(NoNamespace,TypeNamespace))
+-- import qualified Language.Haskell.Exts as
+--   Short(Assoc(..),QName(..),Name(..),SpecialCon(Cons))
 import SynHelp (Id(getId),getQualified,mkQual,qual,isQual,isUnQual,notSupported
                ,tyVarBind2Name,declHeadTyVarBinds,declHeadName,instRuleQName,getArityFromConDecl
                ,getConDeclFromQualConDecl,getConstructorFromConDecl,eqName,mkName,mkQName
@@ -52,10 +54,10 @@ type HxEntity = (Identifier,AuxiliaryInfo)
 -- conids back to the type they belong to.  It also relates methods
 -- to their class.
 data Identifier = Var String | Con TypeSort String{-type-} String{-con-}
-		| Field String{-type-} String{-field-}
-		| Method String{-class-} String{-method-}
+                | Field String{-type-} String{-field-}
+                | Method String{-class-} String{-method-}
                 | TypeClass String
-	deriving (Show,Read,Eq,Ord)
+        deriving (Show,Read,Eq,Ord)
 data TypeSort = Data | Newtype deriving (Show,Read,Eq,Ord)
 
 toTypeSort :: DataOrNew l -> TypeSort
@@ -65,10 +67,10 @@ toTypeSort (NewType _) = Newtype
 -- AuxiliaryInfo is the extra information we need to know about identifiers.
 data AuxiliaryInfo = 
          Value {- variable or constructor -}
-	   { args     :: Int
-	   , fixity   :: Fixity
-	   , priority :: Int
-	   , letBound :: Bool 
+           { args     :: Int
+           , fixity   :: Fixity
+           , priority :: Int
+           , letBound :: Bool 
            , traced   :: Bool}
        | TyCls TyCls -- needed for im/export of (..)
        deriving (Eq,Ord,Show,Read)
@@ -341,8 +343,10 @@ declEnv _ fullEnv (TypeDecl _ declHead ty) =
   where
   tyName = declHeadName declHead
   Syn n body = splitSynonym fullEnv (map tyVarBind2Name (declHeadTyVarBinds declHead)) ty
-declEnv _ _ (TypeFamDecl l declHead _) = 
+declEnv _ _ (TypeFamDecl l declHead _ _) = 
   notSupported l "type family declaration"
+declEnv _ _ (ClosedTypeFamDecl l _ _ _ _) =
+  notSupported l "closed type family declaration"
 declEnv tracing _ (DataDecl _ ts _ declHead qualConDecls _) = 
   fromList (eType (getId name) (map getId consNames) (map getId fieldNames) :
              [eCon (getId consName) (ann consName) (getArityFromConDecl conDecl) (getId name)
@@ -384,8 +388,8 @@ declEnv tracing finalEnv (ClassDecl _ _ declHead _ (Just classDecls)) =
   getDecl :: ClassDecl SrcSpanInfo -> Decl SrcSpanInfo
   getDecl (ClsDecl _ decl) = decl
   getDecl (ClsDataFam l _ _ _) = notSupported l "associated data type declaration"
-  getDecl (ClsTyFam l _ _) = notSupported l "associated type synonym declaration"
-  getDecl (ClsTyDef l _ _) = notSupported l 
+  getDecl (ClsTyFam l _ _ _) = notSupported l "associated type synonym declaration"
+  getDecl (ClsTyDef l _) = notSupported l 
                                  "default choice for an associated type synonym"
 declEnv _ _ (InstDecl _ _ _ Nothing) = emptyRelation
 declEnv tracing finalEnv (InstDecl _ _ instHead (Just instDecls)) = emptyRelation
@@ -513,7 +517,7 @@ type HxEnvironment = Relation (Name ()) Entity  -- Note: not HxEntity for simpli
 exports :: Bool -> Module SrcSpanInfo -> Environment -> HxEnvironment
 exports tracing mod@(Module l maybeModuleHead _ _ _) env =
   case maybeModuleHead of
-    Nothing -> exportList [Syntax.EVar l (Syntax.NoNamespace l) (UnQual l (Ident l "main"))]
+    Nothing -> exportList [Syntax.EVar l (UnQual l (Ident l "main"))]
     Just (ModuleHead _ _ _ Nothing) -> getQualified `mapDom` moduleDefines tracing env mod
     Just (ModuleHead _ _ _ (Just (ExportSpecList _ list))) -> exportList list
   where
@@ -536,12 +540,13 @@ filterExportSpec env eSpec = unionRelations [mSpec, mSub]
   subs = restrictRng (`isOwned` allOwners) env
   qNameT = dropAnn qName
   (qName,mSub) = case eSpec of
-    Syntax.EVar _ (Syntax.NoNamespace _) qName -> (qName, emptyRelation) 
-    Syntax.EVar _ (Syntax.TypeNamespace l) _ -> notSupported l "type namespace in export"
-    EAbs _ qName -> (qName, emptyRelation)
-    EThingAll _ qName -> (qName, subs)
-    EThingWith _ qName cNames -> 
+    Syntax.EVar _ qName -> (qName, emptyRelation) 
+    EAbs _ (Syntax.NoNamespace _) qName -> (qName, emptyRelation)
+    EAbs _ _ qName -> notSupported () "type or pattern namespace in export"
+    EThingWith _ (NoWildcard _) qName cNames -> 
       (qName, restrictDom ((`elem` map getId cNames) . getId) subs)
+    EThingWith _ _ qName cNames -> notSupported () "wildcard in export"
+    EModuleContents _ mName -> notSupported () "module name in export"
 
 -- Assumes that list is in ascending order without duplicate names.
 listToHxEnvironment :: [HxEntity] -> HxEnvironment
@@ -585,9 +590,9 @@ filterImportSpec isHiding exports iSpec =
   subs = restrictRng (`isOwned` allOwners) exports
   nameT = dropAnn name
   (name,fSub,noSubSpec) = case iSpec of
-    IVar _ (NoNamespace _) name -> (name, emptyRelation, True)
-    IVar _ (TypeNamespace l) _ -> notSupported l "type name space in import"
-    IAbs _ name -> (name, emptyRelation, True)
+    IVar _ name -> (name, emptyRelation, True)
+    IAbs _ (NoNamespace _) name -> (name, emptyRelation, True)
+    IAbs _ _ name -> notSupported () "type or pattern name space in import"
     IThingAll _ name -> (name, subs, False)
     IThingWith _ name cNames -> 
       (name, restrictDom ((`elem` map getId cNames) . getId) subs, False)
@@ -775,13 +780,13 @@ env2Fixities env =
   makeFixity :: Entity -> Syntax.Fixity
   makeFixity e = Syntax.Fixity (transFixity (eFixity e)) (ePriority e) (mkName (eId e))
     where
-    transFixity :: Fixity -> Short.Assoc
-    transFixity None = Short.AssocNone
-    transFixity L = Short.AssocLeft
-    transFixity R = Short.AssocRight
+    transFixity :: Fixity -> Assoc ()
+    transFixity None = AssocNone ()
+    transFixity L = AssocLeft ()
+    transFixity R = AssocRight ()
     transFixity _ = error "Environment.env2Fixities: unexpected associativity."
-    mkName :: String -> Short.QName
-    mkName s = Short.UnQual (if isAlpha (head s) then Short.Ident s else Short.Symbol s)
+    mkName :: String -> QName ()
+    mkName s = UnQual () (if isAlpha (head s) then Ident () s else Symbol () s)
       -- Intentionally never create a special name, because fixities must be UnQual.
 
 

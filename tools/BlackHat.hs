@@ -35,11 +35,11 @@ main =
   where
     showPath state
         | bhpath == []     = do putStr (progname state)
-	                        putStrLn (": no black hole found") 
+                                putStrLn (": no black hole found") 
                                 exitWith (ExitFailure 1)
-	| (showNode state) = mapIO putStrLn
-	                       (inter (map (showSctx state) bhpath) 
-			              (map show bhpath) )
+        | (showNode state) = mapIO putStrLn
+                               (inter (map (showSctx state) bhpath) 
+                                      (map show bhpath) )
         | otherwise = mapIO (putStrLn . showSctx state ) bhpath 
       where bhpath = blackHoleSearch state getRootNode
 
@@ -52,7 +52,7 @@ main =
       | msg `isPrefixOf` "<<loop>>" = return ()
       | otherwise = do hPutStrLn stderr ((progname state) 
                                          ++": error is not a loop") 
-		       exitWith (ExitFailure 1)
+                       exitWith (ExitFailure 1)
 
     checkHelp args | member "--help" args = do showHelp
                                                exitWith ExitSuccess
@@ -61,16 +61,16 @@ main =
     getHatName args = 
        case args of (f:_) -> return f
                     _     -> do hPutStrLn stderr 
-		                         ("black-hat: no trace file")
-		                showHelpShort
+                                         ("black-hat: no trace file")
+                                showHelpShort
                                 exitWith (ExitFailure 1)
 
     showHelpShort = putStrLn "Usage: black-hat [PROGNAME] [OPTIONS]..."
     showHelp =
       do showHelpShort
          putStrLn "  --showqual={t,f}     Show function module names"
-	 putStrLn "  --showrt={t,f}       Show all nodes from the root node" 
-	 putStrLn "  --srcref={t,f}       Show source references for nodes"
+         putStrLn "  --showrt={t,f}       Show all nodes from the root node" 
+         putStrLn "  --srcref={t,f}       Show source references for nodes"
          putStrLn "  --cutoff=<int>       Cutoff expression at depth <int>"
 
 
@@ -119,7 +119,7 @@ blackHoleSearchAux state curr@(currnode:stack) path
     incMember m [] = False
     incMember m (y:ys) | (showCount state) && 
                          incrementCount 1 && m == y = True
-		       | m == y                     = True
+                       | m == y                     = True
                        | otherwise                  = incMember m ys
     
     -- call the function on the node's result
@@ -133,36 +133,36 @@ blackHoleSearchAux state curr@(currnode:stack) path
     searchChildren (ch:rest) | childpath /= [] = (childnode, childpath)
                              | otherwise       = searchChildren rest
       where 
-	(childnode, childpath) = blackHoleSearchAux state chsctx path 
-	chsctx = (ch:currnode:stack)
+        (childnode, childpath) = blackHoleSearchAux state chsctx path 
+        chsctx = (ch:currnode:stack)
 
 
 -- This function indicates if the search process should fail and
 -- backtrack when it reaches a node.
-haltAtNode node | node <= (FileNode 4)		= True
-                | ntype == ExpApp		= False
-                | ntype == ExpValueApp		= False
-                | ntype == ExpValueUse		= False
-                | ntype == ExpConstUse		= False
-                | ntype == ExpConstDef		= False
-                | ntype == ExpGuard		= False
-                | ntype == ExpCase		= False
-                | ntype == ExpIf		= False
-                | ntype == ExpForward		= False
-                | ntype == ExpProjection	= False
-                | ntype == Module		= True
-                | ntype == SrcPos		= True
-                | ntype == ExpChar		= True
-                | ntype == ExpInt 		= True
-                | ntype == ExpInteger		= True
-                | ntype == ExpRat		= True
-                | ntype == ExpRational		= True
-                | ntype == ExpFloat		= True
-                | ntype == ExpDouble		= True
-                | ntype == ExpFieldUpdate	= True
-                | ntype == ExpHidden		= True
-                | ntype == ExpDoStmt		= True
-                | ntype == AtomVariable		= True
-                | ntype == AtomConstructor	= True
-                | ntype == AtomAbstract		= True
+haltAtNode node | node <= (FileNode 4)          = True
+                | ntype == ExpApp               = False
+                | ntype == ExpValueApp          = False
+                | ntype == ExpValueUse          = False
+                | ntype == ExpConstUse          = False
+                | ntype == ExpConstDef          = False
+                | ntype == ExpGuard             = False
+                | ntype == ExpCase              = False
+                | ntype == ExpIf                = False
+                | ntype == ExpForward           = False
+                | ntype == ExpProjection        = False
+                | ntype == Module               = True
+                | ntype == SrcPos               = True
+                | ntype == ExpChar              = True
+                | ntype == ExpInt               = True
+                | ntype == ExpInteger           = True
+                | ntype == ExpRat               = True
+                | ntype == ExpRational          = True
+                | ntype == ExpFloat             = True
+                | ntype == ExpDouble            = True
+                | ntype == ExpFieldUpdate       = True
+                | ntype == ExpHidden            = True
+                | ntype == ExpDoStmt            = True
+                | ntype == AtomVariable         = True
+                | ntype == AtomConstructor      = True
+                | ntype == AtomAbstract         = True
   where ntype = nodeType node

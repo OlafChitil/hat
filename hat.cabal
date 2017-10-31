@@ -1,6 +1,6 @@
 
 name:                hat
-version:             2.9.0.0
+version:             2.9.1
 synopsis:            The Haskell tracer, generating and viewing Haskell execution traces
 description:
   hat-trans transforms Module.hs into Hat/Module.hs such that when the program is
@@ -48,11 +48,11 @@ description:
 homepage:            http://projects.haskell.org/hat/
 license:             OtherLicense
 license-file:        docs/copyright.html
-copyright:	     (c) 2000-2015 Hat team
+copyright:	     (c) 2000-2017 Hat team
 author:              Hat team
 maintainer:          oc@kent.ac.uk
 stability:	     provisional
-tested-with:	     GHC ==7.8.3
+tested-with:	     GHC ==8.0.1
 bug-reports:	     oc@kent.ac.uk   
 category:            Development
 build-type:          Simple
@@ -68,7 +68,7 @@ source-repository head
 
 library
   exposed-modules:     Hat.Array, Hat.Char, Hat.Complex, Hat.CPUTime, Hat.Directory, Hat.Hack, Hat.Hat, Hat.IO, Hat.Ix, Hat.List, Hat.Locale, Hat.Maybe, Hat.Monad, Hat.Numeric, Hat.Prelude, Hat.PreludeBasic, Hat.PreludeBuiltinTypes, Hat.Random, Hat.Ratio, Hat.System, Hat.Time, Hat.Control.Monad, Hat.Data.Char, Hat.Data.Maybe, Hat.Data.List, Hat.System.Environment, Hat.System.Exit, Hat.System.IO
-  build-depends:       base >=4.5 && < 5, directory >=1.1, random >=1.0, process >=1.1, old-time >=1.1, old-locale >=1.0
+  build-depends:       base >=4.9 && < 5, directory >=1.1, random >=1.0, process >=1.1, old-time >=1.1, old-locale >=1.0
   other-modules:       Hat.DirectoryBuiltin, Hat.DirectoryBuiltinTypes, Hat.IOBuiltin, Hat.IOBuiltinTypes, Hat.PreludeBuiltin, Hat.RandomBuiltin, Hat.SystemBuiltin, Hat.SystemBuiltinTypes, Hat.TimeBuiltin, Hat.TimeBuiltinTypes
   extensions:	       ForeignFunctionInterface
   includes:	       hat-c.h, art.h, ntohl.h
@@ -80,7 +80,7 @@ executable hat-trans
   main-is:           HatTrans.hs
   hs-source-dirs:    trans
   other-modules:     Wired, SynHelp, Relation, Wrap, Flags, Environment, AuxFile, Derive, TraceTrans, HatTrans
-  build-depends:     base >=4.5, bytestring >=0.9, directory >=1.1, haskell-src-exts >= 1.16, containers >= 0.5.2, filepath >= 1.3
+  build-depends:     base >=4.9, bytestring >=0.9, directory >=1.1, haskell-src-exts >= 1.18, containers >= 0.5.2, filepath >= 1.3
   includes:	     hat-c.h, art.h, ntohl.h
   include-dirs:	     include, Hat
   c-sources:	     Hat/hat-c.c
@@ -90,7 +90,7 @@ executable hat-trail
   main-is:           HatTrail.hs
   hs-source-dirs:    tools        
   other-modules:     LowLevel, SrcRef, Ident, SExp, PrettyLibHighlight, HighlightStyle, CommonUI
-  build-depends:     base >=4.5, containers >=0.4, directory >=1.1, process >=1.1
+  build-depends:     base >=4.9, containers >=0.4, directory >=1.1, process >=1.1
   extensions:        ForeignFunctionInterface
   includes:          art.h
   include-dirs:      include
@@ -101,7 +101,7 @@ executable hat-observe
   main-is:           HatObserve.hs
   hs-source-dirs:    tools
   other-modules:     Observe, LowLevel, SExp, Ident, PrettyLibHighlight, HighlightStyle, Pattern, Idents, CmdLine, CommonUI, SrcRef, Trie, TExp
-  build-depends:     base >=4.5, process >=1.1, haskeline >=0.6, polyparse >= 1.11
+  build-depends:     base >=4.9, process >=1.1, haskeline >=0.6, polyparse >= 1.11
   extensions:        ForeignFunctionInterface
   includes:          art.h
   include-dirs:      include
@@ -112,7 +112,7 @@ executable hat-stack
   main-is:           HatStackText.hs
   hs-source-dirs:    tools
   other-modules:     HatStack, LowLevel, SExp, PrettyLibHighlight, HighlightStyle, Ident, SrcRef, CommonUI
-  build-depends:     base >=4.5, process >=1.1
+  build-depends:     base >=4.9, process >=1.1
   extensions:	     ForeignFunctionInterface
   includes:	     art.h
   include-dirs:	     include
@@ -123,7 +123,7 @@ executable hat-explore
   main-is:           HatExplore.hs
   hs-source-dirs:    tools
   other-modules:     Explore, CommonUI, HighlightStyle, LowLevel, Ident, SrcRef, SExp, Detect, NodeExp, Slice, ADT, Detect, PrettyLibHighlight
-  build-depends:     base >=4.5, process >=1.1
+  build-depends:     base >=4.9, process >=1.1
   extensions:	     ForeignFunctionInterface
   includes:	     art.h
   include-dirs:	     include
@@ -134,8 +134,8 @@ executable hat-detect
   -- currently just calls hat-delta; was a separate tool
   main-is:	     HatDetect.hs
   hs-source-dirs:    tools
-  other-modules:     LowLevel, SExp, TExp, HighlightStyle, CommonUI, SrcRef
-  build-depends:     base >=4.5, directory >=1.1, process >=1.1, haskeline >=0.6
+  other-modules:     LowLevel, SExp, TExp, HighlightStyle, CommonUI, SrcRef, CmdLine, Detect, Ident, PrettyLibHighlight
+  build-depends:     base >=4.9, directory >=1.1, process >=1.1, haskeline >=0.6
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h
   include-dirs:	     include
@@ -145,7 +145,7 @@ executable hat-detect
 executable hat-check
   main-is:	     HatCheck.hs
   hs-source-dirs:    tools
-  build-depends:     base >=4.5, process >=1.1
+  build-depends:     base >=4.9, process >=1.1
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h
   include-dirs:	     include
@@ -156,7 +156,7 @@ executable hat-view
   main-is:	     SrcRefViewer.hs
   hs-source-dirs:    tools
   other-modules:     HighlightStyle, Run
-  build-depends:     base >=4.5, process >=1.1, directory >=1.1
+  build-depends:     base >=4.9, process >=1.1, directory >=1.1
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h
   include-dirs:	     include
@@ -165,8 +165,8 @@ executable hat-cover
   -- builds, but doesn't seem to work
   main-is:	     HatCoverText.hs
   hs-source-dirs:    tools
-  other-modules:     HatCover, LowLevel, SrcRef, HighlightStyle
-  build-depends:     base >=4.5, process >=1.1
+  other-modules:     HatCover, LowLevel, SrcRef, HighlightStyle, Ident
+  build-depends:     base >=4.9, process >=1.1
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h
   include-dirs:	     include
@@ -176,8 +176,8 @@ executable hat-cover
 executable black-hat
   main-is:	     BlackHat.hs
   hs-source-dirs:    tools
-  other-modules:     LowLevel, SExp, PrettyLibHighlight, HighlightStyle, Run, NonTermLib
-  build-depends:     base >=4.5, process >=1.1
+  other-modules:     LowLevel, SExp, PrettyLibHighlight, HighlightStyle, Run, NonTermLib, CommonUI, Ident, SrcRef
+  build-depends:     base >=4.9, process >=1.1
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h
   include-dirs:	     include
@@ -187,8 +187,8 @@ executable black-hat
 executable hat-nonterm
   main-is:	     HatNonTerm.hs
   hs-source-dirs:    tools
-  other-modules:     LowLevel, SExp, PrettyLibHighlight, HighlightStyle, Run, NonTermLib
-  build-depends:     base >=4.5, process >=1.1
+  other-modules:     LowLevel, SExp, PrettyLibHighlight, HighlightStyle, Run, NonTermLib, CommonUI, Ident, SrcRef
+  build-depends:     base >=4.9, process >=1.1
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h
   include-dirs:	     include
@@ -198,8 +198,8 @@ executable hat-nonterm
 executable hat-anim
   main-is:	     HatAnim.hs
   hs-source-dirs:    tools
-  other-modules:     NodeExp, Pretty, CommonUI, LowLevel, HighlightStyle
-  build-depends:     base >=4.5, process >=1.1, containers >=0.4
+  other-modules:     NodeExp, Pretty, CommonUI, LowLevel, HighlightStyle, ADT, Delta, EDT, Explore, Ident, PrettyLibHighlight, SExp, Slice, SrcRef
+  build-depends:     base >=4.9, process >=1.1, containers >=0.4
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h
   include-dirs:	     include
@@ -209,8 +209,8 @@ executable hat-anim
 executable pretty-hat
   main-is:	     PrettyHat.hs
   hs-source-dirs:    tools
-  other-modules:     Pretty, NodeExp, EDT, HighlightStyle, Delta, Slice, ADT, Explore, SExp, CommonUI, SrcRef, Ident, LowLevel, PrettyLibHighlight
-  build-depends:     base >=4.5, process >=1.1, containers >=0.4
+  other-modules:     Pretty, NodeExp, EDT, HighlightStyle, Delta, Slice, ADT, Explore, SExp, CommonUI, SrcRef, Ident, LowLevel, PrettyLibHighlight, Detect
+  build-depends:     base >=4.9, process >=1.1, containers >=0.4
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h
   include-dirs:	     include
@@ -221,7 +221,7 @@ executable hat-delta
   main-is:	     HatDelta.hs
   hs-source-dirs:    tools
   other-modules:     Pretty, Slice, LowLevel, CommonUI, NodeExp, SExp, ADT, EDT, SrcRef, FDT, Delta, Explore, HighlightStyle, PrettyLibHighlight, Ident
-  build-depends:     base >=4.5, process >=1.1, containers >=0.4
+  build-depends:     base >=4.9, process >=1.1, containers >=0.4
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h
   include-dirs:	     include
@@ -232,4 +232,4 @@ executable hat-delta
 executable hat-make
   main-is:	     HatMake.hs
   hs-source-dirs:    tools
-  build-depends:     base >=4.5, process >=1.1, directory >=1.1
+  build-depends:     base >=4.9, process >=1.1, directory >=1.1

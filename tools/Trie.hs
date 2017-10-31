@@ -12,10 +12,10 @@
 --
 -----------------------------------------------------------------------------
 module Trie
-  ( Trie		-- type exported abstract
-  , emptyTrie		-- :: Trie a
-  , Search(..)		-- data Search a = Exists | New a
-  , match		-- :: [a] -> Trie a -> Search (Trie a)
+  ( Trie                -- type exported abstract
+  , emptyTrie           -- :: Trie a
+  , Search(..)          -- data Search a = Exists | New a
+  , match               -- :: [a] -> Trie a -> Search (Trie a)
   ) where
 
 -- | A Trie is a lookup structure for strings of tokens.
@@ -28,9 +28,9 @@ module Trie
 --   or FoundAnd, means that the corresponding string is not stored.
 
 data Trie a = Trie [(a,Trie a)] | Found | FoundAnd [(a,Trie a)]
-		deriving Show
+                deriving Show
 data Search a = Exists | New {fromNew::a}
-		deriving Show
+                deriving Show
 
 emptyTrie :: Trie a
 emptyTrie  = Trie []

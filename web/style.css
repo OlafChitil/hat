@@ -1,0 +1,300 @@
+/*
+
+	Design by Free CSS Templates
+	http://www.freecsstemplates.org
+	Released for free under a Creative Commons Attribution License
+
+	Name       : Serious Face
+	Version    : 1.0
+	Released   : 20130222
+
+*/
+
+* {
+	margin: 0;
+	padding: 0;
+}
+
+a {
+	color: #000000;
+	text-decoration: underline;
+}
+
+a:hover {
+	text-decoration: none;
+}
+
+body {
+	font-size: 12pt;
+	line-height: 1.75em;
+	font-family: Georgia, serif;
+	background: #D2E0DD;
+	color: #382b31;
+}
+
+br.clear {
+	clear: both;
+}
+
+h1,h2,h3,h4 {
+	text-transform: lowercase;
+}
+
+h2,h3,h4 {
+	margin-bottom: 1em;
+	font-family: Bitter, serif;
+	color: #000000;
+}
+
+strong {
+	color: #000000;
+}
+
+img.left {
+	float: left;
+	margin: 8px 20px 20px 0;
+}
+
+img.top {
+	margin: 8px 0 20px 0;
+}
+
+p {
+	margin-bottom: 1.5em;
+}
+
+ul {
+	margin-bottom: 1.5em;
+}
+
+.imageList {
+	list-style: none;
+}
+
+.imageList li {
+	clear: both;
+}
+
+#bg {
+	background: url('images/highlight.png') top left repeat-x;
+	padding: 0 0 64px 0;
+}
+
+#banner {
+	position: relative;
+	padding: 24px;
+	height: 172px;
+	width: 932px;
+	margin: 0 0 0 0;
+	background: #fff;
+}
+
+#box1 {
+	width: 740px;
+	overflow: hidden;
+	margin: 0 0 20px 0;
+}
+
+#box2 {
+	width: 360px;
+	overflow: hidden;
+	float: left;
+}
+
+#box3 {
+	width: 360px;
+	overflow: hidden;
+	margin: 0 0 0 380px;
+}
+
+#content {
+	width: 740px;
+	margin: 0 0 0 192px;
+	padding: 0;
+}
+
+#copyright {
+	text-align: center;
+	color: #819B95;
+	padding: 32px 0 0 0;
+}
+
+#copyright a {
+	color: #819B95;
+}
+
+#footer {
+	position: relative;
+	padding: 24px;
+	margin: 0 0 0 0;
+	width: 932px;
+	background: #2a5d60;
+	color: #b0c3c4;
+}
+
+#footer a {
+	color: #e8edee;
+}
+
+#footer h2, #footer h3, #footer h4 {
+	color: #fff;
+}
+
+#footer ul {
+	list-style: none;
+}
+
+#footer ul li {
+	padding: 8px 0 8px 0;
+	border-top: dotted 1px #557d80;
+}
+
+#footer ul li.first {
+	padding-top: 0;
+	border-top: 0;
+}
+
+#footerContent {
+	width: 740px;
+	margin: 0 0 0 192px;
+}
+
+#footerSidebar {
+	width: 172px;
+	float: left;
+}
+
+#header {
+	position: relative;
+	padding: 24px;
+	height: 150px;
+	width: 932px;
+	background: #34564f;
+	color: #fff;
+}
+
+#logo {
+	position: absolute;
+	top: 0;
+	left: 24px;
+	height: 150px;
+	line-height: 150px;
+}
+
+#logo a {
+	text-decoration: none;
+	color: #fff;
+}
+
+#logo h1 {
+	font-size: 2.75em;
+	font-family: Bitter, serif;
+}
+
+#main {
+	position: relative;
+	padding: 24px;
+	width: 932px;
+	color: #5e5e5e;
+}
+
+#main a {
+	color: #1c1c1c;
+}
+
+#main h2, #main h3, #main h4 {
+	color: #212121;
+}
+
+#main ul {
+	list-style: none;
+}
+
+#main ul li {
+	padding: 8px 0 8px 0;
+	border-top: dotted 1px #ccc;
+}
+
+#main ul li.first {
+	padding-top: 0;
+	border-top: 0;
+}
+
+#main ul.imageList li {
+	padding: 16px 0 16px 0;
+}
+
+#nav {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	height: 57px;
+	line-height: 57px;
+	padding: 0 24px 0 24px;
+	width: 932px;
+	margin: 0 0 0 0;
+	background: #117848;
+}
+
+#nav a {
+	text-decoration: none;
+	text-transform: lowercase;
+	color: #fff;
+}
+
+#nav li {
+	margin: 0 1em 0 0;
+	padding: 0 1em 0 1em;
+}
+
+#nav li.active {
+	background: #fff;
+}
+
+#nav li.active a {
+	color: #34564F;
+}
+
+#nav ul {
+	list-style: none;
+}
+
+#nav ul li {
+	float: left;
+}
+
+#outer {
+	position: relative;
+	width: 980px;
+	margin: 0 auto 0 auto;
+	background: #fff;
+}
+
+#search {
+	position: absolute;
+	top: 0;
+	right: 24px;
+	height: 150px;
+	line-height: 150px;
+}
+
+#search input.button {
+	margin-left: 1em;
+	border: 0;
+	color: #fff;
+	background: #117848;
+	padding: 4px;
+	text-transform: lowercase;
+	font-family: Bitter, serif;
+}
+
+#search input.text {
+	border: solid 1px #5d7872;
+	padding: 4px;
+}
+
+#sidebar {
+	width: 172px;
+	float: left;
+	padding: 0;
+}

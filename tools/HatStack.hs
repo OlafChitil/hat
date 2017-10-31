@@ -1,9 +1,9 @@
-module HatStack(hatStack) where	-- HatStack main program
+module HatStack(hatStack) where -- HatStack main program
 
 import LowLevel           (openHatFile,FileNode(..),nil,getParentNode
                           ,getErrorLoc,getErrorMessage
                           ,getSrcRef)
-import SrcRef		  (SrcRef(..),readSrcRef)
+import SrcRef             (SrcRef(..),readSrcRef)
 import SExp               (SExp(..),Label,fileNode2SExp,sExp2Doc,prune)
 import System.Environment (getProgName)
 import Foreign.C.String   (withCString)

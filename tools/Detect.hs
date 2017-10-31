@@ -39,7 +39,7 @@ edtNextChild ps = do
   candidate ps = do
     c <- nextChild ps
  -- putStrLn ("edtNextChild: "++showHex (int c) "")
-    if c==LowLevel.unevaluated	-- actually EOF
+    if c==LowLevel.unevaluated  -- actually EOF
       then return LowLevel.nil
       else if c==LowLevel.nil
       then candidate ps

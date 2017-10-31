@@ -17,7 +17,7 @@ import Control.Monad(when)
 import Flags(processArgs,Flags,sSourceFile,sParse,sFixities,sPrelude,sPreludes,sIncludes,sDbgTrusted
             ,sWrap,sIBound,sShowWidth,sHatAuxFile,sHatTransFile,sSrcDir)
 import System.FilePath(FilePath(..),splitDirectories,combine)
-import Language.Haskell.Exts.Annotated(ParseMode(..),Language(..),Extension(..),KnownExtension(..)
+import Language.Haskell.Exts(ParseMode(..),Language(..),Extension(..),KnownExtension(..)
          ,ParseResult
          ,fromParseResult,parseFileWithMode
          ,Module(..),ImportDecl(..),ModuleName(..),applyFixities)
@@ -47,7 +47,8 @@ main = do
                                           ,EnableExtension NPlusKPatterns]
                             ,ignoreLanguagePragmas = False
                             ,ignoreLinePragmas = True
-                            ,fixities = Nothing} 
+                            ,fixities = Nothing
+                            ,ignoreFunctionArity = False} 
   parseResult <- parseFileWithMode parseMode filePath
   let moduleAST = fromParseResult parseResult
   dumpIntermediate (sParse flags) "Parse" (pretty moduleAST)

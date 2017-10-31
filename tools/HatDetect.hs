@@ -1,18 +1,18 @@
-import LowLevel		(FileNode(..),nil,hatVersionNumber,openHatFile
-			,getSrcRef,getDefnRef)
+import LowLevel         (FileNode(..),nil,hatVersionNumber,openHatFile
+                        ,getSrcRef,getDefnRef)
 import qualified SrcRef           (SrcRef(..), readSrcRef)
-import SExp		(prettyEquation)
-import TExp		(TExp,linearise)
-import HighlightStyle	(highlight,Highlight(..),Colour(..),getTerminalSize)
+import SExp             (prettyEquation)
+import TExp             (TExp,linearise)
+import HighlightStyle   (highlight,Highlight(..),Colour(..),getTerminalSize)
 import Foreign.C.String (withCString)
 import Numeric          (showHex)
 import System.IO.Unsafe (unsafePerformIO)
-import Detect		(findMain,edtNextChild,ParentSet,newParentSet,anySuspect)
-import CmdLine		(initialize,cmdline)
-import CommonUI		(hatObserve,hatTrail,hatAnim,hatView,shortHelpText
-			,Options(..),initialOptions,Keep(..)
-			,OptionCmd(..),optionCmd,onOff,number,safeReadInt
-			,optionsUpdate,showOption,showOnOff)
+import Detect           (findMain,edtNextChild,ParentSet,newParentSet,anySuspect)
+import CmdLine          (initialize,cmdline)
+import CommonUI         (hatObserve,hatTrail,hatAnim,hatView,shortHelpText
+                        ,Options(..),initialOptions,Keep(..)
+                        ,OptionCmd(..),optionCmd,onOff,number,safeReadInt
+                        ,optionsUpdate,showOption,showOnOff)
 import Data.Maybe
 import System.Environment (getArgs,getProgName)
 import System.Exit      (exitWith,ExitCode(..))
@@ -36,34 +36,34 @@ Issues to resolve:
 -----------------------------------------------------------------------
 -- type for state of session
 data State = State
-	{ filename    :: FilePath	-- .hat file name
-	, treePath    :: [ParentSet]	-- path to here through EDT (head=here)
-	, currentNode :: FileNode	-- location of current equation
---	, children    :: [FileNode]	-- current EDT children
---	, recentNodes :: [(FileNode, LinExpr, Bool)] -- already considered nodes
-	, trusted     :: [FileNode]	-- trusted fun-identifiers
-	, postponed   :: [(Int,FileNode)]-- postponed questions
-	, questnumber :: Int		-- current question number
-	, screenWidth :: Int		-- for pretty-printing
-	, options     :: Options	-- user-configurable display options
-	, memoMode    :: Bool		-- memoizeMode
-	, reconsider  :: Bool		-- True when reconsidering a
-	}				--   postponed question
+        { filename    :: FilePath       -- .hat file name
+        , treePath    :: [ParentSet]    -- path to here through EDT (head=here)
+        , currentNode :: FileNode       -- location of current equation
+--      , children    :: [FileNode]     -- current EDT children
+--      , recentNodes :: [(FileNode, LinExpr, Bool)] -- already considered nodes
+        , trusted     :: [FileNode]     -- trusted fun-identifiers
+        , postponed   :: [(Int,FileNode)]-- postponed questions
+        , questnumber :: Int            -- current question number
+        , screenWidth :: Int            -- for pretty-printing
+        , options     :: Options        -- user-configurable display options
+        , memoMode    :: Bool           -- memoizeMode
+        , reconsider  :: Bool           -- True when reconsidering a
+        }                               --   postponed question
 initialState :: FilePath -> ParentSet -> State
 initialState file start = State
-	{ filename = file
-	, treePath = [start]
-	, currentNode = LowLevel.nil
---	, children = [start]
---	, recentNodes = []
-	, trusted = []
-	, postponed = []
-	, questnumber = 1
-	, screenWidth = 80
-	, options = initialOptions
-	, memoMode = True
-	, reconsider = False
-	}
+        { filename = file
+        , treePath = [start]
+        , currentNode = LowLevel.nil
+--      , children = [start]
+--      , recentNodes = []
+        , trusted = []
+        , postponed = []
+        , questnumber = 1
+        , screenWidth = 80
+        , options = initialOptions
+        , memoMode = True
+        , reconsider = False
+        }
 
 setState :: Mode -> State -> State
 setState (O o)       state = state {options=optionsUpdate o (options state)}
@@ -86,7 +86,7 @@ main = do
     putStrLn ("\n        hat-detect "++hatVersionNumber
              ++" ("++shortHelpText++")\n")
     (width,_) <- getTerminalSize
-    CmdLine.initialize	-- for readline functionality
+    CmdLine.initialize  -- for readline functionality
     let hatFile = rectify (arguments!!0)
     prog <- System.Environment.getProgName
     withCString prog (\p-> withCString hatFile (openHatFile p))
@@ -164,7 +164,7 @@ askQuestion node ps state = do
                                        (options state)
                                        c)
               interactive node ps state { currentNode = c
-					, questnumber = questnumber state +1 }
+                                        , questnumber = questnumber state +1 }
 
 {-
 interactive :: State -> IO (Bool,Int,State)
@@ -215,7 +215,7 @@ doCommand Status n ps state =
               , O (CutOff 0), O (Filter All) ]
         interactive n ps state
 doCommand (Set mode) n ps state =
-     do	let state' = setState mode state
+     do let state' = setState mode state
         putStrLn (showState mode state')
         interactive n ps state'
 ----
@@ -229,13 +229,13 @@ doCommand Trust n ps state = -- user defined function trusting
         putStrLn (showExpression trustFun "   Ok, \""
                   ++ "\" is trusted from now on.")
         (b,q,state') <- interactive n ps state
-				{recentNodes = addToRecentNodes
+                                {recentNodes = addToRecentNodes
                                                    (recentNodes state)
                                                    child True
-				,trusted = trustFun:trusted state
-				,questnumber = questnumber state + 1
-				,reconsider = False
-				}
+                                ,trusted = trustFun:trusted state
+                                ,questnumber = questnumber state + 1
+                                ,reconsider = False
+                                }
         if q/=questnumber state then return (b,q,state')
           else interactive n ps state { options = options state'
                                    , memoMode = memoMode state'
@@ -248,64 +248,64 @@ doCommand Untrust n ps state =
 
 ---- answering the question: yes, no, ?yes, or ?no
 doCommand (Answer Yes) n ps state =
-    askQuestion n ps state	-- look for next sibling
+    askQuestion n ps state      -- look for next sibling
 doCommand (Answer No) n ps state = do
     let c = currentNode state
-    p <- newParentSet c		-- descend into this subtree
+    p <- newParentSet c         -- descend into this subtree
     askQuestion c p state {treePath=(p:treePath state)}
 {-
 doCommand (Answer Yes) n ps state =
      do let child = head (children state)
         (b,q,state') <- interactive n ps state
-				{ children = tail (children state)
-				, recentNodes = addToRecentNodes
-							(recentNodes state)
-							child True
-				, questnumber = questnumber state + 1
-				, reconsider = False
-				}
+                                { children = tail (children state)
+                                , recentNodes = addToRecentNodes
+                                                        (recentNodes state)
+                                                        child True
+                                , questnumber = questnumber state + 1
+                                , reconsider = False
+                                }
         if q/=questnumber state then return (b,q,state')
-	  else interactive n ps state { options = state'
+          else interactive n ps state { options = state'
                                    , memoMode = memoMode state'
                                    , reconsider = False
                                    }
 doCommand (Answer QueryYes) n ps state =
      do let child = head (children state)
         (b,q,state') <- interactive n ps state
-				{ children  = tail (children state)
-				, postponed = postponed state ++
-						[(questnumber state,child)]
-				, questnumber = questnumber state + 1
-				, reconsider = False
-				}
+                                { children  = tail (children state)
+                                , postponed = postponed state ++
+                                                [(questnumber state,child)]
+                                , questnumber = questnumber state + 1
+                                , reconsider = False
+                                }
         if q/=questnumber state then return (b,q,state')
-	  else interactive n state ps { options = options state'
+          else interactive n state ps { options = options state'
                                    , memoMode = memoMode state'
                                    , reconsider = False
                                    }
 doCommand (Answer No) n ps state =
      do let child = head (children state)
-	    newchildren = edtChildren child
+            newchildren = edtChildren child
         (b,q,state') <- interactive n ps state
-				{ children = newchildren
-				, recentNodes = addToRecentNodes
-							(recentNodes state)
-							child False
-				, postponed = []
-				, questnumber = questnumber state + 1
-				, reconsider = False
-				}
+                                { children = newchildren
+                                , recentNodes = addToRecentNodes
+                                                        (recentNodes state)
+                                                        child False
+                                , postponed = []
+                                , questnumber = questnumber state + 1
+                                , reconsider = False
+                                }
         if q==questnumber state then
-	       interactive n ps state { options = options state'
+               interactive n ps state { options = options state'
                                    , memoMode = memoMode state'
                                    , reconsider = False
                                    }
           else if b && q==0 then
              do let lmo = hatLeftmost child
-		    src = if isInvalidNode lmo then HatNoSourceRef
+                    src = if isInvalidNode lmo then HatNoSourceRef
                                                else hatSourceRef lmo
                 putStrLn ("\nErroneous reduction:\n"
-		          ++ highlight [Foreground Blue]
+                          ++ highlight [Foreground Blue]
                                        (prettyEquation "" ""
                                                 (screenWidth state)
                                                 (options state)
@@ -313,70 +313,70 @@ doCommand (Answer No) n ps state =
                           ++ showExpression lmo
                                   "\nBug found within the body of function: \""
                           ++ "\"\n"
-		          ++ "line "++show (row src)++", column "
-			  ++ show (column src)
-			  ++ " in module \"" ++ moduleName src
-			  ++ "\", file: \"" ++ moduleFile src ++"\"")
-		putStr ("\n:q to quit, any other key to go back to question "
+                          ++ "line "++show (row src)++", column "
+                          ++ show (column src)
+                          ++ " in module \"" ++ moduleName src
+                          ++ "\", file: \"" ++ moduleFile src ++"\"")
+                putStr ("\n:q to quit, any other key to go back to question "
                         ++ show (questnumber state) ++": ")
-		cmd <- getCommand "hat-detect> "
-		case cmd of
+                cmd <- getCommand "hat-detect> "
+                case cmd of
                     Quit -> return (False,-1,state')
                     _    -> interactive state
-	  else return (b,q,state')
+          else return (b,q,state')
 
 doCommand (Answer QueryNo) n ps state | not (reconsider state) =
      do let child = head (children state)
-	    newchildren = edtChildren child
+            newchildren = edtChildren child
         (b,q,state') <- interactive n ps state
-				{ children = newchildren
-				, recentNodes = addToRecentNodes
-							(recentNodes state)
-							child False
-				, postponed = []
-				, questnumber = questnumber state + 1
-				, reconsider = False
-				}
+                                { children = newchildren
+                                , recentNodes = addToRecentNodes
+                                                        (recentNodes state)
+                                                        child False
+                                , postponed = []
+                                , questnumber = questnumber state + 1
+                                , reconsider = False
+                                }
         if q==questnumber state then
-	       interactive n ps state { options = options state'
+               interactive n ps state { options = options state'
                                    , memoMode = memoMode state'
                                    , reconsider = False
                                    }
           else if b && q==0 then
-	              interactive n ps state { options = options state'
+                      interactive n ps state { options = options state'
                                           , trusted = trusted state'
                                           , memoMode = memoMode state'
                                           , reconsider = True
                                           }
-	  else return (b,q,state')
+          else return (b,q,state')
 doCommand (Answer QueryNo) n ps state | reconsider state =
      do putStrLn ("The question has already been deferred once.\n\
                   \You must answer it now with y/y?/n ")
         interactive n ps state
 doCommand (AskQuestion q) n ps state =
         if q>0 && q<questnumber state then
-	     return (False,q,state) -- return q, and ask question again
+             return (False,q,state) -- return q, and ask question again
         else do putStrLn "No question with this number!"
-	        interactive n ps state
+                interactive n ps state
 ----
 -}
 doCommand (StartTool (Observe q)) n ps state =
      do errcode <- system (hatObserve (filename state) q)
-     	when (errcode/=ExitSuccess)
-	     (putStrLn ("ERROR: Unable to start hat-observe.\n\
+        when (errcode/=ExitSuccess)
+             (putStrLn ("ERROR: Unable to start hat-observe.\n\
                         \Check settings and availability of hat-observe."))
         interactive n ps state
 doCommand (StartTool Trail) n ps state =
      do errcode <- system (hatTrail (filename state) (currentNode state))
         when (errcode/=ExitSuccess)
              (putStrLn "ERROR: Unable to start hat-trail.\n\
-	               \Check settings and availability of hat-trail.")
+                       \Check settings and availability of hat-trail.")
         interactive n ps state
 doCommand (StartTool Anim) n ps state =
      do errcode <- system (hatAnim (filename state) (currentNode state))
         when (errcode/=ExitSuccess)
              (putStrLn "ERROR: Unable to start hat-anim.\n\
-	               \Check settings and availability of hat-anim.")
+                       \Check settings and availability of hat-anim.")
         interactive n ps state
 ----
 doCommand (Source q) n ps state =
@@ -499,13 +499,13 @@ getCommand prompt = do
               | cmd `isPrefixOf` "quit" -> return Quit
               | cmd `isPrefixOf` "help" -> return (Help (unwords ss))
               | cmd `isPrefixOf` "observe" ->
-				return (StartTool (Observe (unwords ss)))
+                                return (StartTool (Observe (unwords ss)))
               | cmd `isPrefixOf` "trail"   ->
-				return (StartTool Trail)
+                                return (StartTool Trail)
               | cmd `isPrefixOf` "animate" ->
-				return (StartTool Anim)
+                                return (StartTool Anim)
               | cmd `isPrefixOf` "detect"  ->
-				return (number (StartTool . Detect) ss 0)
+                                return (number (StartTool . Detect) ss 0)
               | cmd `isPrefixOf` "trust"    -> return Trust
               | cmd `isPrefixOf` "untrust"  -> return Untrust
               | cmd `isPrefixOf` "children" -> return Children

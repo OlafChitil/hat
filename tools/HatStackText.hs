@@ -1,9 +1,9 @@
-module Main where	-- HatStack main program
+module Main where       -- HatStack main program
 
 import LowLevel           (openHatFile,FileNode(..),nil,getParentNode
                           ,getErrorLoc,getErrorMessage
                           ,getSrcRef)
-import SrcRef		  (SrcRef(..),readSrcRef)
+import SrcRef             (SrcRef(..),readSrcRef)
 import SExp               (SExp(..),Label,fileNode2SExp,sExp2Doc,prune)
 import PrettyLibHighlight (Doc,pretty,nest,text,(<>),parens)
 import HighlightStyle     (getTerminalSize)

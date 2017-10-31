@@ -13,7 +13,7 @@ module HighlightStyle
   , enableScrollRegion, scrollUp, scrollDown
   , lineWrap
 
-  , getTerminalSize	-- :: IO (Int,Int)  (width,height)
+  , getTerminalSize     -- :: IO (Int,Int)  (width,height)
   , hasEscapes
   ) where
 

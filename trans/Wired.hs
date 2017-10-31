@@ -1,6 +1,6 @@
 module Wired where
 
-import Language.Haskell.Exts.Annotated 
+import Language.Haskell.Exts
 import Data.Maybe (fromMaybe)
 import Data.List (stripPrefix)
 

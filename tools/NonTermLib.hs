@@ -80,46 +80,46 @@ getNodeChildren n = remove n (map (getImmediateExpArg n) [0..arity])
   where arity = getExpArity n
 
 foreign import ccall "nontermutils.h"
-	getImmediateExpArg :: FileNode -> Int -> FileNode
+        getImmediateExpArg :: FileNode -> Int -> FileNode
 foreign import ccall "nontermutils.h"
-	getExpArity   :: FileNode -> Int
+        getExpArity   :: FileNode -> Int
 foreign import ccall "nontermutils.h"
-	getRootNode :: FileNode
+        getRootNode :: FileNode
 foreign import ccall "nontermutils.h"
-	peekResultMod :: FileNode -> FileNode
+        peekResultMod :: FileNode -> FileNode
 foreign import ccall "nontermutils.h"
-	getResultHT :: FileNode -> Bool -> FileNode
+        getResultHT :: FileNode -> Bool -> FileNode
 foreign import ccall "nontermutils.h"
-	nextFileNode :: FileNode -> FileNode
+        nextFileNode :: FileNode -> FileNode
 
 
 -- Show the type of a node
-showNodeType node | node <= (FileNode 4)	= "special"
-                | ntype == ExpApp		= "ExpApp"
-                | ntype == ExpValueApp		= "ExpValueApp"
-                | ntype == ExpValueUse		= "ExpValueUse"
-                | ntype == ExpConstUse		= "ExpConstUse"
-                | ntype == ExpConstDef		= "ExpConstDef"
-                | ntype == ExpGuard		= "ExpGuard"
-                | ntype == ExpCase		= "ExpCase"
-                | ntype == ExpIf		= "ExpIf"
-                | ntype == ExpForward		= "ExpForward"
-                | ntype == ExpProjection	= "ExpProjection"
-                | ntype == Module		= "Module"
-                | ntype == SrcPos		= "SrcPos"
-                | ntype == ExpChar		= "ExpChar"
-                | ntype == ExpInt 		= "ExpInt"
-                | ntype == ExpInteger		= "ExpInteger"
-                | ntype == ExpRat		= "ExpRat"
-                | ntype == ExpRational		= "ExpRational"
-                | ntype == ExpFloat		= "ExpFloat"
-                | ntype == ExpDouble		= "ExpDouble"
-                | ntype == ExpFieldUpdate	= "ExpFieldUpdate"
-                | ntype == ExpHidden		= "ExpHidden"
-                | ntype == ExpDoStmt		= "ExpDoStmt"
-                | ntype == AtomVariable		= "AtomVariable"
-                | ntype == AtomConstructor	= "AtomConstructor"
-                | ntype == AtomAbstract		= "AtomAbstract"
+showNodeType node | node <= (FileNode 4)        = "special"
+                | ntype == ExpApp               = "ExpApp"
+                | ntype == ExpValueApp          = "ExpValueApp"
+                | ntype == ExpValueUse          = "ExpValueUse"
+                | ntype == ExpConstUse          = "ExpConstUse"
+                | ntype == ExpConstDef          = "ExpConstDef"
+                | ntype == ExpGuard             = "ExpGuard"
+                | ntype == ExpCase              = "ExpCase"
+                | ntype == ExpIf                = "ExpIf"
+                | ntype == ExpForward           = "ExpForward"
+                | ntype == ExpProjection        = "ExpProjection"
+                | ntype == Module               = "Module"
+                | ntype == SrcPos               = "SrcPos"
+                | ntype == ExpChar              = "ExpChar"
+                | ntype == ExpInt               = "ExpInt"
+                | ntype == ExpInteger           = "ExpInteger"
+                | ntype == ExpRat               = "ExpRat"
+                | ntype == ExpRational          = "ExpRational"
+                | ntype == ExpFloat             = "ExpFloat"
+                | ntype == ExpDouble            = "ExpDouble"
+                | ntype == ExpFieldUpdate       = "ExpFieldUpdate"
+                | ntype == ExpHidden            = "ExpHidden"
+                | ntype == ExpDoStmt            = "ExpDoStmt"
+                | ntype == AtomVariable         = "AtomVariable"
+                | ntype == AtomConstructor      = "AtomConstructor"
+                | ntype == AtomAbstract         = "AtomAbstract"
   where ntype = nodeType node
 
 
@@ -151,27 +151,27 @@ getSExpNode sexp = snd (label sexp)
 
 -- The state datatype holds all of the configuration data for the tools
 data State = State
-	{ progname  :: String           -- program name
-	, file      :: FilePath		-- .hat filename
-	, width     :: Int		-- terminal screen size
-	, height    :: Int		-- terminal screen size
-	, strSugar  :: Bool		-- show strings with sugar?
-	, listSugar :: Bool		-- show lists with sugar?
-	, srcrefs   :: Bool		-- always show src references?
-	, showQual  :: Bool		-- show identifiers qualified?
-	, cutoff    :: Int		-- expression cutoff depth
-	, numFn     :: Int              -- how many instances of fn
-	, showRoot  :: Bool             -- cut off the head of the trail?
-	, showNode  :: Bool             -- show the trail nodes?
-	, showSrcRef:: Bool		-- show source ref?
-	, showCount :: Bool		-- show number of nodes visited
-	}
+        { progname  :: String           -- program name
+        , file      :: FilePath         -- .hat filename
+        , width     :: Int              -- terminal screen size
+        , height    :: Int              -- terminal screen size
+        , strSugar  :: Bool             -- show strings with sugar?
+        , listSugar :: Bool             -- show lists with sugar?
+        , srcrefs   :: Bool             -- always show src references?
+        , showQual  :: Bool             -- show identifiers qualified?
+        , cutoff    :: Int              -- expression cutoff depth
+        , numFn     :: Int              -- how many instances of fn
+        , showRoot  :: Bool             -- cut off the head of the trail?
+        , showNode  :: Bool             -- show the trail nodes?
+        , showSrcRef:: Bool             -- show source ref?
+        , showCount :: Bool             -- show number of nodes visited
+        }
 
 -- the emptyState function gives a state with all the defaults set
 emptyState :: State
 emptyState = State { strSugar=True, listSugar=True, srcrefs=True
                     ,showQual=False, cutoff=10, numFn=3, showRoot=False
-		    ,showNode=False,showSrcRef=False,showCount=False
+                    ,showNode=False,showSrcRef=False,showCount=False
                     ,progname="", file="", width=80, height=25}
 
 -- set state options from a list of command-line arguments
@@ -182,13 +182,13 @@ setOptions (_:args) = setOpt args
     setOpt (x:xs) | "--showqual" `isPrefixOf` x = state {showQual = bool}
                   | "--cutoff" `isPrefixOf` x   = state {cutoff = num}
                   | "--numfn" `isPrefixOf` x    = state {numFn = num}
-		  | "--showrt" `isPrefixOf` x   = state {showRoot = bool}
-		  | "--shownode" `isPrefixOf` x = state {showNode = bool}
-		  | "--srcref" `isPrefixOf` x   = state {showSrcRef = bool}
-		  | "--showcount" `isPrefixOf` x = state {showCount = bool}
+                  | "--showrt" `isPrefixOf` x   = state {showRoot = bool}
+                  | "--shownode" `isPrefixOf` x = state {showNode = bool}
+                  | "--srcref" `isPrefixOf` x   = state {showSrcRef = bool}
+                  | "--showcount" `isPrefixOf` x = state {showCount = bool}
                   | otherwise                   = setOpt xs
       where bool = if (val /= [] && ((head val) == 'f' || (head val) == 'F')) 
-		    then False else True
+                    then False else True
             num = decimalStringToInt val
             val = breakAfter ('='==) x
             state = setOpt xs
@@ -220,7 +220,7 @@ showSctx state ctx@(node:_) | (showSrcRef state) = str ++ srcref
     -- create a source reference string
     srcref | line == 0 && col == 0 = " " ++ (showNodeType (snd (label root))) ++ " (no ref)"
            | otherwise             = " (L" ++ (show col) 
-	                              ++ ",C" ++ (show line) ++ ")"
+                                      ++ ",C" ++ (show line) ++ ")"
       where sr   = readSrcRef (expSrcRef root)
             line = SrcRef.line sr
             col  = SrcRef.column sr
@@ -297,15 +297,15 @@ fileNode2SExpMod cutoff uneval strings toplevelLHS label =
   case go cutoff uneval strings toplevelLHS [] label of (e,_,_) -> e  
   where
   simple e = (e,[],[])
-  go :: Int			-- cutoff depth
-       -> Bool			-- show unevaluated args in full?
-       -> Bool			-- sugar character strings?
-       -> Bool			-- top-level LHS? (implies uneval to one level)
-       -> [(FileNode,String)]	-- enclosing nodes w/ variable name for `where'
-       -> Label 		-- root node of expression
-       -> ( SExp Label		-- expression 
-          , [FileNode]		-- nodes that start cycle
-          , [String] )		-- variable names occurring (except for cycles)
+  go :: Int                     -- cutoff depth
+       -> Bool                  -- show unevaluated args in full?
+       -> Bool                  -- sugar character strings?
+       -> Bool                  -- top-level LHS? (implies uneval to one level)
+       -> [(FileNode,String)]   -- enclosing nodes w/ variable name for `where'
+       -> Label                 -- root node of expression
+       -> ( SExp Label          -- expression 
+          , [FileNode]          -- nodes that start cycle
+          , [String] )          -- variable names occurring (except for cycles)
   go 0     uneval strings top nodesAbove label = simple (SCut label)
   go depth uneval strings top nodesAbove label@(lab,node) =
     if      node == LowLevel.nil then simple $ SUnevaluated label
@@ -359,9 +359,9 @@ fileNode2SExpMod cutoff uneval strings toplevelLHS label =
             lbl c n = (c:lab, n)
             -- To do strings right, need to peek one level inside a cons.
             z1 = go 1 uneval strings False newNodesAbove
-                 ('1':lab, subExps!!1)	-- only used in string cutoff case
+                 ('1':lab, subExps!!1)  -- only used in string cutoff case
             z2 = go 3 uneval strings False newNodesAbove
-                 ('2':lab, subExps!!2)	-- only used in string cutoff case
+                 ('2':lab, subExps!!2)  -- only used in string cutoff case
 
             sexp = case fun of
               -- convert the representation of constructors with fields
@@ -377,7 +377,7 @@ fileNode2SExpMod cutoff uneval strings toplevelLHS label =
                                     -> SString label (init (tail c)) False
                       SString _ s d -> SString label (init (tail c)++s) d
                       _             -> SApp label (fun:args)
-                  SCut _ ->	-- peek beyond the cut
+                  SCut _ ->     -- peek beyond the cut
                     case fst3 z1 of
                       SLiteral _ c | not (null c) && head c == '\'' ->
                         case fst3 z2 of
@@ -524,7 +524,7 @@ decimalStringToInt' [] acc = acc
 decimalStringToInt' (d:digits) acc 
   | d >= '0' && d <= '9' 
                 = decimalStringToInt' digits ((10 * acc) + (ord d - ord '0'))
-  | otherwise	= -1
+  | otherwise   = -1
 
 
 -- cut everything up to and including whatever matches condition f

@@ -34,15 +34,15 @@ data Flags = FF
   ,sSrcDir     :: String
 
 --v Flags to control compilation
-  ,sPrelude    :: Bool	-- keep prelude defns in interface file
+  ,sPrelude    :: Bool  -- keep prelude defns in interface file
 
 --v Flags to control compilation for tracing
-  ,sDbgTrusted :: Bool	-- trust this module
-  ,sWrap       :: Bool	-- wrap original defns rather than transforming
+  ,sDbgTrusted :: Bool  -- trust this module
+  ,sWrap       :: Bool  -- wrap original defns rather than transforming
 
 --v debugging flags - show program / import tables (after each compiler phase)
-  ,sParse      :: Bool	-- ast		after parsing
-  ,sIBound     :: Bool	-- environment
+  ,sParse      :: Bool  -- ast          after parsing
+  ,sIBound     :: Bool  -- environment
   ,sFixities   :: Bool  -- fixity declarations in top-level scope
 
 --v pretty-printing flags
@@ -107,13 +107,13 @@ defaultFlags sourcefile = flags
   where
   (rootdir,filename) = splitFileName sourcefile
   flags = FF
-    {sSourceFile = sourcefile	-- original name 
+    {sSourceFile = sourcefile   -- original name 
     ,sHatAuxFile = rootdir </> replaceExtension filename "hx"
     ,sHatTransFile = rootdir </> "Hat" </> replaceExtension filename "hs"
     ,sIncludes = []
     ,sPreludes = []
     ,sSrcDir   = rootdir </> "Hat"  -- directory for transformed sources
-    ,sPrelude = False		
+    ,sPrelude = False           
     ,sDbgTrusted = False
     ,sWrap       = False
     ,sParse  = False

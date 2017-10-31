@@ -52,15 +52,15 @@ main =
       | otherwise                 = putStrLn ("suspicious function is " 
                                        ++ getFuncName targetfunc 
                                        ++ " in module " 
-				       ++ getFuncModule targetfunc)
+                                       ++ getFuncModule targetfunc)
 
     -- show the non-termination path, if one can be found
     showPath state 
         | funcpath == []   = do putStrLn ("hat-nonterm: no path found") 
                                 exitWith (ExitFailure 1)
         | (showNode state) = do mapIO putStrLn
-	                          (inter (map (showSctx state) funcpath) 
-	    		                 (map show funcpath) )
+                                  (inter (map (showSctx state) funcpath) 
+                                         (map show funcpath) )
         | otherwise        = do mapIO (putStrLn . showSctx state ) funcpath 
       where funcpath = nAppSearch state getRootNode targetfunc
 
@@ -71,8 +71,8 @@ main =
     checkError :: String -> IO ()
     checkError msg | msg `isPrefixOf` "Interrupted (^C)"= return ()
                    | otherwise = 
-		      do hPutStrLn stderr ("hat-nonterm: not interrupted") 
-		         exitWith (ExitFailure 1)
+                      do hPutStrLn stderr ("hat-nonterm: not interrupted") 
+                         exitWith (ExitFailure 1)
 
     checkHelp args | member "--help" args = do showHelp
                                                exitWith ExitSuccess
@@ -81,15 +81,15 @@ main =
     getHatName args = 
        case args of (f:_) -> return f
                     _     -> do hPutStrLn stderr ("hat-nonterm: no trace file")
-		                showHelpShort
+                                showHelpShort
                                 exitWith (ExitFailure 1)
 
     showHelpShort = do putStrLn "Usage: hat-nonterm [PROG] [OPTIONS]..."
     showHelp = 
       do showHelpShort
          putStrLn "  --showqual={t,f}     Show function module names"
-	 putStrLn "  --showrt={t,f}       Show all nodes from the root node"
-	 putStrLn "  --srcref={t,f}       Show source references for nodes"
+         putStrLn "  --showrt={t,f}       Show all nodes from the root node"
+         putStrLn "  --srcref={t,f}       Show source references for nodes"
          putStrLn "  --cutoff=<int>       Cutoff expression at depth <int>"
          putStrLn "  --numfn=<int>        Show <int> instances of the function" 
 
@@ -138,7 +138,7 @@ nAppSearchAux curr@(currnode:stack) n func path
     nodepeek = peekResultMod (getResultHT currnode True)
     nodeistarget = (nodeType currnode) == ExpApp 
                     && (getFuncPtr currnode) == func 
-		    && nodepeek == interrupted
+                    && nodepeek == interrupted
     
     -- call the function on the node result, remembering to decrement the 
     -- counter if the current node is an call to the target function
@@ -157,38 +157,38 @@ nAppSearchAux curr@(currnode:stack) n func path
         | otherwise                          = searchChildren rest
       where 
         chfunc = getFuncPtr ch
-	chsctx = (ch:currnode:stack)
+        chsctx = (ch:currnode:stack)
         childpathapp = nAppSearchAux chsctx (n-1) func path 
-	childpathnoapp = nAppSearchAux chsctx n func path 
+        childpathnoapp = nAppSearchAux chsctx n func path 
 
 
 -- Check if its ok to keep following this node path
-haltAtNode node | node <= (FileNode 4)		= True
-                | ntype == ExpApp		= False
-                | ntype == ExpValueApp		= False
-                | ntype == ExpValueUse		= False
-                | ntype == ExpConstUse		= False
-                | ntype == ExpConstDef		= False
-                | ntype == ExpGuard		= False
-                | ntype == ExpCase		= False
-                | ntype == ExpIf		= False
-                | ntype == ExpForward		= False
-                | ntype == ExpProjection	= False
-                | ntype == Module		= True
-                | ntype == SrcPos		= True
-                | ntype == ExpChar		= True
-                | ntype == ExpInt 		= True
-                | ntype == ExpInteger		= True
-                | ntype == ExpRat		= True
-                | ntype == ExpRational		= True
-                | ntype == ExpFloat		= True
-                | ntype == ExpDouble		= True
-                | ntype == ExpFieldUpdate	= True
-                | ntype == ExpHidden		= True
-                | ntype == ExpDoStmt		= True
-                | ntype == AtomVariable		= True
-                | ntype == AtomConstructor	= True
-                | ntype == AtomAbstract		= True
+haltAtNode node | node <= (FileNode 4)          = True
+                | ntype == ExpApp               = False
+                | ntype == ExpValueApp          = False
+                | ntype == ExpValueUse          = False
+                | ntype == ExpConstUse          = False
+                | ntype == ExpConstDef          = False
+                | ntype == ExpGuard             = False
+                | ntype == ExpCase              = False
+                | ntype == ExpIf                = False
+                | ntype == ExpForward           = False
+                | ntype == ExpProjection        = False
+                | ntype == Module               = True
+                | ntype == SrcPos               = True
+                | ntype == ExpChar              = True
+                | ntype == ExpInt               = True
+                | ntype == ExpInteger           = True
+                | ntype == ExpRat               = True
+                | ntype == ExpRational          = True
+                | ntype == ExpFloat             = True
+                | ntype == ExpDouble            = True
+                | ntype == ExpFieldUpdate       = True
+                | ntype == ExpHidden            = True
+                | ntype == ExpDoStmt            = True
+                | ntype == AtomVariable         = True
+                | ntype == AtomConstructor      = True
+                | ntype == AtomAbstract         = True
   where ntype = nodeType node
 
 
@@ -212,7 +212,7 @@ greatestDist startnode = func
         maxdist (fn1, s1, e1) (fn2, s2, e2)
           | (fnDist s1 e1) >= (fnDist s2 e2) = (fn1, s1, e1) 
           | otherwise                       = (fn2, s2, e2)
-	
+        
 
 -- This function builds a list of functions that were interrupted,
 -- along with pointers to their first and last applications It scans
