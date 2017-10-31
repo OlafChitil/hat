@@ -8,13 +8,16 @@ import System.Process (system)
 import System.Exit (ExitCode(..), exitFailure)
 import Data.List (nub, partition, isPrefixOf, intersperse, concat)
 import Data.Char (isSpace)
+import Data.Maybe (fromJust)
 import System.Directory (doesFileExist, findExecutable)
 import Control.Monad (when)
 
 
 main = do x <- getArgs
-          Just hatPath <- findExecutable "hat-make"
-          let hatFolder = dropFilename hatPath
+          hatPath <- findExecutable "hat-make"
+          when (hatPath == Nothing) $ do
+            error("Cannot find hat-make in system path. Aborting!")
+          let hatFolder = dropFilename (fromJust hatPath)
           when (null x) (error "Please give the name of the file to hat-make on the command line")
           let opts = init x
           let optStr = concat (intersperse " " opts)
