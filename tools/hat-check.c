@@ -486,7 +486,7 @@ readfixpri (void)
     sprintf(fixpribuf, " infixl %d,", b/4);
     break;
   case 3:
-    sprintf(fixpribuf, "");
+    sprintf(fixpribuf, "%s", "");
     break;
   }
   return fixpribuf;
@@ -594,7 +594,8 @@ void
 header (void)
 {
   char s[9];
-  fread(s,sizeof(char),8,f); s[8]='\0';
+  if (fread(s,sizeof(char),8,f) != 8) {fprintf (stderr,"No header.\n"); exit(1);}
+  s[8]='\0';
   nextoffset = 8;
   if (amode) printf("%s", s);
   if (amode) printf("\nEntry point: ");
@@ -913,7 +914,8 @@ void
 markfromheader (uint32_t *buf)
 {
   fseek(f,8L,SEEK_SET);
-  fread(buf,sizeof(uint32_t),2,f);
+  if (fread(buf,sizeof(uint32_t),2,f) != 2)
+    { fprintf(stderr, "markfromheader: reading 2 32ints failed.\n"); exit(1);}
   markfrom(getpointer(buf+1),buf+1);
   markfrom(getpointer(buf),  buf);
 }
@@ -944,7 +946,8 @@ markfrom (uint32_t root, uint32_t *buf)
      * If it is not marked, then mark it now.
      */
     fseek(f,root,SEEK_SET);
-    fread(&tag,sizeof(char),1,f);
+    if (fread(&tag,sizeof(char),1,f) != 1)
+      { fprintf(stderr, "markfrom: reading character failed.\n"); exit(1);}
     if (ismarked(tag)) return;
     marktag(&tag);
     fseek(f,root,SEEK_SET);
@@ -966,7 +969,8 @@ markfrom (uint32_t root, uint32_t *buf)
       }
       switch (k) {
         case ListCons:
-          fread(buf,sizeof(uint32_t),2,f);	/* two pointers */
+          if (fread(buf,sizeof(uint32_t),2,f) != 2)	/* two pointers */
+	    { fprintf(stderr, "markfrom: reading two pointers failed.\n"); exit(1);}
           markfrom(getpointer(buf+1),buf+1);
           markfrom(getpointer(buf),buf);
 	  break;
@@ -976,41 +980,51 @@ markfrom (uint32_t root, uint32_t *buf)
         case SrcPos:
         case AtomVariable:
         case AtomConstructor: 	/* ignore fieldnames for now */
-          fread(buf,sizeof(uint32_t),1,f);	/* points to module mode */
+          if (fread(buf,sizeof(uint32_t),1,f) != 1)	/* points to module mode */
+	    { fprintf(stderr, "markfrom: reading a pointer failed.\n"); exit(1);}
           markfrom(getpointer(buf),buf);
           break;
 
         default: {
           int pos = 0;
           if (hasSrcPos(tag)) {
-            fread(buf+pos,sizeof(uint32_t),1,f);
+            if (fread(buf+pos,sizeof(uint32_t),1,f) != 1)
+	      { fprintf(stderr, "markfrom: reading a pointer failed.\n"); exit(1);}
             pos++;
           }
-          fread(buf+pos,sizeof(uint32_t),1,f);	/* parent pointer */
+          if (fread(buf+pos,sizeof(uint32_t),1,f) != 1)	/* parent pointer */
+	    { fprintf(stderr, "markfrom: reading parent pointer failed.\n"); exit(1);}
           pos++;
           switch (k) {
             case ExpApp:
-              fread(buf+pos,sizeof(uint32_t),2,f); /* result+fun */
+              if (fread(buf+pos,sizeof(uint32_t),2,f) != 1) /* result+fun */
+		{ fprintf(stderr, "markfrom: reading result+fun failed.\n"); exit(1);}
               pos += 2;
               { unsigned char arity;
-                fread(&arity,sizeof(unsigned char),1,f);
-                fread(buf+pos,sizeof(uint32_t),(unsigned int)arity,f);
+                if (fread(&arity,sizeof(unsigned char),1,f) != 1)
+		  { fprintf(stderr, "markfrom: reading character failed.\n"); exit(1);}
+                if (fread(buf+pos,sizeof(uint32_t),(unsigned int)arity,f) != arity)
+		  { fprintf(stderr, "markfrom: reading arguments failed.\n"); exit(1);}
                 pos += (int)arity;
               }
 	      break;
             case ExpValueApp:
-              fread(buf+pos,sizeof(uint32_t),1,f); /* fun */
+              if (fread(buf+pos,sizeof(uint32_t),1,f) != 1) /* fun */
+		{ fprintf(stderr, "markfrom: reading fun failed.\n"); exit(1);}
               pos += 1;
               { unsigned char arity;
-                fread(&arity,sizeof(unsigned char),1,f);
-                fread(buf+pos,sizeof(uint32_t),(unsigned int)arity,f);
+                if (fread(&arity,sizeof(unsigned char),1,f) != 1)
+		  { fprintf(stderr, "markfrom: reading arity failed.\n"); exit(1);}
+                if (fread(buf+pos,sizeof(uint32_t),(unsigned int)arity,f) != arity)
+		  { fprintf(stderr, "markfrom: reading arguments failed.\n"); exit(1);}
                 pos += (int)arity;
               }
 	      break;
             case ExpValueUse:
             case ExpConstUse:
             case ExpProjection:
-              fread(buf+pos,sizeof(uint32_t),1,f);	/* one extra pointer */
+	      if (fread(buf+pos,sizeof(uint32_t),1,f) != 1)	/* one extra pointer */
+		{ fprintf(stderr, "markfrom: reading pointer failed.\n"); exit(1);}
               pos++;
 	      break;
             case ExpHidden:
@@ -1019,7 +1033,8 @@ markfrom (uint32_t root, uint32_t *buf)
             case ExpGuard:
             case ExpCase:
             case ExpIf:
-              fread(buf+pos,sizeof(uint32_t),2,f);	/* two pointers */
+	      if (fread(buf+pos,sizeof(uint32_t),2,f) != 2)	/* two pointers */
+		{ fprintf(stderr, "markfrom: reading two pointers failed.\n"); exit(1);}
               pos+=2;
 	      break;
             default: break;				/* no pointers */

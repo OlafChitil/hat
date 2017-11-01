@@ -88,6 +88,16 @@ sizeFile (char* base, char* ext)
   return buf.st_size;
 }
 
+/* myfread() is just like fread(), except if it fails reading everything, it
+ * aborts with an error message.
+ */
+void myfread(void* buf, int siz, int num, FILE* stream)
+{
+  if (fread(buf,siz,num,stream) != num) {
+    fprintf(stderr, "fread failed.\n");
+    exit(1);
+  }
+}
 
 /* freadAt() is just like fread(), except it seeks to a specific
  * file location first.  (Random Access)
@@ -140,7 +150,7 @@ FileOffset
 readFO (void)
 {
   FileOffset fo;
-  fread(&fo,sizeof(FileOffset),1,HatFileRandom);
+  myfread(&fo,sizeof(FileOffset),1,HatFileRandom);
   HIDE(fprintf(stderr,"readFO -> 0x%x\n",ntohl(fo));)
   return ntohl(fo);
 }
@@ -282,10 +292,10 @@ readAtomAt (FileOffset fo)
       case AtomConstructor:
           id = (Ident*)malloc(sizeof(Ident));
           modpos = readFO();
-          fread(&defnpos,sizeof(int),1,HatFileRandom);
-          fread(&defnposend,sizeof(int),1,HatFileRandom);
-          fread(&(id->fixity),sizeof(char),1,HatFileRandom);
-          fread(&(id->arity),sizeof(char),1,HatFileRandom);
+          myfread(&defnpos,sizeof(int),1,HatFileRandom);
+          myfread(&defnposend,sizeof(int),1,HatFileRandom);
+          myfread(&(id->fixity),sizeof(char),1,HatFileRandom);
+          myfread(&(id->arity),sizeof(char),1,HatFileRandom);
           id->idname       = readString();
           id->defnline     = ntohl(defnpos)/10000;
           id->defncolumn   = ntohl(defnpos)%10000;
@@ -353,9 +363,9 @@ readSRAt (FileOffset fo)
     }
     sr = (SrcRef*)malloc(sizeof(SrcRef));
     modpos = readFO();
-    fread(&usepos,sizeof(int),1,HatFileRandom);
+    myfread(&usepos,sizeof(int),1,HatFileRandom);
     usepos = ntohl(usepos);
-    fread(&useposend,sizeof(int),1,HatFileRandom);
+    myfread(&useposend,sizeof(int),1,HatFileRandom);
     useposend = ntohl(useposend);
     readModuleAt(modpos, &modname, &(sr->srcname), &dummy);
     sr->line    = usepos/10000;
@@ -415,7 +425,7 @@ readValueAt (FileOffset fo)
   parent = readFO();
   switch (lower5(c)) {
     case ExpChar:
-		{ fread(&c,sizeof(char),1,HatFileRandom);
+		{ myfread(&c,sizeof(char),1,HatFileRandom);
 		  if ((c>31) && (c!='\''))
 		    sprintf(buf,"'%c'",c);
 		  else switch(c) {
@@ -428,7 +438,7 @@ readValueAt (FileOffset fo)
 		} break;
     case ExpInt:
 		{ int i;
-		  fread(&i,sizeof(int),1,HatFileRandom);
+		  myfread(&i,sizeof(int),1,HatFileRandom);
 		  sprintf(buf,"%d",ntohl(i));
 		  id->idname = strdup(buf);
 		} break;
@@ -437,8 +447,8 @@ readValueAt (FileOffset fo)
 		} break;
     case ExpRat:
 		{ int i,j;
-		  fread(&i,sizeof(int),1,HatFileRandom);
-		  fread(&j,sizeof(int),1,HatFileRandom);
+		  myfread(&i,sizeof(int),1,HatFileRandom);
+		  myfread(&j,sizeof(int),1,HatFileRandom);
 		  sprintf(buf,"%d%%%d",ntohl(i),ntohl(j));
 		  id->idname = strdup(buf);
 		} break;
@@ -448,13 +458,13 @@ readValueAt (FileOffset fo)
 		} break;
     case ExpFloat:
 		{ float f;
-		  fread(&f,sizeof(float),1,HatFileRandom);
+		  myfread(&f,sizeof(float),1,HatFileRandom);
 		  sprintf(buf,"%.6f",f);
 		  id->idname = strdup(buf);
 		} break;
     case ExpDouble:
 		{ double d;
-		  fread(&d,sizeof(double),1,HatFileRandom);
+		  myfread(&d,sizeof(double),1,HatFileRandom);
 		  sprintf(buf,"%.15f",d);
 		  id->idname = strdup(buf);
 		} break;
@@ -662,7 +672,7 @@ readTraceAt (FileOffset fo, char** expr, SrcRef** sr, int* infix
           HIDE(fprintf(stderr,"enter parent of 0x%x -> 0x%x\n",fo,parent);)
           readFO();				/* skip result */
 	  foExprs[0] = readFO();		/* get fun */
-	  fread(&arity,sizeof(unsigned char),1,HatFileRandom);
+	  myfread(&arity,sizeof(unsigned char),1,HatFileRandom);
 	  for (i=1; i<=arity; i++) {
 	    foExprs[i] = readFO();
           }
@@ -705,7 +715,7 @@ readTraceAt (FileOffset fo, char** expr, SrcRef** sr, int* infix
           parent = readFO();			/* get parent */
           HIDE(fprintf(stderr,"enter parent of 0x%x -> 0x%x\n",fo,parent);)
 	  foExprs[0] = readFO();		/* get fun */
-	  fread(&arity,sizeof(unsigned char),1,HatFileRandom);
+	  myfread(&arity,sizeof(unsigned char),1,HatFileRandom);
 	  for (i=1; i<=arity; i++) {
 	    foExprs[i] = readFO();
           }
@@ -1203,23 +1213,23 @@ getExpArity (FileOffset fo)
         readFO();				/* skip parent */
         readFO();				/* skip result */
         readFO();				/* skip fun/constructor */
-        fread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
+        myfread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
         return (int)(c);
         break;
     case ExpValueApp:
         if (hasSrcPos(c)) { readFO(); }		/* skip usage position */
         readFO();				/* skip parent */
         readFO();				/* skip constructor */
-        fread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
+        myfread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
         return (int)c;
         break;
     case AtomConstructor:			/* only interested in fields */
         if (!hasFields(c)) { return 0; }
         readFO();				/* skip module */
-        { int x; fread(&x,sizeof(int),1,HatFileRandom); }
-        { int x; fread(&x,sizeof(int),1,HatFileRandom); }
-        { char x; fread(&x,sizeof(char),1,HatFileRandom); }
-        { char arity; fread(&arity,sizeof(char),1,HatFileRandom);
+        { int x; myfread(&x,sizeof(int),1,HatFileRandom); }
+        { int x; myfread(&x,sizeof(int),1,HatFileRandom); }
+        { char x; myfread(&x,sizeof(char),1,HatFileRandom); }
+        { char arity; myfread(&arity,sizeof(char),1,HatFileRandom);
           return (int)arity; }
         break;
     case Module:
@@ -1273,7 +1283,7 @@ getExpArg (FileOffset fo, int n)
         readFO();				/* skip result */
         ptr = readFO();				/* fun/constructor */
         if (n==0) return getResult(ptr,True);
-        fread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
+        myfread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
         if (n<=c) {
           for (i=1; i<n; i++) readFO();		/* skip other args */
           ptr = readFO();			/* get n'th arg */
@@ -1286,7 +1296,7 @@ getExpArg (FileOffset fo, int n)
         readFO();				/* skip parent */
         ptr = readFO();				/* fun/constructor */
         if (n==0) return ptr;	/* no result-chain - fun is already an atom */
-        fread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
+        myfread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
         if (n<=c) {
           for (i=1; i<n; i++) readFO();		/* skip other args */
           ptr = readFO();			/* get n'th arg */
@@ -1322,7 +1332,7 @@ getExpArg (FileOffset fo, int n)
         readFO();				/* skip result */
         ptr = readFO();				/* exp/constructor */
         if (n==0) return getResult(ptr,True);
-        fread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
+        myfread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
         if (n<=c) {
           for (i=0; i<c; i++) readFO();		/* skip binder labels */
           for (i=1; i<n; i++) readFO();		/* skip other bindees */
@@ -1380,7 +1390,7 @@ peekExpArg (FileOffset fo, int n)
         readFO();				/* skip result */
         ptr = readFO();				/* fun/constructor */
         if (n==0) return ptr;
-        fread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
+        myfread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
         assert (n<=c);
         for (i=1; i<n; i++) readFO();		/* skip other args */
         ptr = readFO();		                /* get n'th arg */
@@ -1391,7 +1401,7 @@ peekExpArg (FileOffset fo, int n)
         readFO();				/* skip parent */
         ptr = readFO();				/* fun/constructor */
         if (n==0) return ptr;
-        fread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
+        myfread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
         assert (n<=c);
         for (i=1; i<n; i++) readFO();		/* skip other args */
         ptr = readFO();			        /* get n'th arg */
@@ -1425,7 +1435,7 @@ peekExpArg (FileOffset fo, int n)
         readFO();				/* skip result */
         ptr = readFO();				/* exp/constructor */
         if (n==0) return ptr;
-        fread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
+        myfread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
         assert (n<=c);
         for (i=0; i<c; i++) readFO();		/* skip binder labels */
         for (i=1; i<n; i++) readFO();		/* skip other bindees */
@@ -1490,7 +1500,7 @@ getFieldLabel (FileOffset fo, int n)
         readFO();				/* skip parent */
         readFO();				/* skip result */
         readFO();				/* skip exp/constructor */
-        fread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
+        myfread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
         if (n<=c) {
           for (i=1; i<n; i++) readFO();		/* skip other labels */
           ptr = readFO();			/* get n'th label */
@@ -1507,10 +1517,10 @@ getFieldLabel (FileOffset fo, int n)
     case AtomConstructor:
         if (hasFields(c)) {
           readFO();				/* skip module ptr */
-          { int x; fread(&x,sizeof(int),1,HatFileRandom); }
-          { int x; fread(&x,sizeof(int),1,HatFileRandom); }
-          { char x; fread(&x,sizeof(char),1,HatFileRandom); }
-          { char arity; fread(&arity,sizeof(char),1,HatFileRandom);
+          { int x; myfread(&x,sizeof(int),1,HatFileRandom); }
+          { int x; myfread(&x,sizeof(int),1,HatFileRandom); }
+          { char x; myfread(&x,sizeof(char),1,HatFileRandom); }
+          { char arity; myfread(&arity,sizeof(char),1,HatFileRandom);
             readString();
             while (n--) readFO();
             ptr = readFO();
