@@ -17,7 +17,7 @@ description:
   Although it should build on any operating system,
   most viewing tools use ASCII console escape sequences and they open xterms;
   hence they will only work well under Unix and X11.
-  Tested on MacOS X 10.9.5.
+  Tested on MacOS X 10.11.6.
 
   Installation:
 
