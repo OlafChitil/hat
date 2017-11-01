@@ -41,8 +41,8 @@ Tree_new (cast key, cast value)
   t->key   = key;
   t->value = value;
   t->size  = 1;
-  t->left  = (cast)NULL;
-  t->right = (cast)NULL;
+  t->left  = NULL;
+  t->right = NULL;
   return t;
 }
 

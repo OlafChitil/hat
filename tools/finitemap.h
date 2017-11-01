@@ -7,7 +7,8 @@
 
 /* external API */
 typedef struct _FM* FiniteMap;
-typedef void* cast;
+/* old: typedef void* cast; */
+typedef uint32_t cast;
 typedef int  (*FMComparison) (cast a, cast b);
 typedef int  (*FMTraversal)  (cast key, cast value, cast dummy);
 typedef void (*FMFreeItem)   (cast key, cast value);
