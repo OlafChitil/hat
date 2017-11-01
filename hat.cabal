@@ -189,7 +189,7 @@ executable hat-nonterm
   main-is:	     HatNonTerm.hs
   hs-source-dirs:    tools
   other-modules:     LowLevel, SExp, PrettyLibHighlight, HighlightStyle, Run, NonTermLib, CommonUI, Ident, SrcRef
-  build-depends:     base >=4.9, process >=1.1
+  build-depends:     base >=4.9, process >=1.1, directory >= 1.0
   extensions:	     ForeignFunctionInterface
   includes:	     art.h, ntohl.h
   include-dirs:	     include
