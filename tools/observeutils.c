@@ -36,7 +36,7 @@ insert_mapAtom2Info (FileOffset atom, char* var, unsigned char arity)
   info->node  = atom;
   info->var   = var;
   info->arity = arity;
-  FM_insert(mapAtom2Info,(cast)atom,(cast)info);
+  FM_insert(mapAtom2Info,(cast)(uintptr_t)atom,(cast)info);
 }
 /* Insert into either mapExp2Atom or mapContext2Atom */
 void
@@ -44,13 +44,13 @@ insert_map2 (FiniteMap map2, FileOffset exp, FileOffset atom
             ,unsigned char arity)
 {
   Info *info = (Info*)0;
-  info = FM_lookup(mapAtom2Info,(cast)atom);
+  info = FM_lookup(mapAtom2Info,(cast)(uintptr_t)atom);
   if (info) {
     Atom *fun;
     fun = (Atom*)malloc(sizeof(Atom));
     fun->atom  = atom;
     fun->arity = info->arity - arity;
-    FM_insert(map2,(cast)exp,(cast)fun);
+    FM_insert(map2,(cast)(uintptr_t)exp,(cast)fun);
   }
 }
 /* free memory when no longer needed */
@@ -187,9 +187,9 @@ varSearch (void)
           for (i=0; i<size; i++) q_readFO();    /* skip args */
           /* First check if this is a possible caller context */
           if (o_context) {
-            atom = (Atom*)FM_lookup(mapContext2Atom,(cast)fun);
+            atom = (Atom*)FM_lookup(mapContext2Atom,(cast)(uintptr_t)fun);
             if (atom) {
-              it = (Info*)FM_lookup(mapAtom2Info,(cast)atom->atom);
+              it = (Info*)FM_lookup(mapAtom2Info,(cast)(uintptr_t)atom->atom);
               if (it && !strcmp(it->var,o_caller)) {
                 insert_map2(mapContext2Atom,node,atom->atom,size);
                 HIDE(fprintf(stderr,"App of %s (context) ",it->var);)
@@ -197,24 +197,24 @@ varSearch (void)
             }
           }
           /* Then check if we have found the right callee */
-          atom = (Atom*)FM_lookup(mapExp2Atom,(cast)fun);
+          atom = (Atom*)FM_lookup(mapExp2Atom,(cast)(uintptr_t)fun);
           if (atom) {
-            it = (Info*)FM_lookup(mapAtom2Info,(cast)atom->atom);
+            it = (Info*)FM_lookup(mapAtom2Info,(cast)(uintptr_t)atom->atom);
             if (it && !strcmp(it->var,o_callee)) {
               HIDE(fprintf(stderr,"App of %s (callee)",it->var);)
               if (size >= atom->arity) {  /* is not undersaturated */
                 if (!o_recursive) {  /* if excluding recursive calls */
                   insert_map2(mapContext2Atom,node,atom->atom,size);
-                  atom = (Atom*)FM_lookup(mapContext2Atom,(cast)parent);
+                  atom = (Atom*)FM_lookup(mapContext2Atom,(cast)(uintptr_t)parent);
                   if (atom) {
-                    it =(Info*)FM_lookup(mapAtom2Info,(cast)atom->atom);
+                    it =(Info*)FM_lookup(mapAtom2Info,(cast)(uintptr_t)atom->atom);
                     if (it && !strcmp(it->var,o_callee)) return 0;
                     else return node;
                   } else return node;
                 } else if (o_context) {	 /* if context matters */
-                  atom = (Atom*)FM_lookup(mapContext2Atom,(cast)parent);
+                  atom = (Atom*)FM_lookup(mapContext2Atom,(cast)(uintptr_t)parent);
                   if (atom) {
-                    it =(Info*)FM_lookup(mapAtom2Info,(cast)atom->atom);
+                    it =(Info*)FM_lookup(mapAtom2Info,(cast)(uintptr_t)atom->atom);
                     HIDE(fprintf(stderr,"(context is %s)",it->var);)
                     if (it && !strcmp(it->var,o_caller)) return node;
                   }
@@ -231,13 +231,13 @@ varSearch (void)
           fun = q_readFO();     /* fun ptr is an Atom ref */
           q_fread(&size,sizeof(unsigned char),1,HatFileSeq);    /* get arity */
           for (i=0; i<size; i++) q_readFO();    /* skip args */
-          it = (Info*)FM_lookup(mapAtom2Info,(cast)fun);
+          it = (Info*)FM_lookup(mapAtom2Info,(cast)(uintptr_t)fun);
           if (it && !strcmp(it->var,o_callee)) {
             if (size >= it->arity) {
               if (o_context) {	/* if context matters */
-                atom = (Atom*)FM_lookup(mapContext2Atom,(cast)parent);
+                atom = (Atom*)FM_lookup(mapContext2Atom,(cast)(uintptr_t)parent);
                 if (atom) {
-                  it =(Info*)FM_lookup(mapAtom2Info,(cast)atom->atom);
+                  it =(Info*)FM_lookup(mapAtom2Info,(cast)(uintptr_t)atom->atom);
                   HIDE(fprintf(stderr,"(context is %s)",it->var);)
                   if (it && !strcmp(it->var,o_caller)) return node;
                 }
@@ -272,9 +272,9 @@ varSearch (void)
           if ((atom==Lambda)||(atom==DoLambda)) {
             if (o_context || !o_recursive) {
               Atom *atom;	/* shadows outer scope */
-              atom = (Atom*)FM_lookup(mapContext2Atom,(cast)parent);
+              atom = (Atom*)FM_lookup(mapContext2Atom,(cast)(uintptr_t)parent);
               if (atom) {
-                it = (Info*)FM_lookup(mapAtom2Info,(cast)atom->atom);
+                it = (Info*)FM_lookup(mapAtom2Info,(cast)(uintptr_t)atom->atom);
                 if (it) {
                   if ( (!o_recursive && !strcmp(it->var,o_callee))
                      || (o_context && !strcmp(it->var,o_caller)) ) {
@@ -284,7 +284,7 @@ varSearch (void)
               }
             }
           } else {
-            it = (Info*)FM_lookup(mapAtom2Info,(cast)atom);
+            it = (Info*)FM_lookup(mapAtom2Info,(cast)(uintptr_t)atom);
             if (it) {
               if (!strcmp(it->var,o_callee)) {
                 insert_map2(mapExp2Atom,node,atom,0);
@@ -303,7 +303,7 @@ varSearch (void)
           q_readFO();		/* skip parent */
           result = q_readFO();	/* result might contain desired function */
           atom = q_readFO();	/* get atom */
-          it = (Info*)FM_lookup(mapAtom2Info,(cast)atom);
+          it = (Info*)FM_lookup(mapAtom2Info,(cast)(uintptr_t)atom);
           if (it) {
             HIDE(fprintf(stderr,"ConstDef %s",it->var);)
             if (!strcmp(it->var,o_callee))
@@ -322,16 +322,16 @@ varSearch (void)
         { FileOffset exp; Atom *def; Info *it;
           q_readFO();		/* skip parent */
           exp = q_readFO();	/* get ExpConstDef location */
-          def = (Atom*)FM_lookup(mapExp2Atom,(cast)exp);
+          def = (Atom*)FM_lookup(mapExp2Atom,(cast)(uintptr_t)exp);
           if (def) {
             insert_map2(mapExp2Atom,node,def->atom,def->arity);	// allows oversat apps
-            it = FM_lookup(mapAtom2Info,(cast)def->atom);
+            it = FM_lookup(mapAtom2Info,(cast)(uintptr_t)def->atom);
             HIDE(if (it) fprintf(stderr,"%s",it->var);)
             if (it && !strcmp(it->var,o_callee)) return node;
           } else {
-            def = (Atom*)FM_lookup(mapContext2Atom,(cast)exp);
+            def = (Atom*)FM_lookup(mapContext2Atom,(cast)(uintptr_t)exp);
             if (def) {
-              it = FM_lookup(mapAtom2Info,(cast)def->atom);
+              it = FM_lookup(mapAtom2Info,(cast)(uintptr_t)def->atom);
               if (it && !strcmp(it->var,o_caller))
                 insert_map2(mapContext2Atom,node,def->atom,def->arity);
             }
@@ -346,9 +346,9 @@ varSearch (void)
             parent = q_readFO();
             q_readFO();	/* skip result */
             q_readFO();	/* skip condition */
-            atom = (Atom*)FM_lookup(mapContext2Atom,(cast)parent);
+            atom = (Atom*)FM_lookup(mapContext2Atom,(cast)(uintptr_t)parent);
             if (atom) {
-              it = (Info*)FM_lookup(mapAtom2Info,(cast)atom->atom);
+              it = (Info*)FM_lookup(mapAtom2Info,(cast)(uintptr_t)atom->atom);
               if (it) {
                 if ( (!o_recursive && !strcmp(it->var,o_callee))
                    || (o_context && !strcmp(it->var,o_caller)) ) {
@@ -469,17 +469,17 @@ searchCAFResult (FileOffset caf, FileOffset value, unsigned char arity
           fread(&size,sizeof(unsigned char),1,HatFileRandom);	/* arity */
           if (fun < caf) {	/* fun already seen in linear scan */
             if (o_context) {
-              atom = (Atom*)FM_lookup(mapContext2Atom,(cast)fun);
+              atom = (Atom*)FM_lookup(mapContext2Atom,(cast)(uintptr_t)fun);
               if (atom) {
-                it = (Info*)FM_lookup(mapAtom2Info,(cast)atom->atom);
+                it = (Info*)FM_lookup(mapAtom2Info,(cast)(uintptr_t)atom->atom);
                 if (it && !strcmp(it->var,o_caller)) {
                   insert_map2(mapContext2Atom,caf,atom->atom,size);
                 }
               }
             }
-            atom = (Atom*)FM_lookup(mapExp2Atom,(cast)fun);
+            atom = (Atom*)FM_lookup(mapExp2Atom,(cast)(uintptr_t)fun);
             if (atom) {
-              it = (Info*)FM_lookup(mapAtom2Info,(cast)atom->atom);
+              it = (Info*)FM_lookup(mapAtom2Info,(cast)(uintptr_t)atom->atom);
               if (it && !strcmp(it->var,o_callee)
                      && ((size+arity)<atom->arity)) {
                 HIDE(fprintf(stderr,"searchCAF: STORING caf=0x%x var=%s, size=%d\n",caf,it->var,size);)
@@ -502,7 +502,7 @@ searchCAFResult (FileOffset caf, FileOffset value, unsigned char arity
           if (var==DoLambda) return;
           if (var < caf) {
             HIDE(fprintf(stderr,"searchCAF: var=0x%x < caf=0x%x\n",var,caf);)
-            it = (Info*)FM_lookup(mapAtom2Info,(cast)var);
+            it = (Info*)FM_lookup(mapAtom2Info,(cast)(uintptr_t)var);
             HIDE(if (it) fprintf(stderr,"searchCAF: var=%s\n",it->var);)
             if (it && !strcmp(it->var,o_callee) && (arity<it->arity)) {
               HIDE(fprintf(stderr,"searchCAF: STORING caf=0x%x var=%s, size=%d\n",caf,it->var,arity);)

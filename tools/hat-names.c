@@ -72,8 +72,8 @@ FiniteMap map1, map2 /*, globals=0, locals=0, constrs=0*/ ;
 void
 map1_insert (FileOffset node, char* id, idkind k, unsigned char arity)
 {
-  item *it = (item*)0;
-  it = FM_lookup(map1,(cast)node);
+  item *it = (item*)NULL;
+  it = FM_lookup(map1,(cast)(uintptr_t)node);
   if (!it) {
     it = (item*)malloc(sizeof(item));
     it->name  = id;
@@ -83,14 +83,14 @@ map1_insert (FileOffset node, char* id, idkind k, unsigned char arity)
     it->pending = 0;
     it->thunks  = 0;
     it->thispos = node;
-    FM_insert(map1,(cast)node,(cast)it);
+    FM_insert(map1,(cast)(uintptr_t)node,(cast)it);
   }
 }
 defn*
 map2_insert (FileOffset usage, FileOffset def, unsigned char ap)
 {
-  item *it = (item*)0;
-  it = FM_lookup(map1,(cast)def);
+  item *it = (item*)NULL;
+  it = FM_lookup(map1,(cast)(uintptr_t)def);
   if (it) {
     defn *fn;
     fn = (defn*)malloc(sizeof(defn));
@@ -99,7 +99,7 @@ map2_insert (FileOffset usage, FileOffset def, unsigned char ap)
     fn->next  = (defn*)0;
   //if (strcmp(it->name,">=")==0)
   //  fprintf(stderr,"map2: %s at 0x%x (%d)\n",it->name,usage,it->uses);
-    FM_insert(map2,(cast)usage,(cast)fn);
+    FM_insert(map2,(cast)(uintptr_t)usage,(cast)fn);
     return fn;
   } else return (defn*)0;
 }
@@ -333,10 +333,10 @@ q_oneNode (void)
           fun = q_readFO();	/* keep fun ptr */
           q_fread(&size,sizeof(unsigned char),1,HatFileSeq);	/* get arity */
           for (i=0; i<size; i++) q_readFO();	/* skip args */
-          def = (defn*)FM_lookup(map2,(cast)fun);
+          def = (defn*)FM_lookup(map2,(cast)(uintptr_t)fun);
           if (def) {
             defn *def2;
-            it = FM_lookup(map1,(cast)def->atom);
+            it = FM_lookup(map1,(cast)(uintptr_t)def->atom);
             if (it) {
               if (size>=def->arity) {
                 if (result==Entered) it->pending += 1;
@@ -348,7 +348,7 @@ q_oneNode (void)
               fprintf(stderr,"unknown atom in fun at (ExpApp 0x%x)\n",node);
             }
             if (def->next) {
-              it = FM_lookup(map1,(cast)def->next->atom);
+              it = FM_lookup(map1,(cast)(uintptr_t)def->next->atom);
               if (it) {
                 if (size>=def->next->arity) {
                   if (result==Entered) it->pending += 1;
@@ -376,7 +376,7 @@ q_oneNode (void)
           fun = q_readFO();	/* fun ptr is an Atom ref */
           q_fread(&size,sizeof(unsigned char),1,HatFileSeq);	/* get arity */
           for (i=0; i<size; i++) q_readFO();	/* skip args */
-          it = FM_lookup(map1,(cast)fun);
+          it = FM_lookup(map1,(cast)(uintptr_t)fun);
           if (it) {
             if (size>=it->arity) {
               it->uses += 1;
@@ -395,7 +395,7 @@ q_oneNode (void)
         { FileOffset atom; item *it;
           atom = q_readFO();	/* get atom */
           if ((atom!=Lambda)&&(atom!=DoLambda)) {
-            it = FM_lookup(map1,(cast)atom);
+            it = FM_lookup(map1,(cast)(uintptr_t)atom);
             if (it) {
               map2_insert(node,atom,0);
               if ((it->kind==Construct) && (it->arity==0)) it->uses+=1;
@@ -407,11 +407,11 @@ q_oneNode (void)
         q_readFO();		/* skip parent */
         { FileOffset exp; defn *def; item *it;
           exp = q_readFO();	/* get ExpConstDef location */
-          def = FM_lookup(map2,(cast)exp);
+          def = FM_lookup(map2,(cast)(uintptr_t)exp);
           if (def) {
             defn *def2;
             def2 = map2_insert(node,def->atom,0);
-            it = FM_lookup(map1,(cast)def->atom);
+            it = FM_lookup(map1,(cast)(uintptr_t)def->atom);
             if (it) it->uses+=1;
             else fprintf(stderr
                         ,"unknown atom in defn in (ExpConstUse 0x%x)\n",node);
@@ -425,7 +425,7 @@ q_oneNode (void)
           q_readFO();		/* skip parent */
           result = q_readFO();	/* result might be significant */
           atom = q_readFO();	/* get atom */
-          it = FM_lookup(map1,(cast)atom);
+          it = FM_lookup(map1,(cast)(uintptr_t)atom);
           if (it) def = map2_insert(node,atom,0);
           else fprintf(stderr,"unknown atom in (ExpConstDef 0x%x)\n",node);
           countCAFResult(node,result,def,0,0);
@@ -489,9 +489,9 @@ countCAFResult (FileOffset caf, FileOffset value, defn *def, unsigned char arity
           fun = readFO();
           fread(&size,sizeof(unsigned char),1,HatFileRandom);   /* arity */
           if (fun < caf) {      /* fun already seen in linear scan */
-            atom = (defn*)FM_lookup(map2,(cast)fun);
+            atom = (defn*)FM_lookup(map2,(cast)(uintptr_t)fun);
             if (atom) {
-              it = (item*)FM_lookup(map1,(cast)atom->atom);
+              it = (item*)FM_lookup(map1,(cast)(uintptr_t)atom->atom);
               if (it) {
                 defn *def2;
                 def2 = (defn*)malloc(sizeof(defn));
@@ -515,7 +515,7 @@ countCAFResult (FileOffset caf, FileOffset value, defn *def, unsigned char arity
           if ((var==Lambda)||(var==DoLambda)) return;
           if (var < caf) {
             HIDE(fprintf(stderr,"countCAF: var=0x%x < caf=0x%x\n",var,caf);)
-            it = (item*)FM_lookup(map1,(cast)var);
+            it = (item*)FM_lookup(map1,(cast)(uintptr_t)var);
             HIDE(if (it) fprintf(stderr,"countCAF: var=%s\n",it->name);)
             if (it && (arity<it->arity)) {
               defn *def2;
