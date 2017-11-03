@@ -456,7 +456,7 @@ searchCAFResult (FileOffset caf, FileOffset value, unsigned char arity
               ,caf,value,arity,mostRecentHidden);)
   if ((value<DoLambda) || (value==caf)) return;
   if (value==mostRecentHidden) return;
-  myfread(value,&c,sizeof(unsigned char),1,HatFileRandom);
+  freadAt(value,&c,sizeof(unsigned char),1,HatFileRandom);
   switch (lower5(c)) {  /* lower 5 bits identify the TraceType */
     case ExpApp:
         HIDE(fprintf(stderr,"searchCAF: found ExpApp\n");)
