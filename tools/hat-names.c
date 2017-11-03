@@ -487,7 +487,7 @@ countCAFResult (FileOffset caf, FileOffset value, defn *def, unsigned char arity
           readFO();	/* parent */
           result = readFO();
           fun = readFO();
-          fread(&size,sizeof(unsigned char),1,HatFileRandom);   /* arity */
+          myfread(&size,sizeof(unsigned char),1,HatFileRandom);   /* arity */
           if (fun < caf) {      /* fun already seen in linear scan */
             atom = (defn*)FM_lookup(map2,(cast)(uintptr_t)fun);
             if (atom) {
@@ -558,11 +558,11 @@ countCAFResult (FileOffset caf, FileOffset value, defn *def, unsigned char arity
         break;
     case AtomVariable:
         readFO();	/* skip module pointer */
-        { int x; fread(&x,sizeof(int),1,HatFileRandom);	} /* skip line/col */
-        { int x; fread(&x,sizeof(int),1,HatFileRandom);	} /* skip line/col */
-        { char x; fread(&x,sizeof(char),1,HatFileRandom); } /* skip fixity */
+        { int x; myfread(&x,sizeof(int),1,HatFileRandom);	} /* skip line/col */
+        { int x; myfread(&x,sizeof(int),1,HatFileRandom);	} /* skip line/col */
+        { char x; myfread(&x,sizeof(char),1,HatFileRandom); } /* skip fixity */
         { unsigned char size; char *id;
-          fread(&size,sizeof(unsigned char),1,HatFileRandom);
+          myfread(&size,sizeof(unsigned char),1,HatFileRandom);
           id = readString();
           HIDE(fprintf(stderr,"countCAF: found AtomVariable %s\n",id);)
           if (arity < size) {

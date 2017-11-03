@@ -195,7 +195,7 @@ getImmediateExpArg (FileOffset fo, int n)
         readFO();				/* skip result */
         ptr = readFO();				/* fun/constructor */
         if (n==0) return getResultRestricted(ptr);
-        fread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
+        myfread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
         if (n<=c) {
           for (i=1; i<n; i++) readFO();		/* skip other args */
           ptr = readFO();			/* get n'th arg */
@@ -208,7 +208,7 @@ getImmediateExpArg (FileOffset fo, int n)
         readFO();				/* skip parent */
         ptr = readFO();				/* fun/constructor */
         if (n==0) return ptr;	/* no result-chain - fun is already an atom */
-        fread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
+        myfread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
         if (n<=c) {
           for (i=1; i<n; i++) readFO();		/* skip other args */
           ptr = readFO();			/* get n'th arg */
@@ -244,7 +244,7 @@ getImmediateExpArg (FileOffset fo, int n)
         readFO();				/* skip result */
         ptr = readFO();				/* exp/constructor */
         if (n==0) return getResult(ptr,True);
-        fread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
+        myfread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
         if (n<=c) {
           for (i=0; i<c; i++) readFO();		/* skip binder labels */
           for (i=1; i<n; i++) readFO();		/* skip other bindees */

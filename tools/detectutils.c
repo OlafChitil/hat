@@ -170,7 +170,7 @@ anySuspect (FileOffset fo)
         if (hasSrcPos(c)) { readFO(); }		/* skip use position */
 	readFO(); readFO();			/* skip parent and result */
 	ptr[0] = readFO();			/* get fun */
-	fread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
+	myfread(&c,sizeof(char),1,HatFileRandom);	/* get arity */
 	for (i=1; i<=c; i++) ptr[i] = readFO();	/* get args */
 	if (anySuspect(ptr[0])) return True;
 	for (i=1; i<=c; i++) {

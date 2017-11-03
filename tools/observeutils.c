@@ -456,7 +456,7 @@ searchCAFResult (FileOffset caf, FileOffset value, unsigned char arity
               ,caf,value,arity,mostRecentHidden);)
   if ((value<DoLambda) || (value==caf)) return;
   if (value==mostRecentHidden) return;
-  freadAt(value,&c,sizeof(unsigned char),1,HatFileRandom);
+  myfreadAt(value,&c,sizeof(unsigned char),1,HatFileRandom);
   switch (lower5(c)) {  /* lower 5 bits identify the TraceType */
     case ExpApp:
         HIDE(fprintf(stderr,"searchCAF: found ExpApp\n");)
@@ -466,7 +466,7 @@ searchCAFResult (FileOffset caf, FileOffset value, unsigned char arity
           readFO();
           result = readFO();
           fun = readFO();
-          fread(&size,sizeof(unsigned char),1,HatFileRandom);	/* arity */
+          myfread(&size,sizeof(unsigned char),1,HatFileRandom);	/* arity */
           if (fun < caf) {	/* fun already seen in linear scan */
             if (o_context) {
               atom = (Atom*)FM_lookup(mapContext2Atom,(cast)(uintptr_t)fun);
@@ -540,12 +540,12 @@ searchCAFResult (FileOffset caf, FileOffset value, unsigned char arity
         break;
     case AtomVariable:
         readFO();	/* skip module pointer */
-        { int x; fread(&x,sizeof(int),1,HatFileRandom); }   /* skip line/col */
-        { int x; fread(&x,sizeof(int),1,HatFileRandom); }   /* skip line/col */
-        { char x; fread(&x,sizeof(char),1,HatFileRandom); } /* skip fixity */
+        { int x; myfread(&x,sizeof(int),1,HatFileRandom); }   /* skip line/col */
+        { int x; myfread(&x,sizeof(int),1,HatFileRandom); }   /* skip line/col */
+        { char x; myfread(&x,sizeof(char),1,HatFileRandom); } /* skip fixity */
         { unsigned char size;
           char *id;
-          fread(&size,sizeof(unsigned char),1,HatFileRandom);
+          myfread(&size,sizeof(unsigned char),1,HatFileRandom);
           id = readString();
           HIDE(fprintf(stderr,"searchCAF: found AtomVariable %s\n",id);)
           if (!strcmp(id,o_callee) && (arity<size)) {

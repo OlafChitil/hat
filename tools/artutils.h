@@ -42,6 +42,7 @@ typedef struct {
 void		finalise	(void);
 FILE*		openFile	(char* base, char* ext);
 int		sizeFile	(char* base, char* ext);
+void            myfread         (void* buf, int siz, int num, FILE* stream);
 int		freadAt		(FileOffset fo, void* ptr
 				,int size, int nmemb, FILE* stream);
 FileOffset	readFO		(void);
