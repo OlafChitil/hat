@@ -1,8 +1,7 @@
-{- ---------------------------------------------------------------------------
-This `main' function calls all passes of Hat.
-It parses the .hs source file, creates the .hx file, and
-then stops immediately after writing a new transformed .hs file.
--} 
+-- This `main' function calls all passes of Hat.
+-- It parses the .hs source file, creates the .hx file, and
+-- then stops immediately after writing a new transformed .hs file.
+
 module Main where
 
 import System.IO(hPutStr,stderr)
