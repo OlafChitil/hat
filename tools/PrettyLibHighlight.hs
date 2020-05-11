@@ -28,6 +28,7 @@ module PrettyLibHighlight
   , pretty,simple
   ) where
 
+import Prelude hiding ((<>))
 import HighlightStyle (highlightOn,highlightOff,Highlight(..))
 
 
