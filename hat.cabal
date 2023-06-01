@@ -123,7 +123,7 @@ executable hat-stack
 executable hat-explore
   main-is:           HatExplore.hs
   hs-source-dirs:    tools
-  other-modules:     Explore, CommonUI, HighlightStyle, LowLevel, Ident, SrcRef, SExp, Detect, NodeExp, Slice, ADT, Detect, PrettyLibHighlight
+  other-modules:     Explore, CommonUI, HighlightStyle, LowLevel, Ident, SrcRef, SExp, NodeExp, Slice, ADT, Detect, PrettyLibHighlight
   build-depends:     base >=4.9, process >=1.1
   extensions:	     ForeignFunctionInterface
   includes:	     art.h
